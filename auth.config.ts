@@ -1,0 +1,69 @@
+import type { NextAuthConfig } from "next-auth";
+
+// Edge-safe config: no Node.js modules (no bcrypt, no db).
+// Used by middleware for JWT session validation only.
+// Full auth logic (credentials + db) lives in auth.ts.
+export const authConfig: NextAuthConfig = {
+  session: { strategy: "jwt" },
+  pages: {
+    signIn: "/login",
+    error: "/login",
+  },
+  providers: [],
+  callbacks: {
+    authorized({ auth, request: { nextUrl } }) {
+      const isLoggedIn = !!auth?.user;
+      const { pathname } = nextUrl;
+      const isStaticAsset =
+        /\.(png|jpg|jpeg|gif|webp|svg|ico|css|js|map|txt|xml)$/i.test(pathname);
+
+      // Public routes — always allowed
+      if (
+        pathname === "/" ||
+        pathname.startsWith("/images") ||
+        pathname.startsWith("/public") ||
+        pathname.startsWith("/login") ||
+        pathname.startsWith("/forgot-password") ||
+        pathname.startsWith("/reset-password") ||
+        pathname.startsWith("/api/auth") ||
+        pathname.startsWith("/api/public") ||
+        pathname.startsWith("/_next") ||
+        pathname.startsWith("/favicon") ||
+        isStaticAsset
+      ) {
+        return true;
+      }
+
+      if (!isLoggedIn) return false;
+
+      // Role-based redirects (Section 5.4)
+      const role = (auth?.user as any)?.roleId as number;
+      if (role === 2 && pathname.startsWith("/verify"))
+        return Response.redirect(new URL("/officer/projects", nextUrl));
+      if (role === 1 && pathname.startsWith("/officer"))
+        return Response.redirect(new URL("/verify/projects", nextUrl));
+      if (role !== 3 && pathname.startsWith("/admin"))
+        return Response.redirect(new URL("/login", nextUrl));
+
+      return true;
+    },
+    jwt({ token, user }) {
+      if (user) {
+        token.id = user.id;
+        token.loginName = (user as any).loginName;
+        token.roleId = (user as any).roleId;
+        token.secId = (user as any).secId;
+      }
+      return token;
+    },
+    session({ session, token }) {
+      if (session.user) {
+        session.user.id = token.id as string;
+        (session.user as any).loginName = token.loginName;
+        (session.user as any).roleId = token.roleId;
+        (session.user as any).secId = token.secId;
+      }
+      return session;
+    },
+  },
+};

@@ -1,0 +1,212 @@
+import { NextRequest, NextResponse } from 'next/server';
+import { sql } from 'drizzle-orm';
+import { z } from 'zod';
+import {
+  isAdminSession,
+  requireAdminSession,
+} from '@/lib/auth/admin-session';
+import { db } from '@/lib/db/client';
+import { getProject } from '@/lib/db/queries/admin';
+import { writeAudit } from '@/lib/audit/writeAudit';
+import { AUDIT_ACTIONS } from '@/lib/db/schema/audit';
+
+export const runtime = 'nodejs';
+
+// ---------------------------------------------------------------------------
+// GET — single project (used by /admin/projects/[id]/edit)
+// ---------------------------------------------------------------------------
+export async function GET(
+  _req: NextRequest,
+  { params }: { params: Promise<{ id: string }> },
+) {
+  const sessionOrResponse = await requireAdminSession();
+  if (!isAdminSession(sessionOrResponse)) return sessionOrResponse;
+
+  const { id } = await params;
+  const projectId = Number(id);
+  if (!Number.isFinite(projectId)) {
+    return NextResponse.json({ error: 'Invalid id' }, { status: 400 });
+  }
+
+  try {
+    const row = (await getProject(projectId)) as unknown as
+      | Record<string, unknown>
+      | null;
+    if (!row) {
+      return NextResponse.json({ error: 'Not found' }, { status: 404 });
+    }
+
+    // Fetch all linked secretaries for this project.
+    const secResult = await db.execute(sql`
+      SELECT ps.sec_id, ms.secretary_name
+      FROM hdp.project_secretary ps
+      LEFT JOIN hdp.master_secretary ms ON ps.sec_id = ms.sec_id
+      WHERE ps.project_id = ${projectId}
+      ORDER BY ms.secretary_name ASC
+    `);
+    const secIds = secResult.rows.map((r) =>
+      Number((r as { sec_id: number | string }).sec_id),
+    );
+    const secretaryNames = secResult.rows
+      .map((r) => (r as { secretary_name: string | null }).secretary_name)
+      .filter((n): n is string => !!n);
+
+    return NextResponse.json({
+      project: {
+        projectId: Number(row.project_id),
+        projectCode: row.project_code ?? null,
+        projectName: row.project_name ?? '',
+        projectNameMal: row.project_name_mal ?? '',
+        description: row.description ?? '',
+        projectCost: row.project_cost ? Number(row.project_cost) : 0,
+        sectorId: row.sector_id ?? null,
+        natureOfProject: row.nature_of_project ?? null,
+        priority: row.priority ?? null,
+        isCompleted: row.is_completed ?? 0,
+        stage: row.stage ?? 1,
+        completionDate: row.completion_date ?? null,
+        noDaysEmployedDirect: row.no_days_employed_direct ?? 0,
+        noPersonsEmployedDirect: row.no_persons_employed_direct ?? 0,
+        noDaysEmployedIndirect: row.no_days_employed_indirect ?? 0,
+        noPersonsEmployedIndirect: row.no_persons_employed_indirect ?? 0,
+        secIds,
+        secretaryNames,
+      },
+    });
+  } catch (err) {
+    console.error('GET /api/admin/projects/[id] failed', err);
+    return NextResponse.json(
+      { error: 'Failed to load project' },
+      { status: 500 },
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// PATCH — update a project
+// ---------------------------------------------------------------------------
+const updateSchema = z.object({
+  project_name: z.string().min(3).max(500),
+  description: z.string().min(1),
+  is_new: z.coerce.number().int().min(0).max(1).default(1),
+  project_cost: z.coerce.number().min(0).optional().nullable(),
+  nature_of_project: z.coerce.number().int().min(1).max(2).optional().nullable(),
+  priority: z.coerce.number().int().min(1).max(3).optional().nullable(),
+  project_execution_type: z.coerce
+    .number()
+    .int()
+    .min(1)
+    .max(2)
+    .optional()
+    .nullable(),
+  is_completed: z.coerce.number().int().min(0).max(2).default(0),
+  completion_date: z.string().optional().nullable(),
+  sector_id: z.coerce.number().int().positive(),
+  sec_ids: z
+    .array(z.coerce.number().int().positive())
+    .min(1, 'At least one department is required'),
+  no_days_employed_direct: z.coerce.number().int().min(0).default(0),
+  no_persons_employed_direct: z.coerce.number().int().min(0).default(0),
+  no_days_employed_indirect: z.coerce.number().int().min(0).default(0),
+  no_persons_employed_indirect: z.coerce.number().int().min(0).default(0),
+  other_benefits: z.string().optional().nullable(),
+  govt_policy_linkage: z.string().optional().nullable(),
+  manifesto_linkage: z.string().optional().nullable(),
+  extra_one: z.string().optional().nullable(),
+  extra_two: z.string().optional().nullable(),
+  extra_three: z.string().optional().nullable(),
+});
+
+export async function PATCH(
+  req: NextRequest,
+  { params }: { params: Promise<{ id: string }> },
+) {
+  const sessionOrResponse = await requireAdminSession();
+  if (!isAdminSession(sessionOrResponse)) return sessionOrResponse;
+  const session = sessionOrResponse;
+
+  const { id } = await params;
+  const projectId = Number(id);
+  if (!Number.isFinite(projectId)) {
+    return NextResponse.json({ error: 'Invalid id' }, { status: 400 });
+  }
+
+  const body = await req.json().catch(() => null);
+  const parsed = updateSchema.safeParse(body);
+  if (!parsed.success) {
+    return NextResponse.json(
+      { error: 'Validation failed', issues: parsed.error.issues },
+      { status: 400 },
+    );
+  }
+  const d = parsed.data;
+  const completionDate = d.completion_date ? d.completion_date : null;
+
+  try {
+    const updated = await db.execute(sql`
+      UPDATE hdp.master_projects SET
+        project_name = ${d.project_name},
+        description = ${d.description},
+        is_new = ${d.is_new},
+        project_cost = ${d.project_cost ?? null},
+        nature_of_project = ${d.nature_of_project ?? null},
+        priority = ${d.priority ?? null},
+        project_execution_type = ${d.project_execution_type ?? null},
+        is_completed = ${d.is_completed},
+        completion_date = ${completionDate},
+        sector_id = ${d.sector_id},
+        no_days_employed_direct = ${d.no_days_employed_direct},
+        no_persons_employed_direct = ${d.no_persons_employed_direct},
+        no_days_employed_indirect = ${d.no_days_employed_indirect},
+        no_persons_employed_indirect = ${d.no_persons_employed_indirect},
+        other_benefits = ${d.other_benefits ?? null},
+        govt_policy_linkage = ${d.govt_policy_linkage ?? null},
+        manifesto_linkage = ${d.manifesto_linkage ?? null},
+        extra_one = ${d.extra_one ?? null},
+        extra_two = ${d.extra_two ?? null},
+        extra_three = ${d.extra_three ?? null},
+        updated_by = ${session.userId}
+      WHERE project_id = ${projectId}
+      RETURNING project_id, project_code
+    `);
+    if (updated.rows.length === 0) {
+      return NextResponse.json({ error: 'Not found' }, { status: 404 });
+    }
+
+    // Re-point all secretary links — delete existing, then bulk insert.
+    // Legacy `id` column is bigint NOT NULL with no sequence — generate IDs.
+    await db.execute(sql`
+      DELETE FROM hdp.project_secretary WHERE project_id = ${projectId}
+    `);
+    const maxRes = await db.execute(sql`
+      SELECT COALESCE(MAX(id), 0) AS m FROM hdp.project_secretary
+    `);
+    let nextLinkId =
+      Number((maxRes.rows[0] as { m: number | string }).m) + 1;
+    const uniqueSecIds = Array.from(new Set(d.sec_ids));
+    for (const secId of uniqueSecIds) {
+      await db.execute(sql`
+        INSERT INTO hdp.project_secretary (id, project_id, sec_id)
+        VALUES (${nextLinkId}, ${projectId}, ${secId})
+      `);
+      nextLinkId++;
+    }
+
+    await writeAudit({
+      userId: session.userId,
+      action: AUDIT_ACTIONS.PROJECT_UPDATED,
+      entity: 'master_projects',
+      entityId: projectId,
+      request: req,
+      meta: { project_name: d.project_name, sec_ids: uniqueSecIds },
+    });
+
+    return NextResponse.json({ ok: true });
+  } catch (err) {
+    console.error('PATCH /api/admin/projects/[id] failed', err);
+    return NextResponse.json(
+      { error: 'Failed to update project' },
+      { status: 500 },
+    );
+  }
+}

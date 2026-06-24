@@ -1,0 +1,84 @@
+# ------------------------------
+# Dependencies and package caches
+# ------------------------------
+node_modules/
+.pnpm-store/
+
+# ------------------------------
+# Build and framework artifacts
+# ------------------------------
+.next/
+out/
+dist/
+build/
+coverage/
+*.tsbuildinfo
+tsconfig.tsbuildinfo
+
+# ------------------------------
+# Environment and secrets
+# ------------------------------
+.env
+.env.local
+.env.production
+.env.development
+.env.*.local
+!.env.example
+
+# ------------------------------
+# Logs
+# ------------------------------
+*.log
+npm-debug.log*
+yarn-debug.log*
+pnpm-debug.log*
+
+# ------------------------------
+# IDE and editor files (user-specific only)
+# ------------------------------
+.idea/
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+
+# ------------------------------
+# Operating system files
+# ------------------------------
+.DS_Store
+Thumbs.db
+
+# ------------------------------
+# Temporary files
+# ------------------------------
+*.tmp
+*.bak
+*.swp
+
+# ------------------------------
+# Python artifacts (if present)
+# ------------------------------
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# ------------------------------
+# Local data/uploads and generated exports
+# ------------------------------
+uploads/
+uploads_*/
+scripts/
+
+# AI/debug/generated artifacts
+reports/tmp/
+reports/debug/
+debug-exports/
+analysis-dumps/
+screenshots/generated/
+tmp-ai/
+
+# Drizzle local artifacts
+.drizzle/
+drizzle/meta/
