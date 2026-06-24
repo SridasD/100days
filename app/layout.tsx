@@ -5,6 +5,15 @@ import { AppProviders } from '@/components/providers/AppProviders';
 export const metadata: Metadata = {
   title: 'HDP Kerala — 100 Days Programme',
   description: 'Kerala CMO 100 Days Programme project tracking portal',
+  icons: {
+    icon: [
+      { url: '/favicon.ico', sizes: 'any' },
+      { url: '/favicon-32x32.png', type: 'image/png', sizes: '32x32' },
+      { url: '/favicon-16x16.png', type: 'image/png', sizes: '16x16' },
+    ],
+    shortcut: '/favicon.ico',
+    apple: [{ url: '/apple-touch-icon.png', sizes: '180x180', type: 'image/png' }],
+  },
 };
 
 export default function RootLayout({
