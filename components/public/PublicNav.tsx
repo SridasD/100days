@@ -19,10 +19,7 @@ interface NavLink {
 const NAV_LINKS: NavLink[] = [
   { href: '/', labelMal: 'മുഖപ്പ്' },
   { href: '/public/projects', labelMal: 'പദ്ധതികൾ' },
-  { href: '/public/progress', labelMal: 'പുരോഗതി' },
-  { href: '/public/departments', labelMal: 'വകുപ്പുകൾ' },
-  { href: '/public/sectors', labelMal: 'മേഖലകൾ' },
-  { href: '/public/gallery', labelMal: 'ചിത്രശാല' },
+  { href: '/#sectors-section', labelMal: 'മേഖലകൾ' },
 ];
 
 export function PublicNav() {
@@ -38,9 +35,8 @@ export function PublicNav() {
 
   return (
     <header
-      className={`sticky top-0 z-40 border-b bg-white/95 backdrop-blur transition-shadow duration-200 ${
-        scrolled ? 'shadow-md' : 'shadow-none'
-      }`}
+      className={`sticky top-0 z-40 border-b bg-white/95 backdrop-blur transition-shadow duration-200 ${scrolled ? 'shadow-md' : 'shadow-none'
+        }`}
     >
       <div className="container mx-auto flex h-16 items-center justify-between px-4">
         {/* LOGO BLOCK — borderless wordmark, white tile, deep green text */}
@@ -77,20 +73,18 @@ export function PublicNav() {
                   <Link
                     href={link.href}
                     aria-current={active ? 'page' : undefined}
-                    className={`group relative inline-flex items-center px-3 py-5 text-sm font-medium transition-colors duration-200 ${
-                      active
+                    className={`group relative inline-flex items-center px-3 py-5 text-sm font-medium transition-colors duration-200 ${active
                         ? 'text-hdp-green'
                         : 'text-muted-foreground hover:text-hdp-green'
-                    }`}
+                      }`}
                   >
                     <span className="font-malayalam">{link.labelMal}</span>
                     <span
                       aria-hidden
-                      className={`absolute inset-x-3 -bottom-px h-0.5 rounded-full bg-hdp-green transition-transform duration-200 ${
-                        active
+                      className={`absolute inset-x-3 -bottom-px h-0.5 rounded-full bg-hdp-green transition-transform duration-200 ${active
                           ? 'scale-x-100'
                           : 'scale-x-0 group-hover:scale-x-100'
-                      }`}
+                        }`}
                     />
                   </Link>
                 </li>

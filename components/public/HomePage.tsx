@@ -424,7 +424,7 @@ function ProjectsByNature({ nature }: { nature: NatureSummary | null }) {
   const livelihood = nature?.livelihood ?? { total: 0, completed: 0 };
   const infrastructure = nature?.infrastructure ?? { total: 0, completed: 0 };
   return (
-    <section className="bg-hdp-bg py-14">
+    <section id="sectors-section" className="bg-hdp-bg py-14">
       <div className="container mx-auto px-4">
         <SectionHeader
           eyebrowMal="പ്രധാന മേഖലകൾ"
