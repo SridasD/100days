@@ -78,6 +78,8 @@ debug-exports/
 analysis-dumps/
 screenshots/generated/
 tmp-ai/
+.claude/
+HDP screens/
 
 # Drizzle local artifacts
 .drizzle/
