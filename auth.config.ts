@@ -15,6 +15,7 @@ export const authConfig: NextAuthConfig = {
       const isLoggedIn = !!auth?.user;
       const { pathname } = nextUrl;
       const role = (auth?.user as any)?.roleId as number | undefined;
+      const isApiRoute = pathname.startsWith("/api/");
       const isStaticAsset =
         /\.(png|jpg|jpeg|gif|webp|svg|ico|css|js|map|txt|xml)$/i.test(pathname);
 
@@ -25,8 +26,18 @@ export const authConfig: NextAuthConfig = {
         pathname.startsWith("/public/district/") ||
         pathname.startsWith("/api/public/district/")
       ) {
-        if (!isLoggedIn) return false;
-        if (role !== 4) return Response.redirect(new URL("/login", nextUrl));
+        if (!isLoggedIn) {
+          if (isApiRoute) {
+            return Response.json({ error: "Unauthorized" }, { status: 401 });
+          }
+          return false;
+        }
+        if (role !== 4) {
+          if (isApiRoute) {
+            return Response.json({ error: "Forbidden" }, { status: 403 });
+          }
+          return Response.redirect(new URL("/login", nextUrl));
+        }
         return true;
       }
 
@@ -47,7 +58,12 @@ export const authConfig: NextAuthConfig = {
         return true;
       }
 
-      if (!isLoggedIn) return false;
+      if (!isLoggedIn) {
+        if (isApiRoute) {
+          return Response.json({ error: "Unauthorized" }, { status: 401 });
+        }
+        return false;
+      }
 
       // Role-based redirects (Section 5.4)
       if (role === 2 && pathname.startsWith("/verify"))

@@ -226,24 +226,43 @@ export default function OsdDashboardPage() {
     const [error, setError] = useState<string | null>(null);
 
     useEffect(() => {
+        const controller = new AbortController();
+
         const load = async () => {
             setLoading(true);
             setError(null);
             try {
-                const res = await fetch('/api/admin/osd/dashboard', { cache: 'no-store' });
+                const res = await fetch('/api/admin/osd/dashboard', {
+                    cache: 'no-store',
+                    signal: controller.signal,
+                });
+                const contentType = res.headers.get('content-type') ?? '';
                 if (!res.ok) {
-                    const body = await res.json().catch(() => ({}));
+                    const body = contentType.includes('application/json')
+                        ? await res.json().catch(() => ({}))
+                        : {};
                     throw new Error(body.error ?? `HTTP ${res.status}`);
                 }
+                if (!contentType.includes('application/json')) {
+                    throw new Error('Session expired. Please sign in again.');
+                }
                 const json = (await res.json()) as DashboardData;
+                setError(null);
                 setData(json);
             } catch (e) {
+                if (controller.signal.aborted) return;
                 setError(e instanceof Error ? e.message : 'Unknown error');
             } finally {
-                setLoading(false);
+                if (!controller.signal.aborted) {
+                    setLoading(false);
+                }
             }
         };
         void load();
+
+        return () => {
+            controller.abort();
+        };
     }, []);
 
     const health = useMemo(() => {

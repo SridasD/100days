@@ -5,8 +5,8 @@ import { db } from "@/lib/db/client";
 
 export const runtime = "nodejs";
 
-export async function GET(_req: NextRequest) {
-  const sessionOrResponse = await requireAdminSession();
+export async function GET(req: NextRequest) {
+  const sessionOrResponse = await requireAdminSession(req);
   if (!isAdminSession(sessionOrResponse)) return sessionOrResponse;
 
   try {

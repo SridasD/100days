@@ -6,8 +6,8 @@ export const runtime = "nodejs";
 /**
  * Require an admin session (role_id = 3 or 4)
  */
-export async function requireAdminSession() {
-  const s = await requireSession();
+export async function requireAdminSession(req?: NextRequest) {
+  const s = await requireSession(req);
   if (s instanceof NextResponse) return s;
   if (s.roleId !== ROLE.ADMIN && s.roleId !== ROLE.OSD_ADMIN) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });

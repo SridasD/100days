@@ -1,5 +1,7 @@
 import { auth } from "@/auth";
 import { NextResponse } from "next/server";
+import type { NextRequest } from "next/server";
+import { getToken } from "next-auth/jwt";
 import { sql } from "drizzle-orm";
 import { db } from "@/lib/db/client";
 
@@ -30,28 +32,61 @@ export const ROLE = {
  * JWT can otherwise carry stale values for hours when an admin updates a
  * user's department or role.
  */
-export async function requireSession(): Promise<OfficerSession | NextResponse> {
-  const s = await auth();
-  if (!s?.user) {
+export async function requireSession(
+  req?: NextRequest,
+): Promise<OfficerSession | NextResponse> {
+  let user:
+    | {
+        id: string;
+        loginName: string;
+        name?: string | null;
+        roleId: number;
+        secId: number;
+      }
+    | undefined;
+
+  if (req) {
+    const token = await getToken({
+      req,
+      secret: process.env.AUTH_SECRET,
+    });
+    if (token) {
+      const tokenId = token.id ?? token.sub;
+      user = {
+        id: String(tokenId ?? ""),
+        loginName: String(token.loginName ?? ""),
+        name: (token.name as string | null | undefined) ?? null,
+        roleId: Number(token.roleId ?? 0),
+        secId: Number(token.secId ?? 0),
+      };
+    }
+  } else {
+    const s = await auth();
+    if (s?.user) {
+      user = s.user as {
+        id: string;
+        loginName: string;
+        name?: string | null;
+        roleId: number;
+        secId: number;
+      };
+    }
+  }
+
+  if (!user?.id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
-  const u = s.user as {
-    id: string;
-    loginName: string;
-    name?: string | null;
-    roleId: number;
-    secId: number;
-  };
-  const userId = Number(u.id);
+
+  const userId = Number(user.id);
   if (!Number.isFinite(userId)) {
     return NextResponse.json({ error: "Bad session" }, { status: 400 });
   }
 
   // Re-resolve live sec_id / role_id from DB so admin updates take effect
   // without forcing every user to log out + back in.
-  let liveSecId = u.secId;
-  let liveRoleId = u.roleId;
-  let liveUserName = u.name ?? u.loginName;
+  let liveSecId = user.secId;
+  let liveRoleId = user.roleId;
+  let liveUserName = user.name ?? user.loginName;
   try {
     const fresh = await db.execute(sql`
       SELECT sec_id, role_id, user_name, status
@@ -74,8 +109,8 @@ export async function requireSession(): Promise<OfficerSession | NextResponse> {
           { status: 403 },
         );
       }
-      liveSecId = row.sec_id ?? u.secId;
-      liveRoleId = row.role_id ?? u.roleId;
+      liveSecId = row.sec_id ?? user.secId;
+      liveRoleId = row.role_id ?? user.roleId;
       liveUserName = row.user_name ?? liveUserName;
     }
   } catch {
@@ -84,7 +119,7 @@ export async function requireSession(): Promise<OfficerSession | NextResponse> {
 
   return {
     userId,
-    loginName: u.loginName,
+    loginName: user.loginName,
     userName: liveUserName,
     roleId: liveRoleId,
     secId: liveSecId,
