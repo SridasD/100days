@@ -9,8 +9,8 @@ export const runtime = "nodejs";
  * Delegates to `requireSession`, which re-reads role/sec_id from DB so admin
  * edits take effect immediately (no stale JWT problem).
  */
-export async function requireVerifierSession() {
-  const s = await requireSession();
+export async function requireVerifierSession(req?: NextRequest) {
+  const s = await requireSession(req);
   if (s instanceof NextResponse) return s;
   if (s.roleId !== ROLE.VERIFICATION_OFFICER) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });

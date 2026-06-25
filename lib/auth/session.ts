@@ -1,6 +1,6 @@
-import { auth } from "@/auth";
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
+import { headers } from "next/headers";
 import { getToken } from "next-auth/jwt";
 import { sql } from "drizzle-orm";
 import { db } from "@/lib/db/client";
@@ -35,6 +35,35 @@ export const ROLE = {
 export async function requireSession(
   req?: NextRequest,
 ): Promise<OfficerSession | NextResponse> {
+  let token:
+    | {
+        id?: string | null;
+        sub?: string | null;
+        loginName?: string | null;
+        name?: string | null;
+        roleId?: number | string | null;
+        secId?: number | string | null;
+      }
+    | null = null;
+
+  if (req) {
+    token = await getToken({
+      req,
+      secret: process.env.AUTH_SECRET,
+    });
+  } else {
+    const hdrs = await headers();
+    token = await getToken({
+      req: {
+        headers: {
+          cookie: hdrs.get("cookie") ?? "",
+          "x-forwarded-proto": hdrs.get("x-forwarded-proto") ?? "http",
+        },
+      } as any,
+      secret: process.env.AUTH_SECRET,
+    });
+  }
+
   let user:
     | {
         id: string;
@@ -45,32 +74,15 @@ export async function requireSession(
       }
     | undefined;
 
-  if (req) {
-    const token = await getToken({
-      req,
-      secret: process.env.AUTH_SECRET,
-    });
-    if (token) {
-      const tokenId = token.id ?? token.sub;
-      user = {
-        id: String(tokenId ?? ""),
-        loginName: String(token.loginName ?? ""),
-        name: (token.name as string | null | undefined) ?? null,
-        roleId: Number(token.roleId ?? 0),
-        secId: Number(token.secId ?? 0),
-      };
-    }
-  } else {
-    const s = await auth();
-    if (s?.user) {
-      user = s.user as {
-        id: string;
-        loginName: string;
-        name?: string | null;
-        roleId: number;
-        secId: number;
-      };
-    }
+  if (token) {
+    const tokenId = token.id ?? token.sub;
+    user = {
+      id: String(tokenId ?? ""),
+      loginName: String(token.loginName ?? ""),
+      name: (token.name as string | null | undefined) ?? null,
+      roleId: Number(token.roleId ?? 0),
+      secId: Number(token.secId ?? 0),
+    };
   }
 
   if (!user?.id) {
@@ -126,10 +138,12 @@ export async function requireSession(
   };
 }
 
-export async function requireOfficerSession(): Promise<
+export async function requireOfficerSession(
+  req?: NextRequest,
+): Promise<
   OfficerSession | NextResponse
 > {
-  const s = await requireSession();
+  const s = await requireSession(req);
   if (s instanceof NextResponse) return s;
   if (s.roleId !== ROLE.NODAL_OFFICER) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
