@@ -20,6 +20,7 @@ import {
   PawPrint,
   Video,
 } from 'lucide-react';
+import { VerifiedDataBadge } from './VerifiedDataBadge';
 import {
   PolarAngleAxis,
   RadialBar,
@@ -114,6 +115,7 @@ export function DepartmentProgressCard({
               <Images className="h-3 w-3" />
               <span className="font-mono font-semibold">{imageCount}</span>
               <span className="font-malayalam">ചിത്രങ്ങൾ</span>
+              <VerifiedDataBadge />
             </Chip>
           )}
           {videoCount > 0 && (
@@ -121,7 +123,13 @@ export function DepartmentProgressCard({
               <Video className="h-3 w-3" />
               <span className="font-mono font-semibold">{videoCount}</span>
               <span className="font-malayalam">വീഡിയോകൾ</span>
+              <VerifiedDataBadge />
             </Chip>
+          )}
+          {imageCount === 0 && videoCount === 0 && (
+            <span className="font-malayalam rounded-full bg-muted/70 px-2 py-0.5 text-[10px] text-muted-foreground">
+              Verified data not yet available
+            </span>
           )}
           <span
             className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[10px] font-semibold ${tone.chip}`}
@@ -208,6 +216,7 @@ export function DepartmentProgressCard({
             <div className="flex items-center justify-between text-[11px]">
               <span className="font-malayalam flex items-center gap-2 text-muted-foreground">
                 <span>പുരോഗതി രേഖ</span>
+                <VerifiedDataBadge />
                 <span className="opacity-50">·</span>
                 <span className="font-mono font-semibold text-foreground">
                   {indicators}

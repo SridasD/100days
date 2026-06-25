@@ -35,16 +35,14 @@ export const ROLE = {
 export async function requireSession(
   req?: NextRequest,
 ): Promise<OfficerSession | NextResponse> {
-  let token:
-    | {
-        id?: string | null;
-        sub?: string | null;
-        loginName?: string | null;
-        name?: string | null;
-        roleId?: number | string | null;
-        secId?: number | string | null;
-      }
-    | null = null;
+  let token: {
+    id?: string | null;
+    sub?: string | null;
+    loginName?: string | null;
+    name?: string | null;
+    roleId?: number | string | null;
+    secId?: number | string | null;
+  } | null = null;
 
   if (req) {
     token = await getToken({
@@ -140,9 +138,7 @@ export async function requireSession(
 
 export async function requireOfficerSession(
   req?: NextRequest,
-): Promise<
-  OfficerSession | NextResponse
-> {
+): Promise<OfficerSession | NextResponse> {
   const s = await requireSession(req);
   if (s instanceof NextResponse) return s;
   if (s.roleId !== ROLE.NODAL_OFFICER) {

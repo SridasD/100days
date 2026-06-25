@@ -1,12 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import { sql } from "drizzle-orm";
-import { requireAdminSession, isAdminSession } from "@/lib/auth/admin-session";
+import {
+  requireTechAdminSession,
+  isAdminSession,
+} from "@/lib/auth/admin-session";
 import { db } from "@/lib/db/client";
 
 export const runtime = "nodejs";
 
 export async function GET(req: NextRequest) {
-  const sessionOrResponse = await requireAdminSession();
+  const sessionOrResponse = await requireTechAdminSession();
   if (!isAdminSession(sessionOrResponse)) return sessionOrResponse;
 
   const searchParams = req.nextUrl.searchParams;

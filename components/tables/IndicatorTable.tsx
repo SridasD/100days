@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
-import { useSearchParams } from 'next/navigation';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import {
   BarChart3,
   CalendarCheck2,
@@ -70,7 +70,7 @@ interface ApiIndicator {
   documentCount: number;
 }
 
-export interface IndicatorRow extends ApiIndicator {}
+export interface IndicatorRow extends ApiIndicator { }
 
 export interface IndicatorTableProjectTargets {
   projectName: string;
@@ -434,6 +434,7 @@ export function IndicatorTable({ projectId, projectTargets }: Props) {
 
   const [showToast, setShowToast] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
+  const [queryToastHandled, setQueryToastHandled] = useState(false);
 
   const [sheetOpen, setSheetOpen] = useState(false);
   const [sheetTab, setSheetTab] = useState<ActionTab>('progress');
@@ -467,10 +468,26 @@ export function IndicatorTable({ projectId, projectTargets }: Props) {
   }, [load]);
 
   const params = useSearchParams();
+  const router = useRouter();
+  const pathname = usePathname();
   useEffect(() => {
-    if (params.get('updated') === '1') flashToast('Indicator updated');
+    if (queryToastHandled) return;
+
+    const created = params.get('created') === '1';
+    const updated = params.get('updated') === '1';
+    if (!created && !updated) return;
+
+    if (created) flashToast('Indicator created');
+    if (updated) flashToast('Indicator updated');
+
+    setQueryToastHandled(true);
+
+    const next = new URLSearchParams(params.toString());
+    next.delete('created');
+    next.delete('updated');
+    router.replace(next.size > 0 ? `${pathname}?${next.toString()}` : pathname);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [params]);
+  }, [params, pathname, queryToastHandled, router]);
 
   const flashToast = (msg: string) => {
     setToastMessage(msg);
@@ -516,25 +533,25 @@ export function IndicatorTable({ projectId, projectTargets }: Props) {
     setData((prev) =>
       prev
         ? prev.map((row) =>
-            row.indicatorId === id
-              ? {
-                  ...row,
-                  physicalAchievement: patch.physicalAchievement,
-                  financialAchievement: patch.financialAchievement,
-                  completedDate: patch.completedDate,
-                  lastUpdatedAt: patch.lastUpdatedAt,
-                  isVerified: false,
-                  percentage:
-                    row.physicalTarget > 0
-                      ? Math.min(
-                          100,
-                          (patch.physicalAchievement / row.physicalTarget) *
-                            100,
-                        )
-                      : 0,
-                }
-              : row,
-          )
+          row.indicatorId === id
+            ? {
+              ...row,
+              physicalAchievement: patch.physicalAchievement,
+              financialAchievement: patch.financialAchievement,
+              completedDate: patch.completedDate,
+              lastUpdatedAt: patch.lastUpdatedAt,
+              isVerified: false,
+              percentage:
+                row.physicalTarget > 0
+                  ? Math.min(
+                    100,
+                    (patch.physicalAchievement / row.physicalTarget) *
+                    100,
+                  )
+                  : 0,
+            }
+            : row,
+        )
         : prev,
     );
     flashToast('Progress saved');
@@ -551,8 +568,8 @@ export function IndicatorTable({ projectId, projectTargets }: Props) {
     setData((prev) =>
       prev
         ? prev.map((row) =>
-            row.indicatorId === id ? { ...row, ...counts } : row,
-          )
+          row.indicatorId === id ? { ...row, ...counts } : row,
+        )
         : prev,
     );
   };

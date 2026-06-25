@@ -63,6 +63,7 @@ export async function GET(
           WHERE ps.sec_id = ms.sec_id
             AND COALESCE(mp.is_archived, false) = false
             AND g.gallery_type = 2
+            AND COALESCE(g.is_verified, false) = true
         ), 0) AS video_count
       FROM hdp.master_secretary ms
       WHERE ms.sec_id = ${id}
@@ -99,27 +100,33 @@ export async function GET(
         COALESCE((
           SELECT COUNT(*)::int FROM hdp.gallery g
           INNER JOIN hdp.indicators i ON g.indicator_id = i.indicator_id
-          WHERE i.project_id = mp.project_id AND g.gallery_type = 1
+          WHERE i.project_id = mp.project_id
+            AND g.gallery_type = 1
+            AND COALESCE(g.is_verified, false) = true
         ), 0) AS image_count,
         COALESCE((
           SELECT COUNT(*)::int FROM hdp.gallery g
           INNER JOIN hdp.indicators i ON g.indicator_id = i.indicator_id
-          WHERE i.project_id = mp.project_id AND g.gallery_type = 2
+          WHERE i.project_id = mp.project_id
+            AND g.gallery_type = 2
+            AND COALESCE(g.is_verified, false) = true
         ), 0) AS video_count,
         COALESCE((
-          SELECT AVG(COALESCE(i.verified_percentage, i.percentage, 0))::numeric(5,2)
+          SELECT AVG(COALESCE(i.verified_percentage, 0))::numeric(5,2)
           FROM hdp.indicators i
           WHERE i.project_id = mp.project_id
+            AND i.verified_date IS NOT NULL
         ), 0) AS physical_pct,
         COALESCE((
           SELECT CASE
             WHEN SUM(COALESCE(i.financial_target, 0)) > 0
-            THEN (SUM(COALESCE(i.financial_achievement, 0))
+            THEN (SUM(COALESCE(i.verified_financial_achievement, 0))
                   / SUM(i.financial_target) * 100)::numeric(5,2)
             ELSE 0
           END
           FROM hdp.indicators i
           WHERE i.project_id = mp.project_id
+            AND i.verified_date IS NOT NULL
         ), 0) AS financial_pct,
         COALESCE((
           SELECT COUNT(*)::int FROM hdp.indicators i

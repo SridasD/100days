@@ -34,8 +34,8 @@ export async function GET(
         mp.project_name,
         i.indicator_name,
         i.physical_target,
-        i.physical_achievement,
-        i.percentage,
+        COALESCE(i.verified_physical_achievement, 0) AS physical_achievement,
+        COALESCE(i.verified_percentage, 0) AS percentage,
         i.verified_percentage,
         i.verified_date,
         i.submitted_date
@@ -43,6 +43,7 @@ export async function GET(
       JOIN hdp.master_projects mp ON i.project_id = mp.project_id
       WHERE i.district_id = ${districtId}
         AND COALESCE(mp.is_archived, false) = false
+        AND i.verified_date IS NOT NULL
       ORDER BY mp.project_name, i.indicator_name
     `);
 

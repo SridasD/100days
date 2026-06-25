@@ -1,8 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { sql } from "drizzle-orm";
-import { isAdminSession, requireAdminSession } from "@/lib/auth/admin-session";
+import {
+  isAdminSession,
+  requireTechAdminSession,
+} from "@/lib/auth/admin-session";
 import { db } from "@/lib/db/client";
 import { ROLE } from "@/lib/auth/session";
+import type { OfficerSession } from "@/lib/auth/session";
 import { AUDIT_ACTIONS } from "@/lib/db/schema/audit";
 
 export const runtime = "nodejs";
@@ -17,9 +21,9 @@ export async function POST(
   req: NextRequest,
   { params }: { params: Promise<{ projectId: string }> },
 ) {
-  const sessionOrResponse = await requireAdminSession();
+  const sessionOrResponse = await requireTechAdminSession();
   if (!isAdminSession(sessionOrResponse)) return sessionOrResponse;
-  const session = sessionOrResponse;
+  const session = sessionOrResponse as OfficerSession;
 
   // Restore is restricted to full admin only.
   if (session.roleId !== ROLE.ADMIN) {

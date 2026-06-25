@@ -284,7 +284,7 @@ function Breadcrumbs({ nameMal }: { nameMal: string }) {
       className="font-malayalam inline-flex max-w-full flex-wrap items-center gap-1.5 rounded-full bg-white/10 px-3 py-1 text-[11px] text-white/80 backdrop-blur"
     >
       <Link href="/" className="hover:text-white">
-        മുഖപ്പ്
+        ഹോം
       </Link>
       <ChevronRight className="h-3 w-3 opacity-50" />
       <Link href="/" className="hover:text-white">

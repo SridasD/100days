@@ -18,6 +18,22 @@ export interface VerifierProjectRow {
   indicators_verified: number;
 }
 
+const PENDING_OR_REVERIFY = sql`
+  i.submitted_date IS NOT NULL
+  AND (
+    i.verified_date IS NULL
+    OR i.submitted_date > i.verified_date
+  )
+`;
+
+const CURRENTLY_VERIFIED = sql`
+  i.verified_date IS NOT NULL
+  AND (
+    i.submitted_date IS NULL
+    OR i.verified_date >= i.submitted_date
+  )
+`;
+
 /**
  * List projects with submitted indicators that the verifier can act on.
  *
@@ -59,13 +75,12 @@ export async function listVerifierProjects(
       COALESCE((
         SELECT COUNT(*)::int FROM hdp.indicators i
         WHERE i.project_id = mp.project_id
-          AND i.submitted_date IS NOT NULL
-          AND i.verified_date IS NULL
+          AND ${PENDING_OR_REVERIFY}
       ), 0) AS indicators_pending,
       COALESCE((
         SELECT COUNT(*)::int FROM hdp.indicators i
         WHERE i.project_id = mp.project_id
-          AND i.verified_date IS NOT NULL
+          AND ${CURRENTLY_VERIFIED}
       ), 0) AS indicators_verified
     FROM hdp.master_projects mp
     LEFT JOIN hdp.project_secretary ps ON mp.project_id = ps.project_id
@@ -103,7 +118,7 @@ export interface VerifierIndicatorRow {
   verified_by_name: string | null;
   image_count: number;
   video_count: number;
-  status: "pending" | "approved" | "rejected";
+  status: "pending" | "approved" | "reverification_required" | "rejected";
 }
 
 /**
@@ -115,7 +130,7 @@ export async function listVerifierIndicators(
   pendingOnly = false,
 ): Promise<VerifierIndicatorRow[]> {
   const isCentral = !secId || secId === 0;
-  const filter = pendingOnly ? sql`AND i.verified_date IS NULL` : sql``;
+  const filter = pendingOnly ? sql`AND ${PENDING_OR_REVERIFY}` : sql``;
 
   // DISTINCT so multi-dept projects don't duplicate indicator rows when
   // the verifier's sec_id matches multiple project_secretary entries.
@@ -163,11 +178,26 @@ export async function listVerifierIndicators(
   `);
 
   return (result.rows as unknown as Array<any>).map(
-    (row) =>
-      ({
+    (row) => {
+      const submittedAt = row.submitted_date
+        ? new Date(row.submitted_date).getTime()
+        : 0;
+      const verifiedAt = row.verified_date
+        ? new Date(row.verified_date).getTime()
+        : 0;
+
+      const status: VerifierIndicatorRow["status"] =
+        row.verified_date == null
+          ? "pending"
+          : submittedAt > verifiedAt
+            ? "reverification_required"
+            : "approved";
+
+      return {
         ...row,
-        status: row.verified_date ? "approved" : "pending",
-      }) as VerifierIndicatorRow,
+        status,
+      } as VerifierIndicatorRow;
+    },
   );
 }
 

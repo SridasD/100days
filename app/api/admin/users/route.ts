@@ -2,7 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { sql } from "drizzle-orm";
 import { z } from "zod";
 import bcrypt from "bcryptjs";
-import { requireAdminSession, isAdminSession } from "@/lib/auth/admin-session";
+import {
+  requireTechAdminSession,
+  isAdminSession,
+} from "@/lib/auth/admin-session";
+import type { OfficerSession } from "@/lib/auth/session";
 import { db } from "@/lib/db/client";
 import { listAllUsers } from "@/lib/db/queries/admin";
 import { writeAudit } from "@/lib/audit/writeAudit";
@@ -19,17 +23,14 @@ const createUserSchema = z.object({
     .string()
     .optional()
     .nullable()
-    .refine(
-      (v) => !v || /^\d{10}$/.test(v),
-      'Must be 10 digits if provided',
-    ),
+    .refine((v) => !v || /^\d{10}$/.test(v), "Must be 10 digits if provided"),
   role_id: z.number().int().min(1).max(3),
   sec_id: z.number().int().positive().optional().nullable(),
   designation: z.string().max(250).optional(),
 });
 
 export async function GET(_req: NextRequest) {
-  const sessionOrResponse = await requireAdminSession();
+  const sessionOrResponse = await requireTechAdminSession();
   if (!isAdminSession(sessionOrResponse)) return sessionOrResponse;
 
   try {
@@ -59,9 +60,9 @@ export async function GET(_req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  const sessionOrResponse = await requireAdminSession();
+  const sessionOrResponse = await requireTechAdminSession();
   if (!isAdminSession(sessionOrResponse)) return sessionOrResponse;
-  const session = sessionOrResponse;
+  const session = sessionOrResponse as OfficerSession;
 
   const body = await req.json().catch(() => null);
   const parsed = createUserSchema.safeParse(body);
@@ -94,9 +95,8 @@ export async function POST(req: NextRequest) {
       SELECT COALESCE(MAX(user_id), 0)::bigint AS max_id FROM hdp.user_details
     `);
     const newUserId =
-      Number(
-        (maxIdResult.rows[0] as { max_id: number | string }).max_id ?? 0,
-      ) + 1;
+      Number((maxIdResult.rows[0] as { max_id: number | string }).max_id ?? 0) +
+      1;
 
     // Hash password
     const hashedPassword = await bcrypt.hash(d.password, 12);
@@ -140,7 +140,7 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ userId }, { status: 201 });
   } catch (err) {
-    console.error('POST /api/admin/users failed', err);
+    console.error("POST /api/admin/users failed", err);
     const pgErr = err as {
       message?: string;
       code?: string;
@@ -151,7 +151,7 @@ export async function POST(req: NextRequest) {
     };
     return NextResponse.json(
       {
-        error: 'Failed to create user',
+        error: "Failed to create user",
         debug: {
           message: pgErr.message,
           code: pgErr.code,

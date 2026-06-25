@@ -36,6 +36,7 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { PublicNav } from './PublicNav';
+import { VerifiedDataBadge } from './VerifiedDataBadge';
 
 export type ProjectStatus = 'completed' | 'in-progress' | 'not-started';
 
@@ -206,11 +207,13 @@ export function ProjectDetailPage({ project }: { project: PublicProject }) {
                 value={`${project.overallPhysicalPct}%`}
                 labelMal="ഭൗതിക പുരോഗതി"
                 icon={Target}
+                verified
               />
               <HeroStat
                 value={`${project.overallFinancialPct}%`}
                 labelMal="സാമ്പത്തിക"
                 icon={ShieldCheck}
+                verified
               />
             </div>
           </div>
@@ -236,7 +239,7 @@ export function ProjectDetailPage({ project }: { project: PublicProject }) {
             >
               <Images className="h-3.5 w-3.5" />
               <span className="font-malayalam">
-                ചിത്രശാല ({project.images.length + project.videos.length})
+                ഗാലറി ({project.images.length + project.videos.length})
               </span>
             </TabButton>
           </div>
@@ -279,8 +282,8 @@ function IndicatorsTab({
   if (indicators.length === 0) {
     return (
       <EmptyCard
-        titleMal="ഈ പദ്ധതിക്ക് ഘടകങ്ങൾ ചേർത്തിട്ടില്ല"
-        descMal="നോഡൽ ഓഫീസർ ഘടകങ്ങൾ ചേർക്കുമ്പോൾ ഇവിടെ കാണാം."
+        titleMal="സ്ഥിരീകരിച്ച പുരോഗതി ഡാറ്റ ലഭ്യമല്ല"
+        descMal="Verified data not yet available"
       />
     );
   }
@@ -304,9 +307,8 @@ function IndicatorCard({
 }) {
   return (
     <article
-      className={`flex h-full flex-col overflow-hidden rounded-2xl border border-l-4 bg-white shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg ${
-        ind.verified ? 'border-l-hdp-success' : 'border-l-hdp-warning'
-      }`}
+      className={`flex h-full flex-col overflow-hidden rounded-2xl border border-l-4 bg-white shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg ${ind.verified ? 'border-l-hdp-success' : 'border-l-hdp-warning'
+        }`}
     >
       <div className="flex items-start justify-between gap-3 p-5">
         <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-hdp-green/10 font-mono text-sm font-bold text-hdp-green">
@@ -347,12 +349,14 @@ function IndicatorCard({
           primary={`${ind.physicalAchievement} / ${ind.physicalTarget}`}
           pct={ind.physicalPct}
           color="bg-kerala-blue"
+          verified
         />
         <Stat
           labelMal="സാമ്പത്തിക"
           primary={`₹ ${inrFormat.format(ind.financialAchievement)} / ₹ ${inrFormat.format(ind.financialTarget)}`}
           pct={ind.financialPct}
           color="bg-hdp-success"
+          verified
         />
       </div>
 
@@ -362,6 +366,7 @@ function IndicatorCard({
             <ImageIcon className="h-3 w-3" />
             <span className="font-mono font-semibold">{ind.imageCount}</span>
             <span className="font-malayalam">ചിത്രങ്ങൾ</span>
+            <VerifiedDataBadge className="ml-1" />
           </span>
         )}
         {ind.videoCount > 0 && (
@@ -369,6 +374,12 @@ function IndicatorCard({
             <Video className="h-3 w-3" />
             <span className="font-mono font-semibold">{ind.videoCount}</span>
             <span className="font-malayalam">വീഡിയോകൾ</span>
+            <VerifiedDataBadge className="ml-1" />
+          </span>
+        )}
+        {ind.imageCount === 0 && ind.videoCount === 0 && (
+          <span className="font-malayalam rounded-full bg-muted/60 px-2 py-0.5 text-[10px] text-muted-foreground">
+            Verified data not yet available
           </span>
         )}
       </div>
@@ -381,18 +392,23 @@ function Stat({
   primary,
   pct,
   color,
+  verified = false,
 }: {
   labelMal: string;
   primary: string;
   pct: number;
   color: string;
+  verified?: boolean;
 }) {
   const clamped = Math.max(0, Math.min(100, pct));
   return (
     <div className="rounded-xl border bg-white p-2">
-      <p className="font-malayalam text-[10px] uppercase tracking-wide text-muted-foreground">
-        {labelMal}
-      </p>
+      <div className="flex items-center justify-between gap-1">
+        <p className="font-malayalam text-[10px] uppercase tracking-wide text-muted-foreground">
+          {labelMal}
+        </p>
+        {verified ? <VerifiedDataBadge /> : null}
+      </div>
       <p className="mt-0.5 truncate font-mono text-[11px] font-bold text-foreground">
         {primary}
       </p>
@@ -471,8 +487,8 @@ function GalleryTab({
   if (groupsWithMedia.length === 0) {
     return (
       <EmptyCard
-        titleMal="മീഡിയ ഒന്നും ചേർത്തിട്ടില്ല"
-        descMal="നോഡൽ ഓഫീസർ ചിത്രങ്ങളും വീഡിയോകളും ചേർക്കുമ്പോൾ ഇവിടെ വകുപ്പുവാർ ക്രമത്തിൽ കാണാം."
+        titleMal="സ്ഥിരീകരിച്ച മീഡിയ ലഭ്യമല്ല"
+        descMal="Verified data not yet available"
       />
     );
   }
@@ -544,6 +560,7 @@ function IndicatorMediaGroupCard({
                 {group.images.length}
               </span>
               <span className="font-malayalam ml-1">ചിത്രങ്ങൾ</span>
+              <VerifiedDataBadge className="ml-1" />
             </Badge>
           )}
           {group.videos.length > 0 && (
@@ -553,6 +570,7 @@ function IndicatorMediaGroupCard({
                 {group.videos.length}
               </span>
               <span className="font-malayalam ml-1">വീഡിയോ</span>
+              <VerifiedDataBadge className="ml-1" />
             </Badge>
           )}
         </div>
@@ -628,9 +646,8 @@ function ImageThumb({
           alt={img.description || 'Project image'}
           onLoad={() => setState('ready')}
           onError={() => setState('error')}
-          className={`h-full w-full object-cover transition-all duration-500 group-hover:scale-105 ${
-            state === 'ready' ? 'opacity-100' : 'opacity-0'
-          }`}
+          className={`h-full w-full object-cover transition-all duration-500 group-hover:scale-105 ${state === 'ready' ? 'opacity-100' : 'opacity-0'
+            }`}
           loading="lazy"
           decoding="async"
         />
@@ -673,9 +690,8 @@ function VideoThumb({ video }: { video: PublicProjectVideo }) {
           // Only mount the iframe after the user clicks play — saves
           // bandwidth + avoids autoplay surprises.
           <iframe
-            src={`${video.embedSrc}${
-              video.embedSrc.includes('?') ? '&' : '?'
-            }autoplay=1`}
+            src={`${video.embedSrc}${video.embedSrc.includes('?') ? '&' : '?'
+              }autoplay=1`}
             title={video.description || 'Project video'}
             className="absolute inset-0 h-full w-full"
             allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
@@ -709,9 +725,8 @@ function VideoThumb({ video }: { video: PublicProjectVideo }) {
       </div>
       <figcaption className="flex flex-wrap items-center justify-between gap-2 border-t bg-white p-3">
         <span
-          className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold text-white ${
-            isYouTube ? 'bg-[#FF0000]' : 'bg-[#1877F2]'
-          }`}
+          className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold text-white ${isYouTube ? 'bg-[#FF0000]' : 'bg-[#1877F2]'
+            }`}
         >
           {isYouTube ? (
             <Youtube className="h-3 w-3" />
@@ -775,8 +790,8 @@ function Lightbox({
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
       <DialogContent
         className="max-h-[95vh] max-w-5xl gap-0 overflow-hidden border-0 bg-black p-0 text-white"
-        // The Dialog primitive supplies its own close button; this lightbox
-        // adds clearer navigation controls below.
+      // The Dialog primitive supplies its own close button; this lightbox
+      // adds clearer navigation controls below.
       >
         {/* Header — indicator name + position */}
         <div className="flex items-center justify-between gap-3 border-b border-white/10 px-4 py-3">
@@ -876,9 +891,8 @@ function LightboxImage({ src, alt }: { src: string; alt: string }) {
         alt={alt}
         onLoad={() => setState('ready')}
         onError={() => setState('error')}
-        className={`max-h-[70vh] max-w-full rounded-lg object-contain shadow-2xl transition-opacity duration-300 sm:max-h-[75vh] ${
-          state === 'ready' ? 'opacity-100' : 'opacity-0'
-        }`}
+        className={`max-h-[70vh] max-w-full rounded-lg object-contain shadow-2xl transition-opacity duration-300 sm:max-h-[75vh] ${state === 'ready' ? 'opacity-100' : 'opacity-0'
+          }`}
         decoding="async"
       />
     </div>
@@ -920,7 +934,7 @@ function Breadcrumbs({
       className="font-malayalam inline-flex max-w-full flex-wrap items-center gap-1.5 rounded-full bg-white/10 px-3 py-1 text-[11px] text-white/80 backdrop-blur"
     >
       <Link href="/" className="hover:text-white">
-        മുഖപ്പ്
+        ഹോം
       </Link>
       <ChevronRight className="h-3 w-3 opacity-50" />
       {primarySecId ? (
@@ -961,11 +975,10 @@ function TabButton({
       role="tab"
       aria-selected={active}
       onClick={onClick}
-      className={`inline-flex cursor-pointer items-center gap-1.5 rounded-full px-3 py-1.5 font-medium transition-colors duration-150 ${
-        active
+      className={`inline-flex cursor-pointer items-center gap-1.5 rounded-full px-3 py-1.5 font-medium transition-colors duration-150 ${active
           ? 'bg-hdp-green text-white shadow'
           : 'text-muted-foreground hover:text-hdp-green'
-      }`}
+        }`}
     >
       {children}
     </button>
@@ -977,11 +990,13 @@ function HeroStat({
   labelMal,
   subMal,
   icon: Icon,
+  verified = false,
 }: {
   value: string;
   labelMal: string;
   subMal?: string;
   icon: typeof Layers;
+  verified?: boolean;
 }) {
   return (
     <div className="rounded-xl bg-white/10 p-3">
@@ -993,6 +1008,11 @@ function HeroStat({
         {labelMal}
         {subMal && <span className="block opacity-70">{subMal}</span>}
       </p>
+      {verified ? (
+        <div className="mt-1 flex justify-center">
+          <VerifiedDataBadge />
+        </div>
+      ) : null}
     </div>
   );
 }

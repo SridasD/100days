@@ -65,11 +65,27 @@ export async function PUT(
   // Fetching here keeps the cap definition in one place (no drift between
   // the create-time `physical_target` and submit-time validation).
   const meta = await db.execute(sql`
-    SELECT unit, physical_target FROM hdp.indicators
+    SELECT
+      unit,
+      physical_target,
+      verified_date,
+      verified_physical_achievement,
+      verified_financial_achievement,
+      verified_percentage,
+      verified_physical_description
+    FROM hdp.indicators
     WHERE indicator_id = ${id} LIMIT 1
   `);
   const metaRow = meta.rows[0] as
-    | { unit: string | null; physical_target: number | string | null }
+    | {
+        unit: string | null;
+        physical_target: number | string | null;
+        verified_date: string | null;
+        verified_physical_achievement: number | null;
+        verified_financial_achievement: number | string | null;
+        verified_percentage: number | string | null;
+        verified_physical_description: string | null;
+      }
     | undefined;
   if (!metaRow) {
     return NextResponse.json({ error: 'Indicator not found' }, { status: 404 });
@@ -164,6 +180,23 @@ export async function PUT(
         physical_achievement: d.physical_achievement,
         financial_achievement: d.financial_achievement,
         completed_date: completedDate,
+        requires_reverification: true,
+        previous_verified: {
+          verified_date: metaRow.verified_date ?? null,
+          physical_achievement:
+            metaRow.verified_physical_achievement != null
+              ? Number(metaRow.verified_physical_achievement)
+              : null,
+          financial_achievement:
+            metaRow.verified_financial_achievement != null
+              ? Number(metaRow.verified_financial_achievement)
+              : null,
+          percentage:
+            metaRow.verified_percentage != null
+              ? Number(metaRow.verified_percentage)
+              : null,
+          description: metaRow.verified_physical_description ?? null,
+        },
       },
     });
 

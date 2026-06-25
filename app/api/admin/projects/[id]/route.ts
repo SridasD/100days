@@ -56,10 +56,13 @@ export async function GET(
         projectName: row.project_name ?? "",
         projectNameMal: row.project_name_mal ?? "",
         description: row.description ?? "",
+        isNew:
+          row.is_new === true || row.is_new === 1 || row.is_new === "1" ? 1 : 0,
         projectCost: row.project_cost ? Number(row.project_cost) : 0,
         sectorId: row.sector_id ?? null,
         natureOfProject: row.nature_of_project ?? null,
         priority: row.priority ?? null,
+        projectExecutionType: row.project_execution_type ?? null,
         isCompleted: row.is_completed ?? 0,
         stage: row.stage ?? 1,
         completionDate: row.completion_date ?? null,
@@ -67,6 +70,12 @@ export async function GET(
         noPersonsEmployedDirect: row.no_persons_employed_direct ?? 0,
         noDaysEmployedIndirect: row.no_days_employed_indirect ?? 0,
         noPersonsEmployedIndirect: row.no_persons_employed_indirect ?? 0,
+        otherBenefits: row.other_benefits ?? "",
+        govtPolicyLinkage: row.govt_policy_linkage ?? "",
+        manifestoLinkage: row.manifesto_linkage ?? "",
+        extraOne: row.extra_one ?? "",
+        extraTwo: row.extra_two ?? "",
+        extraThree: row.extra_three ?? "",
         secIds,
         secretaryNames,
       },
@@ -145,13 +154,14 @@ export async function PATCH(
   }
   const d = parsed.data;
   const completionDate = d.completion_date ? d.completion_date : null;
+  const isNewValue = d.is_new === 1;
 
   try {
     const updated = await db.execute(sql`
       UPDATE hdp.master_projects SET
         project_name = ${d.project_name},
         description = ${d.description},
-        is_new = ${d.is_new},
+        is_new = ${isNewValue},
         project_cost = ${d.project_cost ?? null},
         nature_of_project = ${d.nature_of_project ?? null},
         priority = ${d.priority ?? null},
@@ -171,7 +181,7 @@ export async function PATCH(
         extra_three = ${d.extra_three ?? null},
         updated_by = ${session.userId}
       WHERE project_id = ${projectId}
-        AND COALESCE((to_jsonb(hdp.master_projects)->>'is_archived')::boolean, false) = false
+        AND COALESCE(is_archived, false) = false
       RETURNING project_id, project_code
     `);
     if (updated.rows.length === 0) {
@@ -208,8 +218,26 @@ export async function PATCH(
     return NextResponse.json({ ok: true });
   } catch (err) {
     console.error("PATCH /api/admin/projects/[id] failed", err);
+    const pgErr = err as {
+      message?: string;
+      code?: string;
+      detail?: string;
+      column?: string;
+      table?: string;
+      constraint?: string;
+    };
     return NextResponse.json(
-      { error: "Failed to update project" },
+      {
+        error: "Failed to update project",
+        debug: {
+          message: pgErr.message,
+          code: pgErr.code,
+          detail: pgErr.detail,
+          column: pgErr.column,
+          table: pgErr.table,
+          constraint: pgErr.constraint,
+        },
+      },
       { status: 500 },
     );
   }

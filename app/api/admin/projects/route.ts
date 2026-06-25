@@ -99,6 +99,7 @@ export async function POST(req: NextRequest) {
   }
   const d = parsed.data;
   const completionDate = d.completion_date ? d.completion_date : null;
+  const isNewValue = d.is_new === 1;
 
   try {
     const inserted = await db.execute(sql`
@@ -113,7 +114,7 @@ export async function POST(req: NextRequest) {
         inserted_by, updated_by
       ) VALUES (
         COALESCE((SELECT MAX(project_id) FROM hdp.master_projects), 0) + 1,
-        ${d.project_name}, ${d.description}, ${d.is_new}, ${d.project_cost ?? null},
+        ${d.project_name}, ${d.description}, ${isNewValue}, ${d.project_cost ?? null},
         ${d.nature_of_project ?? null}, ${d.priority ?? null},
         ${d.project_execution_type ?? null}, ${d.is_completed},
         ${completionDate}, ${d.sector_id}, 1,

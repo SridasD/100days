@@ -14,18 +14,27 @@ import {
 interface ApiProject {
   projectId: number;
   projectCode: string | null;
+  projectNameMal: string;
   projectName: string;
   description: string;
+  isNew: number;
   projectCost: number;
   sectorId: number | null;
   natureOfProject: number | null;
   priority: number | null;
+  projectExecutionType: number | null;
   isCompleted: number;
   completionDate: string | null;
   noDaysEmployedDirect: number;
   noPersonsEmployedDirect: number;
   noDaysEmployedIndirect: number;
   noPersonsEmployedIndirect: number;
+  otherBenefits: string;
+  govtPolicyLinkage: string;
+  manifestoLinkage: string;
+  extraOne: string;
+  extraTwo: string;
+  extraThree: string;
   secIds: number[];
   secretaryNames: string[];
 }
@@ -53,22 +62,30 @@ export default function AdminProjectEditPage() {
 
   const defaults: Partial<ProjectFormValues> | undefined = data
     ? {
-        project_name: data.projectName,
-        description: data.description,
-        project_cost: data.projectCost,
-        nature_of_project: data.natureOfProject ?? 2,
-        priority: data.priority ?? 2,
-        is_completed: data.isCompleted,
-        completion_date: data.completionDate
-          ? data.completionDate.slice(0, 10)
-          : '',
-        sector_id: data.sectorId ?? 0,
-        sec_ids: data.secIds ?? [],
-        no_days_employed_direct: data.noDaysEmployedDirect,
-        no_persons_employed_direct: data.noPersonsEmployedDirect,
-        no_days_employed_indirect: data.noDaysEmployedIndirect,
-        no_persons_employed_indirect: data.noPersonsEmployedIndirect,
-      }
+      project_name: data.projectName,
+      description: data.description,
+      is_new: data.isNew,
+      project_cost: data.projectCost,
+      nature_of_project: data.natureOfProject ?? 2,
+      priority: data.priority ?? 2,
+      project_execution_type: data.projectExecutionType ?? 1,
+      is_completed: data.isCompleted,
+      completion_date: data.completionDate
+        ? data.completionDate.slice(0, 10)
+        : '',
+      sector_id: data.sectorId ?? 0,
+      sec_ids: data.secIds ?? [],
+      no_days_employed_direct: data.noDaysEmployedDirect,
+      no_persons_employed_direct: data.noPersonsEmployedDirect,
+      no_days_employed_indirect: data.noDaysEmployedIndirect,
+      no_persons_employed_indirect: data.noPersonsEmployedIndirect,
+      other_benefits: data.otherBenefits ?? '',
+      govt_policy_linkage: data.govtPolicyLinkage ?? '',
+      manifesto_linkage: data.manifestoLinkage ?? '',
+      extra_one: data.extraOne ?? '',
+      extra_two: data.extraTwo ?? '',
+      extra_three: data.extraThree ?? '',
+    }
     : undefined;
 
   return (

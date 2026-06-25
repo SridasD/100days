@@ -79,7 +79,7 @@ export interface VerifierIndicator {
   verifiedByName: string | null;
   imageCount: number;
   videoCount: number;
-  status: 'pending' | 'approved' | 'rejected';
+  status: 'pending' | 'approved' | 'reverification_required' | 'rejected';
 }
 
 interface GalleryItem {
@@ -174,21 +174,21 @@ export function VerifierIndicatorSheet({
   const [historyError, setHistoryError] = useState<string | null>(null);
 
   // Reset whenever a new indicator opens.
-  // Pre-fill editor with the verifier's last-saved values if approved,
-  // otherwise the nodal-submitted values.
+  // Verifier must review the latest pending submission first; previously
+  // verified values are shown as comparison context.
   useEffect(() => {
     if (!indicator) return;
     const seedPhys =
-      indicator.verifiedPhysicalAchievement ??
       indicator.submittedPhysicalAchievement ??
+      indicator.verifiedPhysicalAchievement ??
       indicator.physicalAchievement;
     const seedFin =
-      indicator.verifiedFinancialAchievement ??
       indicator.submittedFinancialAchievement ??
+      indicator.verifiedFinancialAchievement ??
       indicator.financialAchievement;
     const seedDesc =
-      indicator.verifiedDescription ??
       indicator.submittedDescription ??
+      indicator.verifiedDescription ??
       indicator.description ??
       '';
     setPhysical(seedPhys);

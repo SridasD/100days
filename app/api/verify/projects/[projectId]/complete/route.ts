@@ -72,6 +72,7 @@ export async function POST(
         SUM(
           CASE
             WHEN verified_date IS NOT NULL
+              AND (submitted_date IS NULL OR verified_date >= submitted_date)
               AND COALESCE(verified_percentage, 0) >= 100
             THEN 1 ELSE 0
           END

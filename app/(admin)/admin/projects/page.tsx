@@ -1,20 +1,32 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useSearchParams, useRouter, usePathname } from 'next/navigation';
 import {
+  ArrowLeft,
   Plus,
+  Search,
   AlertTriangle,
   CheckCircle2,
   Copy,
   FolderOpen,
+  Folders,
   Loader2,
+  ListFilter,
+  Rows3,
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import {
   Dialog,
   DialogContent,
@@ -46,6 +58,8 @@ interface AdminProject {
   secretaryName: string | null;
   indicatorsCount: number;
 }
+
+type ProjectStatus = 'completed' | 'in-progress' | 'not-started';
 
 interface ArchivePreview {
   project: {
@@ -82,11 +96,17 @@ export default function AdminProjectsPage() {
   const [archiveLoading, setArchiveLoading] = useState(false);
   const [archiveSubmitting, setArchiveSubmitting] = useState(false);
   const [archiveError, setArchiveError] = useState<string | null>(null);
+  const [query, setQuery] = useState('');
+  const [statusFilter, setStatusFilter] = useState<'all' | ProjectStatus>('all');
+  const [departmentFilter, setDepartmentFilter] = useState('all');
 
   // Catch ?created=HDP-2026-NNNN from the form redirect and surface a toast.
   const searchParams = useSearchParams();
   const router = useRouter();
   const pathname = usePathname();
+  const isOsd = pathname.startsWith('/admin/osd');
+  const projectsBasePath = isOsd ? '/admin/osd/projects' : '/admin/projects';
+  const dashboardPath = isOsd ? '/admin/osd/dashboard' : '/admin/dashboard';
   const [createdCode, setCreatedCode] = useState<string | null>(null);
   const [archivedCode, setArchivedCode] = useState<string | null>(null);
 
@@ -140,6 +160,59 @@ export default function AdminProjectsPage() {
     };
     void load();
   }, []);
+
+  const departmentOptions = useMemo(() => {
+    return Array.from(
+      new Set((projects ?? []).map((project) => project.secretaryName?.trim() || 'Unassigned')),
+    ).sort((left, right) => left.localeCompare(right));
+  }, [projects]);
+
+  const filteredProjects = useMemo(() => {
+    const term = query.trim().toLowerCase();
+    return (projects ?? []).filter((project) => {
+      const status = deriveProjectStatus(project.isCompleted);
+      const department = project.secretaryName?.trim() || 'Unassigned';
+      if (statusFilter !== 'all' && status !== statusFilter) return false;
+      if (departmentFilter !== 'all' && department !== departmentFilter) return false;
+      if (!term) return true;
+
+      return [
+        project.projectCode ?? '',
+        project.projectName ?? '',
+        project.projectNameMal ?? '',
+        project.secretaryName ?? '',
+        project.description ?? '',
+      ].some((value) => value.toLowerCase().includes(term));
+    });
+  }, [departmentFilter, projects, query, statusFilter]);
+
+  const groupedProjects = useMemo(() => {
+    const groups = new Map<string, AdminProject[]>();
+    for (const project of filteredProjects) {
+      const department = project.secretaryName?.trim() || 'Unassigned';
+      const current = groups.get(department) ?? [];
+      current.push(project);
+      groups.set(department, current);
+    }
+
+    return Array.from(groups.entries())
+      .map(([department, rows]) => ({
+        department,
+        rows: rows.sort((left, right) => Number(right.projectId) - Number(left.projectId)),
+      }))
+      .sort((left, right) => right.rows.length - left.rows.length || left.department.localeCompare(right.department));
+  }, [filteredProjects]);
+
+  const summary = useMemo(() => {
+    const total = filteredProjects.length;
+    const completed = filteredProjects.filter((project) => deriveProjectStatus(project.isCompleted) === 'completed').length;
+    const inProgress = filteredProjects.filter((project) => deriveProjectStatus(project.isCompleted) === 'in-progress').length;
+    const departments = new Set(filteredProjects.map((project) => project.secretaryName?.trim() || 'Unassigned')).size;
+
+    return { total, completed, inProgress, departments };
+  }, [filteredProjects]);
+
+  const hasActiveFilters = query.trim() || statusFilter !== 'all' || departmentFilter !== 'all';
 
   const openArchiveDialog = async (project: AdminProject) => {
     setDeletingProjectId(project.projectId);
@@ -249,11 +322,15 @@ export default function AdminProjectsPage() {
         >
           Project archived successfully.{' '}
           <span className="font-mono font-semibold">{archivedCode}</span> was
-          removed from the active list and preserved in Project Archive.
+          {isOsd
+            ? ' removed from the active portfolio. Archived records remain available to authorized technical administrators.'
+            : ' removed from the active list and preserved in Project Archive.'}
           <div className="mt-2 flex items-center gap-2">
-            <Button asChild size="sm" variant="outline">
-              <Link href="/admin/projects/archive">View Archived Projects</Link>
-            </Button>
+            {!isOsd && (
+              <Button asChild size="sm" variant="outline">
+                <Link href="/admin/projects/archive">View Archived Projects</Link>
+              </Button>
+            )}
             <Button
               size="sm"
               className="bg-warning-amber text-white hover:bg-warning-amber/90"
@@ -265,27 +342,120 @@ export default function AdminProjectsPage() {
         </div>
       )}
 
-      <div className="flex flex-col items-start justify-between gap-4 md:flex-row md:items-center">
-        <div className="space-y-1">
-          <h1 className="text-3xl font-bold tracking-tight text-foreground">
-            Master Projects
-          </h1>
-          <p className="text-sm text-muted-foreground">
-            Manage all projects and their indicators
-          </p>
+      <section className="overflow-hidden rounded-[2rem] border bg-[linear-gradient(135deg,rgba(255,255,255,1)_0%,rgba(247,249,252,1)_58%,rgba(241,246,240,1)_100%)] shadow-sm">
+        <div className="flex flex-col items-start justify-between gap-4 p-6 md:flex-row md:items-center md:p-8">
+          <div className="space-y-2">
+            {isOsd ? (
+              <Button
+                asChild
+                size="sm"
+                className="group mb-2 rounded-full border border-kerala-blue/25 bg-white text-kerala-blue shadow-sm transition-all hover:-translate-y-0.5 hover:bg-kerala-blue hover:text-white"
+              >
+                <Link href={dashboardPath}>
+                  <ArrowLeft className="h-4 w-4 transition-transform group-hover:-translate-x-0.5" />
+                  Return to Dashboard
+                </Link>
+              </Button>
+            ) : null}
+            <div className="inline-flex items-center gap-2 rounded-full border bg-white/80 px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground shadow-sm">
+              <Rows3 className="h-3.5 w-3.5 text-kerala-blue" />
+              {isOsd ? 'Project Administration' : 'Master Project Registry'}
+            </div>
+            <div className="space-y-1">
+              <h1 className="text-3xl font-bold tracking-tight text-foreground">
+                {isOsd ? 'Projects' : 'Master Projects'}
+              </h1>
+              <p className="text-sm text-muted-foreground">
+                {isOsd
+                  ? 'Create, review, edit, and archive active projects.'
+                  : 'Manage all projects and their indicators'}
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            {!isOsd && (
+              <Button asChild variant="outline" className="cursor-pointer">
+                <Link href="/admin/projects/archive">Archived Projects</Link>
+              </Button>
+            )}
+            <Button asChild className="cursor-pointer">
+              <Link href={`${projectsBasePath}/new`}>
+                <Plus className="h-4 w-4" />
+                New Project
+              </Link>
+            </Button>
+          </div>
         </div>
-        <div className="flex items-center gap-2">
-          <Button asChild variant="outline" className="cursor-pointer">
-            <Link href="/admin/projects/archive">Archived Projects</Link>
-          </Button>
-          <Button asChild className="cursor-pointer">
-            <Link href="/admin/projects/new">
-              <Plus className="h-4 w-4" />
-              New Project
-            </Link>
-          </Button>
-        </div>
-      </div>
+      </section>
+
+      {!loading && !error && projects && projects.length > 0 && (
+        <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+          <MetricCard title="Visible Projects" value={summary.total} note="After applying current filters" />
+          <MetricCard title="Departments" value={summary.departments} note="Administrative groups represented" />
+          <MetricCard title="In Progress" value={summary.inProgress} note="Projects actively underway" />
+          <MetricCard title="Completed" value={summary.completed} note="Projects marked complete" />
+        </section>
+      )}
+
+      {!loading && !error && projects && projects.length > 0 && (
+        <Card className="shadow-sm">
+          <CardHeader className="pb-4">
+            <CardTitle className="text-xl">Search and Group Projects</CardTitle>
+            <CardDescription>
+              Search by code, project name, department, or description. Results are grouped by department for faster scanning.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="grid gap-4 md:grid-cols-[1.5fr_0.8fr_0.8fr_auto]">
+            <div className="relative">
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                value={query}
+                onChange={(event) => setQuery(event.target.value)}
+                placeholder="Search by code, project name, department, or description"
+                className="pl-9"
+              />
+            </div>
+            <Select value={statusFilter} onValueChange={(value: 'all' | ProjectStatus) => setStatusFilter(value)}>
+              <SelectTrigger>
+                <SelectValue placeholder="Filter by status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All statuses</SelectItem>
+                <SelectItem value="in-progress">In Progress</SelectItem>
+                <SelectItem value="completed">Completed</SelectItem>
+                <SelectItem value="not-started">Not Started</SelectItem>
+              </SelectContent>
+            </Select>
+            <Select value={departmentFilter} onValueChange={setDepartmentFilter}>
+              <SelectTrigger>
+                <SelectValue placeholder="Filter by department" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All departments</SelectItem>
+                {departmentOptions.map((department) => (
+                  <SelectItem key={department} value={department}>
+                    {department}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Button
+              type="button"
+              variant="outline"
+              disabled={!hasActiveFilters}
+              onClick={() => {
+                setQuery('');
+                setStatusFilter('all');
+                setDepartmentFilter('all');
+              }}
+              className="gap-2"
+            >
+              <ListFilter className="h-4 w-4" />
+              Clear
+            </Button>
+          </CardContent>
+        </Card>
+      )}
 
       {loading && (
         <Card>
@@ -327,68 +497,106 @@ export default function AdminProjectsPage() {
         </Card>
       )}
 
-      {!loading && !error && projects && projects.length > 0 && (
-        <div className="overflow-x-auto rounded-lg border">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Code</TableHead>
-                <TableHead>Project Name</TableHead>
-                <TableHead>Secretary</TableHead>
-                <TableHead>Indicators</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Cost</TableHead>
-                <TableHead>Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {projects.map((project) => (
-                <TableRow key={project.projectId}>
-                  <TableCell className="font-mono text-sm">
-                    {project.projectCode}
-                  </TableCell>
-                  <TableCell className="font-medium">
-                    {project.projectName}
-                  </TableCell>
-                  <TableCell className="text-sm">
-                    {project.secretaryName ?? '—'}
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <Badge variant="outline">
-                      {project.indicatorsCount}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>
-                    <ProjectStatusBadge value={project.isCompleted} />
-                  </TableCell>
-                  <TableCell className="font-mono text-sm">
-                    {project.projectCost ? `₹${project.projectCost}` : '—'}
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex items-center gap-2">
-                      <Button asChild variant="outline" size="sm">
-                        <Link href={`/admin/projects/${project.projectId}/edit`}>
-                          Edit
-                        </Link>
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => void openArchiveDialog(project)}
-                        disabled={deletingProjectId === project.projectId}
-                        className="border-warning-amber/40 text-warning-amber hover:bg-warning-amber hover:text-white"
-                      >
-                        {deletingProjectId === project.projectId
-                          ? 'Loading...'
-                          : 'Archive'}
-                      </Button>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </div>
+      {!loading && !error && projects && projects.length > 0 && filteredProjects.length === 0 && (
+        <Card className="border-dashed">
+          <CardContent className="flex flex-col items-center justify-center gap-3 py-12 text-center">
+            <Search className="h-7 w-7 text-muted-foreground" />
+            <div>
+              <p className="text-base font-semibold text-foreground">No projects match the current filters</p>
+              <p className="mt-1 text-sm text-muted-foreground">Adjust the search term or filters to broaden the result set.</p>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {!loading && !error && groupedProjects.length > 0 && (
+        <section className="space-y-5">
+          {groupedProjects.map((group) => (
+            <Card key={group.department} className="overflow-hidden shadow-sm">
+              <CardHeader className="border-b bg-slate-50/80 pb-4">
+                <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                  <div>
+                    <CardTitle className="text-xl">{group.department}</CardTitle>
+                    <CardDescription>
+                      {group.rows.length} {group.rows.length === 1 ? 'project' : 'projects'} in this department group.
+                    </CardDescription>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                    <Badge variant="outline">{group.rows.reduce((sum, project) => sum + project.indicatorsCount, 0)} indicators</Badge>
+                    <Badge variant="outline">{group.rows.filter((project) => deriveProjectStatus(project.isCompleted) === 'in-progress').length} in progress</Badge>
+                    <Badge variant="outline">{group.rows.filter((project) => deriveProjectStatus(project.isCompleted) === 'completed').length} completed</Badge>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent className="p-0">
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Code</TableHead>
+                        <TableHead>Project</TableHead>
+                        <TableHead className="text-center">Indicators</TableHead>
+                        <TableHead className="w-[140px] text-center">Status</TableHead>
+                        <TableHead className="text-right">Cost</TableHead>
+                        <TableHead className="text-center">Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {group.rows.map((project) => (
+                        <TableRow key={project.projectId}>
+                          <TableCell className="font-mono text-sm leading-6">
+                            {project.projectCode ?? '—'}
+                          </TableCell>
+                          <TableCell>
+                            <div className="space-y-1">
+                              <p className="font-medium text-foreground">{project.projectName ?? 'Untitled Project'}</p>
+                              {project.description ? (
+                                <p className="line-clamp-2 max-w-4xl text-xs leading-5 text-muted-foreground">
+                                  {project.description}
+                                </p>
+                              ) : null}
+                            </div>
+                          </TableCell>
+                          <TableCell className="text-center">
+                            <Badge variant="outline" className="min-w-8 justify-center">
+                              {project.indicatorsCount}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="w-[140px] text-center">
+                            <div className="flex justify-center">
+                              <ProjectStatusBadge value={project.isCompleted} />
+                            </div>
+                          </TableCell>
+                          <TableCell className="text-right font-mono text-sm">
+                            {project.projectCost ? `₹${project.projectCost}` : '—'}
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex justify-center gap-2">
+                              <Button asChild variant="outline" size="sm">
+                                <Link href={`${projectsBasePath}/${project.projectId}/edit`}>
+                                  Edit
+                                </Link>
+                              </Button>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => void openArchiveDialog(project)}
+                                disabled={deletingProjectId === project.projectId}
+                                className="border-warning-amber/40 text-warning-amber hover:bg-warning-amber hover:text-white"
+                              >
+                                {deletingProjectId === project.projectId ? 'Loading...' : 'Archive'}
+                              </Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </section>
       )}
 
       <Dialog
@@ -507,6 +715,31 @@ export default function AdminProjectsPage() {
   );
 }
 
+function MetricCard({ title, value, note }: { title: string; value: number; note: string }) {
+  return (
+    <Card className="shadow-sm">
+      <CardContent className="p-5">
+        <p className="text-xs font-semibold uppercase tracking-[0.22em] text-muted-foreground">
+          {title}
+        </p>
+        <p className="mt-3 text-3xl font-semibold tracking-tight text-foreground">{value}</p>
+        <p className="mt-1 text-sm text-muted-foreground">{note}</p>
+      </CardContent>
+    </Card>
+  );
+}
+
+function deriveProjectStatus(value: number | null): ProjectStatus {
+  switch (value) {
+    case 2:
+      return 'completed';
+    case 1:
+      return 'in-progress';
+    default:
+      return 'not-started';
+  }
+}
+
 /**
  * Map hdp.master_projects.is_completed to a visible status pill.
  *
@@ -519,22 +752,39 @@ function ProjectStatusBadge({ value }: { value: number | null }) {
   const meta = (() => {
     switch (value) {
       case 2:
-        return { label: 'Completed', cls: 'bg-success-green/90 text-white' };
+        return {
+          label: 'Completed',
+          cls: 'border border-success-green/35 bg-success-green/10 text-success-green',
+          dot: 'bg-success-green',
+        };
       case 1:
-        return { label: 'In Progress', cls: 'bg-warning-amber/90 text-white' };
+        return {
+          label: 'In Progress',
+          cls: 'border border-warning-amber/45 bg-warning-amber/10 text-warning-amber',
+          dot: 'bg-warning-amber',
+        };
       case 0:
       case null:
       case undefined:
         return {
           label: 'Not Started',
-          cls: 'bg-error-red/90 text-white',
+          cls: 'border border-error-red/35 bg-error-red/10 text-error-red',
+          dot: 'bg-error-red',
         };
       default:
         return {
           label: `Status ${value}`,
-          cls: 'bg-muted text-muted-foreground',
+          cls: 'border border-border bg-muted/50 text-muted-foreground',
+          dot: 'bg-muted-foreground',
         };
     }
   })();
-  return <Badge className={meta.cls}>{meta.label}</Badge>;
+  return (
+    <Badge
+      className={`inline-flex min-w-[112px] items-center justify-center gap-1.5 whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-semibold ${meta.cls}`}
+    >
+      <span className={`h-1.5 w-1.5 rounded-full ${meta.dot}`} aria-hidden="true" />
+      {meta.label}
+    </Badge>
+  );
 }

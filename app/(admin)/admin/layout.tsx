@@ -1,8 +1,8 @@
 'use client';
 
-import type { ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import {
     BarChart3,
     ClipboardList,
@@ -28,11 +28,19 @@ interface AdminLayoutProps {
     children: ReactNode;
 }
 
+interface SessionProfile {
+    roleId: number;
+}
+
 function AdminNav({ closeOnNavigate = false }: { closeOnNavigate?: boolean }) {
     const pathname = usePathname();
     const isOsd = pathname.startsWith('/admin/osd');
     const navItems = isOsd
-        ? [{ href: '/admin/osd/dashboard', label: 'OSD Dashboard', icon: LayoutDashboard }]
+        ? [
+            { href: '/admin/osd/dashboard', label: 'Dashboard', icon: LayoutDashboard },
+            { href: '/admin/osd/projects', label: 'Projects', icon: FolderKanban },
+            { href: '/admin/osd/reports', label: 'Reports', icon: BarChart3 },
+        ]
         : [
             { href: '/admin/dashboard', label: 'Dashboard', icon: LayoutDashboard },
             { href: '/admin/projects', label: 'Projects', icon: FolderKanban },
@@ -80,9 +88,42 @@ function AdminNav({ closeOnNavigate = false }: { closeOnNavigate?: boolean }) {
 
 export default function AdminLayout({ children }: AdminLayoutProps) {
     const pathname = usePathname();
+    const router = useRouter();
     const isOsd = pathname.startsWith('/admin/osd');
-    const roleLabel = isOsd ? 'OSD Admin' : 'Admin';
+    const [profile, setProfile] = useState<SessionProfile | null>(null);
+    const roleLabel = isOsd ? 'OSD Administrator' : 'Admin';
     const departmentLabel = isOsd ? 'OSD / CMO' : 'CMO';
+
+    useEffect(() => {
+        let cancelled = false;
+
+        fetch('/api/me', { cache: 'no-store' })
+            .then(async (res) => {
+                if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                return res.json() as Promise<SessionProfile>;
+            })
+            .then((data) => {
+                if (!cancelled) setProfile(data);
+            })
+            .catch(() => {
+                if (!cancelled) setProfile(null);
+            });
+
+        return () => {
+            cancelled = true;
+        };
+    }, []);
+
+    useEffect(() => {
+        if (!profile) return;
+        if (profile.roleId === 4 && !pathname.startsWith('/admin/osd')) {
+            router.replace('/admin/osd/dashboard');
+            return;
+        }
+        if (profile.roleId === 3 && pathname.startsWith('/admin/osd')) {
+            router.replace('/admin/dashboard');
+        }
+    }, [pathname, profile, router]);
 
     return (
         <div className="flex min-h-screen flex-col bg-muted/30">

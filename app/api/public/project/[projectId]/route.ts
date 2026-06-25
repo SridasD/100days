@@ -80,29 +80,32 @@ export async function GET(
         COALESCE(i.financial_target, 0)::numeric AS financial_target,
         COALESCE(
           i.verified_physical_achievement,
-          i.physical_achievement,
           0
         )::numeric AS physical_achievement,
         COALESCE(
           i.verified_financial_achievement,
-          i.financial_achievement,
           0
         )::numeric AS financial_achievement,
-        COALESCE(i.verified_percentage, i.percentage, 0)::numeric AS physical_pct,
-        COALESCE(i.verified_physical_description, i.physical_description, '')
+        COALESCE(i.verified_percentage, 0)::numeric AS physical_pct,
+        COALESCE(i.verified_physical_description, '')
           AS description,
         i.verified_date,
         COALESCE((
           SELECT COUNT(*)::int FROM hdp.gallery g
-          WHERE g.indicator_id = i.indicator_id AND g.gallery_type = 1
+          WHERE g.indicator_id = i.indicator_id
+            AND g.gallery_type = 1
+            AND COALESCE(g.is_verified, false) = true
         ), 0) AS image_count,
         COALESCE((
           SELECT COUNT(*)::int FROM hdp.gallery g
-          WHERE g.indicator_id = i.indicator_id AND g.gallery_type = 2
+          WHERE g.indicator_id = i.indicator_id
+            AND g.gallery_type = 2
+            AND COALESCE(g.is_verified, false) = true
         ), 0) AS video_count
       FROM hdp.indicators i
       LEFT JOIN hdp.master_district md ON i.district_id = md.district_id
       WHERE i.project_id = ${id}
+        AND i.verified_date IS NOT NULL
       ORDER BY i.indicator_id ASC
     `);
 
@@ -153,6 +156,7 @@ export async function GET(
       FROM hdp.gallery g
       INNER JOIN hdp.indicators i ON g.indicator_id = i.indicator_id
       WHERE i.project_id = ${id}
+        AND COALESCE(g.is_verified, false) = true
       ORDER BY i.indicator_id ASC, g.uploaded_on DESC
       LIMIT 200
     `);

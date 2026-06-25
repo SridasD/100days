@@ -1,12 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import { sql } from "drizzle-orm";
-import { requireAdminSession, isAdminSession } from "@/lib/auth/admin-session";
+import {
+  requireTechAdminSession,
+  isAdminSession,
+} from "@/lib/auth/admin-session";
 import { db } from "@/lib/db/client";
 
 export const runtime = "nodejs";
 
 export async function GET(_req: NextRequest) {
-  const sessionOrResponse = await requireAdminSession();
+  const sessionOrResponse = await requireTechAdminSession();
   if (!isAdminSession(sessionOrResponse)) return sessionOrResponse;
 
   try {
@@ -29,8 +32,11 @@ export async function GET(_req: NextRequest) {
         `),
         db.execute(sql`
           SELECT COUNT(*)::int as count FROM hdp.indicators i
-          WHERE i.verified_date IS NULL
-            AND i.submitted_date IS NOT NULL
+          WHERE i.submitted_date IS NOT NULL
+            AND (
+              i.verified_date IS NULL
+              OR i.submitted_date > i.verified_date
+            )
             AND EXISTS (
               SELECT 1 FROM hdp.master_projects mp
               WHERE mp.project_id = i.project_id

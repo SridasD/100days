@@ -171,8 +171,15 @@ async function handleFileUpload(
           kind: "image",
           filename: file.name,
           size: file.size,
+          requires_reverification: true,
         },
       });
+
+      await db.execute(sql`
+        UPDATE hdp.indicators
+        SET submitted_by = ${userId}, submitted_date = now()
+        WHERE indicator_id = ${indicatorId}
+      `);
 
       return NextResponse.json(
         {
@@ -218,8 +225,15 @@ async function handleFileUpload(
         kind: "document",
         filename: file.name,
         size: file.size,
+        requires_reverification: true,
       },
     });
+
+    await db.execute(sql`
+      UPDATE hdp.indicators
+      SET submitted_by = ${userId}, submitted_date = now()
+      WHERE indicator_id = ${indicatorId}
+    `);
 
     return NextResponse.json(
       {
@@ -326,6 +340,12 @@ async function handleVideoEmbed(
       meta: { indicatorId, platform: parsed.platform, originalUrl: url },
     });
 
+    await db.execute(sql`
+      UPDATE hdp.indicators
+      SET submitted_by = ${userId}, submitted_date = now()
+      WHERE indicator_id = ${indicatorId}
+    `);
+
     return NextResponse.json(
       {
         item: {
@@ -411,8 +431,18 @@ export async function DELETE(
       entityId: galleryId,
       request: req,
       secId: session.secId,
-      meta: { indicatorId: id, galleryType: row.gallery_type },
+      meta: {
+        indicatorId: id,
+        galleryType: row.gallery_type,
+        requires_reverification: true,
+      },
     });
+
+    await db.execute(sql`
+      UPDATE hdp.indicators
+      SET submitted_by = ${session.userId}, submitted_date = now()
+      WHERE indicator_id = ${id}
+    `);
 
     return NextResponse.json({ ok: true });
   } catch (err) {

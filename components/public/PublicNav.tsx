@@ -17,7 +17,7 @@ interface NavLink {
 }
 
 const NAV_LINKS: NavLink[] = [
-  { href: '/', labelMal: 'മുഖപ്പ്' },
+  { href: '/', labelMal: 'ഹോം' },
   { href: '/public/projects', labelMal: 'പദ്ധതികൾ' },
   { href: '/#sectors-section', labelMal: 'മേഖലകൾ' },
 ];
@@ -74,16 +74,16 @@ export function PublicNav() {
                     href={link.href}
                     aria-current={active ? 'page' : undefined}
                     className={`group relative inline-flex items-center px-3 py-5 text-sm font-medium transition-colors duration-200 ${active
-                        ? 'text-hdp-green'
-                        : 'text-muted-foreground hover:text-hdp-green'
+                      ? 'text-hdp-green'
+                      : 'text-muted-foreground hover:text-hdp-green'
                       }`}
                   >
                     <span className="font-malayalam">{link.labelMal}</span>
                     <span
                       aria-hidden
                       className={`absolute inset-x-3 -bottom-px h-0.5 rounded-full bg-hdp-green transition-transform duration-200 ${active
-                          ? 'scale-x-100'
-                          : 'scale-x-0 group-hover:scale-x-100'
+                        ? 'scale-x-100'
+                        : 'scale-x-0 group-hover:scale-x-100'
                         }`}
                     />
                   </Link>
@@ -100,14 +100,14 @@ export function PublicNav() {
             className="hidden cursor-pointer items-center gap-1.5 rounded-full px-3 py-2 text-sm font-medium text-muted-foreground transition-colors duration-200 hover:text-hdp-green md:inline-flex"
           >
             <Home className="h-4 w-4" />
-            <span className="font-malayalam">മുഖപ്പ്</span>
+            <span className="font-malayalam">ഹോം</span>
           </Link>
           <Link
             href="/login"
             className="group inline-flex cursor-pointer items-center gap-1.5 rounded-full bg-hdp-green px-5 py-2 text-sm font-semibold text-white shadow-sm transition-all duration-200 hover:bg-hdp-green-active hover:shadow-md"
           >
             <ArrowRight className="h-4 w-4 transition-transform duration-200 group-hover:translate-x-0.5" />
-            <span className="font-malayalam">ഔദ്യോഗിക പ്രവേശനം</span>
+            <span className="font-malayalam">ഔദ്യോഗിക ലോഗിൻ</span>
           </Link>
         </div>
       </div>

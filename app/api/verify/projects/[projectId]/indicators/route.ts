@@ -41,11 +41,6 @@ export async function GET(
             : null;
         const submittedDesc = r.physical_description ?? "";
         const verifiedDesc = r.verified_physical_description ?? null;
-
-        // Once verified, the verified values become the canonical display.
-        // Nodal-submitted values stay accessible as "submitted*" for the
-        // side-by-side comparison.
-        const isVerified = !!r.verified_date;
         return {
           indicatorId: r.indicator_id,
           projectId: r.project_id,
@@ -54,13 +49,11 @@ export async function GET(
           submittedByName: r.submitted_by_name ?? "",
           physicalTarget: r.physical_target ? Number(r.physical_target) : 0,
           financialTarget: r.financial_target ? Number(r.financial_target) : 0,
-          // Canonical "display" values — verified takes precedence after approval
-          physicalAchievement:
-            isVerified && verifiedPhys !== null ? verifiedPhys : submittedPhys,
-          financialAchievement:
-            isVerified && verifiedFin !== null ? verifiedFin : submittedFin,
-          description:
-            isVerified && verifiedDesc !== null ? verifiedDesc : submittedDesc,
+          // Verifier must review latest nodal submission. Previously verified
+          // values are sent separately for side-by-side comparison.
+          physicalAchievement: submittedPhys,
+          financialAchievement: submittedFin,
+          description: submittedDesc,
           percentage: r.percentage ? Number(r.percentage) : 0,
           verifiedPercentage: r.verified_percentage
             ? Number(r.verified_percentage)
