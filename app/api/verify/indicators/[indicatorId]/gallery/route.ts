@@ -1,17 +1,17 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { sql } from 'drizzle-orm';
-import { mkdir, unlink, writeFile } from 'node:fs/promises';
-import path from 'node:path';
-import { randomUUID } from 'node:crypto';
+import { NextRequest, NextResponse } from "next/server";
+import { sql } from "drizzle-orm";
+import { mkdir, unlink, writeFile } from "node:fs/promises";
+import path from "node:path";
+import { randomUUID } from "node:crypto";
 import {
   isVerifierSession,
   requireVerifierSession,
-} from '@/lib/auth/verifier-session';
-import { db } from '@/lib/db/client';
-import { listGallery } from '@/lib/db/queries/officer';
-import { verifierOwnsIndicator } from '@/lib/db/queries/verifier';
-import { writeAudit } from '@/lib/audit/writeAudit';
-import { AUDIT_ACTIONS } from '@/lib/db/schema/audit';
+} from "@/lib/auth/verifier-session";
+import { db } from "@/lib/db/client";
+import { listGallery } from "@/lib/db/queries/officer";
+import { verifierOwnsIndicator } from "@/lib/db/queries/verifier";
+import { writeAudit } from "@/lib/audit/writeAudit";
+import { AUDIT_ACTIONS } from "@/lib/db/schema/audit";
 
 // Verifier-side gallery endpoint — mirrors the officer one but auth-gates
 // on the Verifier role. The verifier needs full media review power:
@@ -22,13 +22,16 @@ import { AUDIT_ACTIONS } from '@/lib/db/schema/audit';
 // File layout mirrors the officer endpoint:
 //   <UPLOAD_DIR>/<year>/<indicatorId>/<uuid>.<ext>
 
-export const runtime = 'nodejs';
+export const runtime = "nodejs";
 
-const UPLOAD_DIR = process.env.UPLOAD_DIR ?? './uploads';
+const UPLOAD_ROOT = path.resolve(
+  process.cwd(),
+  process.env.UPLOAD_DIR ?? "./uploads",
+);
 const MAX_SIZE_BYTES = (Number(process.env.MAX_UPLOAD_MB) || 5) * 1024 * 1024;
 
-const IMG_EXTS = new Set(['jpg', 'jpeg', 'png']);
-const DOC_EXTS = new Set(['pdf']);
+const IMG_EXTS = new Set(["jpg", "jpeg", "png"]);
+const DOC_EXTS = new Set(["pdf"]);
 
 // ---------------------------------------------------------------------------
 // GET — list gallery items
@@ -44,17 +47,16 @@ export async function GET(
   const { indicatorId } = await params;
   const id = Number(indicatorId);
   if (!Number.isFinite(id)) {
-    return NextResponse.json({ error: 'Invalid indicatorId' }, { status: 400 });
+    return NextResponse.json({ error: "Invalid indicatorId" }, { status: 400 });
   }
 
   const owns = await verifierOwnsIndicator(id, session.secId);
   if (!owns) {
-    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  const typeParam = req.nextUrl.searchParams.get('type');
-  const galleryType =
-    typeParam === '1' ? 1 : typeParam === '2' ? 2 : undefined;
+  const typeParam = req.nextUrl.searchParams.get("type");
+  const galleryType = typeParam === "1" ? 1 : typeParam === "2" ? 2 : undefined;
 
   const rows = await listGallery(id, galleryType);
   return NextResponse.json({
@@ -84,16 +86,16 @@ export async function POST(
   const { indicatorId } = await params;
   const id = Number(indicatorId);
   if (!Number.isFinite(id)) {
-    return NextResponse.json({ error: 'Invalid indicatorId' }, { status: 400 });
+    return NextResponse.json({ error: "Invalid indicatorId" }, { status: 400 });
   }
 
   const owns = await verifierOwnsIndicator(id, session.secId);
   if (!owns) {
-    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  const ct = req.headers.get('content-type') ?? '';
-  if (ct.startsWith('multipart/form-data')) {
+  const ct = req.headers.get("content-type") ?? "";
+  if (ct.startsWith("multipart/form-data")) {
     return handleVerifierFileUpload(req, id, session.userId, session.secId);
   }
   return handleVerifierVideoEmbed(req, id, session.userId, session.secId);
@@ -106,14 +108,14 @@ async function handleVerifierFileUpload(
   secId: number,
 ) {
   const form = await req.formData();
-  const file = form.get('file');
-  const description = String(form.get('description') ?? '');
+  const file = form.get("file");
+  const description = String(form.get("description") ?? "");
 
   if (!(file instanceof File)) {
-    return NextResponse.json({ error: 'No file provided' }, { status: 400 });
+    return NextResponse.json({ error: "No file provided" }, { status: 400 });
   }
 
-  const ext = (file.name.split('.').pop() ?? '').toLowerCase();
+  const ext = (file.name.split(".").pop() ?? "").toLowerCase();
   const isImage = IMG_EXTS.has(ext);
   const isDoc = DOC_EXTS.has(ext);
   if (!isImage && !isDoc) {
@@ -124,13 +126,13 @@ async function handleVerifierFileUpload(
   }
   if (file.size > MAX_SIZE_BYTES) {
     return NextResponse.json(
-      { error: 'File size exceeds 5MB limit.' },
+      { error: "File size exceeds 5MB limit." },
       { status: 413 },
     );
   }
 
   const year = new Date().getFullYear();
-  const dir = path.join(UPLOAD_DIR, String(year), String(indicatorId));
+  const dir = path.join(UPLOAD_ROOT, String(year), String(indicatorId));
   await mkdir(dir, { recursive: true });
   const safeName = `${randomUUID()}.${ext}`;
   const absPath = path.join(dir, safeName);
@@ -158,14 +160,14 @@ async function handleVerifierFileUpload(
       await writeAudit({
         userId,
         action: AUDIT_ACTIONS.MEDIA_UPLOADED,
-        entity: 'gallery',
+        entity: "gallery",
         entityId: row.gallery_id,
         request: req,
         secId,
         meta: {
           indicatorId,
-          kind: 'image',
-          source: 'verifier',
+          kind: "image",
+          source: "verifier",
           filename: file.name,
           size: file.size,
         },
@@ -199,14 +201,14 @@ async function handleVerifierFileUpload(
     await writeAudit({
       userId,
       action: AUDIT_ACTIONS.MEDIA_UPLOADED,
-      entity: 'documents',
+      entity: "documents",
       entityId: row.document_id,
       request: req,
       secId,
       meta: {
         indicatorId,
-        kind: 'document',
-        source: 'verifier',
+        kind: "document",
+        source: "verifier",
         filename: file.name,
         size: file.size,
       },
@@ -232,9 +234,9 @@ async function handleVerifierFileUpload(
     } catch {
       /* swallow */
     }
-    console.error('Verifier gallery upload failed', err);
+    console.error("Verifier gallery upload failed", err);
     return NextResponse.json(
-      { error: 'Failed to save upload' },
+      { error: "Failed to save upload" },
       { status: 500 },
     );
   }
@@ -249,17 +251,17 @@ const FB_PATTERN =
 
 function toEmbed(
   url: string,
-): { platform: 'youtube' | 'facebook'; embedSrc: string } | null {
+): { platform: "youtube" | "facebook"; embedSrc: string } | null {
   for (const p of YT_PATTERNS) {
     const m = url.match(p);
     if (m) {
       return {
-        platform: 'youtube',
+        platform: "youtube",
         embedSrc: `https://www.youtube.com/embed/${m[1]}`,
       };
     }
   }
-  if (FB_PATTERN.test(url)) return { platform: 'facebook', embedSrc: url };
+  if (FB_PATTERN.test(url)) return { platform: "facebook", embedSrc: url };
   return null;
 }
 
@@ -270,14 +272,14 @@ async function handleVerifierVideoEmbed(
   secId: number,
 ) {
   const body = await req.json().catch(() => null);
-  const url = typeof body?.url === 'string' ? body.url.trim() : '';
+  const url = typeof body?.url === "string" ? body.url.trim() : "";
   if (!url) {
-    return NextResponse.json({ error: 'url is required' }, { status: 400 });
+    return NextResponse.json({ error: "url is required" }, { status: 400 });
   }
   const parsed = toEmbed(url);
   if (!parsed) {
     return NextResponse.json(
-      { error: 'URL must be a valid YouTube or Facebook video link.' },
+      { error: "URL must be a valid YouTube or Facebook video link." },
       { status: 400 },
     );
   }
@@ -298,13 +300,13 @@ async function handleVerifierVideoEmbed(
     await writeAudit({
       userId,
       action: AUDIT_ACTIONS.VIDEO_EMBEDDED,
-      entity: 'gallery',
+      entity: "gallery",
       entityId: row.gallery_id,
       request: req,
       secId,
       meta: {
         indicatorId,
-        source: 'verifier',
+        source: "verifier",
         platform: parsed.platform,
         originalUrl: url,
       },
@@ -328,9 +330,9 @@ async function handleVerifierVideoEmbed(
       { status: 201 },
     );
   } catch (err) {
-    console.error('Verifier video embed failed', err);
+    console.error("Verifier video embed failed", err);
     return NextResponse.json(
-      { error: 'Failed to save video' },
+      { error: "Failed to save video" },
       { status: 500 },
     );
   }
@@ -349,17 +351,17 @@ export async function DELETE(
 
   const { indicatorId } = await params;
   const id = Number(indicatorId);
-  const galleryId = Number(req.nextUrl.searchParams.get('galleryId'));
+  const galleryId = Number(req.nextUrl.searchParams.get("galleryId"));
   if (!Number.isFinite(id) || !Number.isFinite(galleryId)) {
     return NextResponse.json(
-      { error: 'Invalid indicatorId or galleryId' },
+      { error: "Invalid indicatorId or galleryId" },
       { status: 400 },
     );
   }
 
   const owns = await verifierOwnsIndicator(id, session.secId);
   if (!owns) {
-    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
   try {
@@ -372,7 +374,7 @@ export async function DELETE(
       | { gallery_type: number; image_path: string | null }
       | undefined;
     if (!row) {
-      return NextResponse.json({ error: 'Not found' }, { status: 404 });
+      return NextResponse.json({ error: "Not found" }, { status: 404 });
     }
 
     await db.execute(
@@ -381,7 +383,7 @@ export async function DELETE(
 
     if (row.gallery_type === 1 && row.image_path) {
       try {
-        await unlink(path.join(UPLOAD_DIR, row.image_path));
+        await unlink(path.join(UPLOAD_ROOT, row.image_path));
       } catch {
         /* swallow */
       }
@@ -390,20 +392,20 @@ export async function DELETE(
     await writeAudit({
       userId: session.userId,
       action: AUDIT_ACTIONS.MEDIA_DELETED,
-      entity: 'gallery',
+      entity: "gallery",
       entityId: galleryId,
       request: req,
       secId: session.secId,
       meta: {
         indicatorId: id,
         galleryType: row.gallery_type,
-        source: 'verifier',
+        source: "verifier",
       },
     });
 
     return NextResponse.json({ ok: true });
   } catch (err) {
-    console.error('Verifier gallery DELETE failed', err);
-    return NextResponse.json({ error: 'Failed to delete' }, { status: 500 });
+    console.error("Verifier gallery DELETE failed", err);
+    return NextResponse.json({ error: "Failed to delete" }, { status: 500 });
   }
 }
