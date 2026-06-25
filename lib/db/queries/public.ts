@@ -13,9 +13,8 @@ import { db } from "../client";
  * convention still report sensibly.
  */
 export async function getPublicDashboardStats() {
-  const [projectsResult, indicatorsResult, verifiedResult] =
-    await Promise.all([
-      db.execute(sql`
+  const [projectsResult, indicatorsResult, verifiedResult] = await Promise.all([
+    db.execute(sql`
         SELECT
           COUNT(*)::int                                              AS total,
           SUM(CASE WHEN is_completed = 2 THEN 1 ELSE 0 END)::int     AS completed,
@@ -23,14 +22,27 @@ export async function getPublicDashboardStats() {
           SUM(CASE WHEN COALESCE(is_completed, 0) = 0 THEN 1 ELSE 0 END)::int
                                                                     AS not_started
         FROM hdp.master_projects
+        WHERE COALESCE(is_archived, false) = false
       `),
-      db.execute(sql`
-        SELECT COUNT(*)::int as count FROM hdp.indicators
+    db.execute(sql`
+        SELECT COUNT(*)::int as count FROM hdp.indicators i
+        WHERE EXISTS (
+          SELECT 1 FROM hdp.master_projects mp
+          WHERE mp.project_id = i.project_id
+            AND COALESCE(mp.is_archived, false) = false
+        )
       `),
-      db.execute(sql`
-        SELECT COUNT(*)::int as count FROM hdp.indicators WHERE verified_date IS NOT NULL
+    db.execute(sql`
+        SELECT COUNT(*)::int as count
+        FROM hdp.indicators i
+        WHERE i.verified_date IS NOT NULL
+          AND EXISTS (
+            SELECT 1 FROM hdp.master_projects mp
+            WHERE mp.project_id = i.project_id
+              AND COALESCE(mp.is_archived, false) = false
+          )
       `),
-    ]);
+  ]);
 
   const p = (projectsResult.rows[0] as any) ?? {};
 
@@ -55,15 +67,31 @@ export async function getPublicDistrictProgress() {
       COALESCE((
         SELECT COUNT(*)::int FROM hdp.indicators i
         WHERE i.district_id = md.district_id
+          AND EXISTS (
+            SELECT 1 FROM hdp.master_projects mp
+            WHERE mp.project_id = i.project_id
+              AND COALESCE(mp.is_archived, false) = false
+          )
       ), 0) AS total_indicators,
       COALESCE((
         SELECT COUNT(*)::int FROM hdp.indicators i
-        WHERE i.district_id = md.district_id AND i.verified_date IS NOT NULL
+        WHERE i.district_id = md.district_id
+          AND i.verified_date IS NOT NULL
+          AND EXISTS (
+            SELECT 1 FROM hdp.master_projects mp
+            WHERE mp.project_id = i.project_id
+              AND COALESCE(mp.is_archived, false) = false
+          )
       ), 0) AS verified_indicators,
       COALESCE((
         SELECT AVG(COALESCE(i.verified_percentage, 0))::numeric(5,2)
         FROM hdp.indicators i
         WHERE i.district_id = md.district_id
+          AND EXISTS (
+            SELECT 1 FROM hdp.master_projects mp
+            WHERE mp.project_id = i.project_id
+              AND COALESCE(mp.is_archived, false) = false
+          )
       ), 0) AS avg_progress
     FROM hdp.master_district md
     ORDER BY md.district_name ASC
@@ -89,6 +117,11 @@ export async function getPublicProgressTimeline() {
       COALESCE(SUM(CASE WHEN i.verified_date IS NOT NULL THEN 1 ELSE 0 END)::int, 0) as verified_count
     FROM hdp.indicators i
     WHERE i.submitted_date IS NOT NULL
+      AND EXISTS (
+        SELECT 1 FROM hdp.master_projects mp
+        WHERE mp.project_id = i.project_id
+          AND COALESCE(mp.is_archived, false) = false
+      )
     GROUP BY DATE(i.submitted_date)
     ORDER BY DATE(i.submitted_date) DESC
     LIMIT 90
@@ -138,6 +171,7 @@ export async function getTopProjects(limit: number = 10) {
         WHERE i.project_id = mp.project_id
       ), 0) AS avg_progress
     FROM hdp.master_projects mp
+    WHERE COALESCE(mp.is_archived, false) = false
     ORDER BY verified_indicators DESC, avg_progress DESC
     LIMIT ${limit}
   `);

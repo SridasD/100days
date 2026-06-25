@@ -1,7 +1,7 @@
-import { auth } from '@/auth';
-import { NextResponse } from 'next/server';
-import { sql } from 'drizzle-orm';
-import { db } from '@/lib/db/client';
+import { auth } from "@/auth";
+import { NextResponse } from "next/server";
+import { sql } from "drizzle-orm";
+import { db } from "@/lib/db/client";
 
 export interface OfficerSession {
   userId: number;
@@ -15,6 +15,7 @@ export const ROLE = {
   VERIFICATION_OFFICER: 1,
   NODAL_OFFICER: 2,
   ADMIN: 3,
+  OSD_ADMIN: 4,
 } as const;
 
 /**
@@ -32,7 +33,7 @@ export const ROLE = {
 export async function requireSession(): Promise<OfficerSession | NextResponse> {
   const s = await auth();
   if (!s?.user) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
   const u = s.user as {
     id: string;
@@ -43,7 +44,7 @@ export async function requireSession(): Promise<OfficerSession | NextResponse> {
   };
   const userId = Number(u.id);
   if (!Number.isFinite(userId)) {
-    return NextResponse.json({ error: 'Bad session' }, { status: 400 });
+    return NextResponse.json({ error: "Bad session" }, { status: 400 });
   }
 
   // Re-resolve live sec_id / role_id from DB so admin updates take effect
@@ -68,7 +69,10 @@ export async function requireSession(): Promise<OfficerSession | NextResponse> {
       | undefined;
     if (row) {
       if (row.status === 0) {
-        return NextResponse.json({ error: 'Account inactive' }, { status: 403 });
+        return NextResponse.json(
+          { error: "Account inactive" },
+          { status: 403 },
+        );
       }
       liveSecId = row.sec_id ?? u.secId;
       liveRoleId = row.role_id ?? u.roleId;
@@ -93,12 +97,14 @@ export async function requireOfficerSession(): Promise<
   const s = await requireSession();
   if (s instanceof NextResponse) return s;
   if (s.roleId !== ROLE.NODAL_OFFICER) {
-    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
   return s;
 }
 
 /** True when the value isn't a NextResponse — useful as a type guard. */
-export function isSession(v: OfficerSession | NextResponse): v is OfficerSession {
+export function isSession(
+  v: OfficerSession | NextResponse,
+): v is OfficerSession {
   return !(v instanceof NextResponse);
 }

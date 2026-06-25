@@ -1,16 +1,13 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { sql } from 'drizzle-orm';
-import { z } from 'zod';
-import {
-  isAdminSession,
-  requireAdminSession,
-} from '@/lib/auth/admin-session';
-import { db } from '@/lib/db/client';
-import { getProject } from '@/lib/db/queries/admin';
-import { writeAudit } from '@/lib/audit/writeAudit';
-import { AUDIT_ACTIONS } from '@/lib/db/schema/audit';
+import { NextRequest, NextResponse } from "next/server";
+import { sql } from "drizzle-orm";
+import { z } from "zod";
+import { isAdminSession, requireAdminSession } from "@/lib/auth/admin-session";
+import { db } from "@/lib/db/client";
+import { getProject } from "@/lib/db/queries/admin";
+import { writeAudit } from "@/lib/audit/writeAudit";
+import { AUDIT_ACTIONS } from "@/lib/db/schema/audit";
 
-export const runtime = 'nodejs';
+export const runtime = "nodejs";
 
 // ---------------------------------------------------------------------------
 // GET — single project (used by /admin/projects/[id]/edit)
@@ -25,15 +22,16 @@ export async function GET(
   const { id } = await params;
   const projectId = Number(id);
   if (!Number.isFinite(projectId)) {
-    return NextResponse.json({ error: 'Invalid id' }, { status: 400 });
+    return NextResponse.json({ error: "Invalid id" }, { status: 400 });
   }
 
   try {
-    const row = (await getProject(projectId)) as unknown as
-      | Record<string, unknown>
-      | null;
+    const row = (await getProject(projectId)) as unknown as Record<
+      string,
+      unknown
+    > | null;
     if (!row) {
-      return NextResponse.json({ error: 'Not found' }, { status: 404 });
+      return NextResponse.json({ error: "Not found" }, { status: 404 });
     }
 
     // Fetch all linked secretaries for this project.
@@ -55,9 +53,9 @@ export async function GET(
       project: {
         projectId: Number(row.project_id),
         projectCode: row.project_code ?? null,
-        projectName: row.project_name ?? '',
-        projectNameMal: row.project_name_mal ?? '',
-        description: row.description ?? '',
+        projectName: row.project_name ?? "",
+        projectNameMal: row.project_name_mal ?? "",
+        description: row.description ?? "",
         projectCost: row.project_cost ? Number(row.project_cost) : 0,
         sectorId: row.sector_id ?? null,
         natureOfProject: row.nature_of_project ?? null,
@@ -74,9 +72,9 @@ export async function GET(
       },
     });
   } catch (err) {
-    console.error('GET /api/admin/projects/[id] failed', err);
+    console.error("GET /api/admin/projects/[id] failed", err);
     return NextResponse.json(
-      { error: 'Failed to load project' },
+      { error: "Failed to load project" },
       { status: 500 },
     );
   }
@@ -90,7 +88,13 @@ const updateSchema = z.object({
   description: z.string().min(1),
   is_new: z.coerce.number().int().min(0).max(1).default(1),
   project_cost: z.coerce.number().min(0).optional().nullable(),
-  nature_of_project: z.coerce.number().int().min(1).max(2).optional().nullable(),
+  nature_of_project: z.coerce
+    .number()
+    .int()
+    .min(1)
+    .max(2)
+    .optional()
+    .nullable(),
   priority: z.coerce.number().int().min(1).max(3).optional().nullable(),
   project_execution_type: z.coerce
     .number()
@@ -104,7 +108,7 @@ const updateSchema = z.object({
   sector_id: z.coerce.number().int().positive(),
   sec_ids: z
     .array(z.coerce.number().int().positive())
-    .min(1, 'At least one department is required'),
+    .min(1, "At least one department is required"),
   no_days_employed_direct: z.coerce.number().int().min(0).default(0),
   no_persons_employed_direct: z.coerce.number().int().min(0).default(0),
   no_days_employed_indirect: z.coerce.number().int().min(0).default(0),
@@ -128,14 +132,14 @@ export async function PATCH(
   const { id } = await params;
   const projectId = Number(id);
   if (!Number.isFinite(projectId)) {
-    return NextResponse.json({ error: 'Invalid id' }, { status: 400 });
+    return NextResponse.json({ error: "Invalid id" }, { status: 400 });
   }
 
   const body = await req.json().catch(() => null);
   const parsed = updateSchema.safeParse(body);
   if (!parsed.success) {
     return NextResponse.json(
-      { error: 'Validation failed', issues: parsed.error.issues },
+      { error: "Validation failed", issues: parsed.error.issues },
       { status: 400 },
     );
   }
@@ -167,10 +171,11 @@ export async function PATCH(
         extra_three = ${d.extra_three ?? null},
         updated_by = ${session.userId}
       WHERE project_id = ${projectId}
+        AND COALESCE((to_jsonb(hdp.master_projects)->>'is_archived')::boolean, false) = false
       RETURNING project_id, project_code
     `);
     if (updated.rows.length === 0) {
-      return NextResponse.json({ error: 'Not found' }, { status: 404 });
+      return NextResponse.json({ error: "Not found" }, { status: 404 });
     }
 
     // Re-point all secretary links — delete existing, then bulk insert.
@@ -181,8 +186,7 @@ export async function PATCH(
     const maxRes = await db.execute(sql`
       SELECT COALESCE(MAX(id), 0) AS m FROM hdp.project_secretary
     `);
-    let nextLinkId =
-      Number((maxRes.rows[0] as { m: number | string }).m) + 1;
+    let nextLinkId = Number((maxRes.rows[0] as { m: number | string }).m) + 1;
     const uniqueSecIds = Array.from(new Set(d.sec_ids));
     for (const secId of uniqueSecIds) {
       await db.execute(sql`
@@ -195,7 +199,7 @@ export async function PATCH(
     await writeAudit({
       userId: session.userId,
       action: AUDIT_ACTIONS.PROJECT_UPDATED,
-      entity: 'master_projects',
+      entity: "master_projects",
       entityId: projectId,
       request: req,
       meta: { project_name: d.project_name, sec_ids: uniqueSecIds },
@@ -203,10 +207,33 @@ export async function PATCH(
 
     return NextResponse.json({ ok: true });
   } catch (err) {
-    console.error('PATCH /api/admin/projects/[id] failed', err);
+    console.error("PATCH /api/admin/projects/[id] failed", err);
     return NextResponse.json(
-      { error: 'Failed to update project' },
+      { error: "Failed to update project" },
       { status: 500 },
     );
   }
+}
+
+// ---------------------------------------------------------------------------
+// DELETE is intentionally disabled. Use archive workflow instead.
+// ---------------------------------------------------------------------------
+export async function DELETE(
+  _req: NextRequest,
+  { params }: { params: Promise<{ id: string }> },
+) {
+  const { id } = await params;
+  const projectId = Number(id);
+  if (!Number.isFinite(projectId)) {
+    return NextResponse.json({ error: "Invalid id" }, { status: 400 });
+  }
+
+  return NextResponse.json(
+    {
+      error:
+        "Permanent delete is disabled. Use POST /api/admin/projects/[id]/archive instead.",
+      projectId,
+    },
+    { status: 405 },
+  );
 }

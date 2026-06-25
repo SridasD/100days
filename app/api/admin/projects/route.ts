@@ -1,16 +1,13 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { sql } from 'drizzle-orm';
-import { z } from 'zod';
-import {
-  isAdminSession,
-  requireAdminSession,
-} from '@/lib/auth/admin-session';
-import { db } from '@/lib/db/client';
-import { listAllProjects } from '@/lib/db/queries/admin';
-import { writeAudit } from '@/lib/audit/writeAudit';
-import { AUDIT_ACTIONS } from '@/lib/db/schema/audit';
+import { NextRequest, NextResponse } from "next/server";
+import { sql } from "drizzle-orm";
+import { z } from "zod";
+import { isAdminSession, requireAdminSession } from "@/lib/auth/admin-session";
+import { db } from "@/lib/db/client";
+import { listAllProjects } from "@/lib/db/queries/admin";
+import { writeAudit } from "@/lib/audit/writeAudit";
+import { AUDIT_ACTIONS } from "@/lib/db/schema/audit";
 
-export const runtime = 'nodejs';
+export const runtime = "nodejs";
 
 // ---------------------------------------------------------------------------
 // GET — list all projects
@@ -38,9 +35,9 @@ export async function GET(_req: NextRequest) {
       })),
     });
   } catch (err) {
-    console.error('GET /api/admin/projects failed', err);
+    console.error("GET /api/admin/projects failed", err);
     return NextResponse.json(
-      { error: 'Failed to load projects' },
+      { error: "Failed to load projects" },
       { status: 500 },
     );
   }
@@ -54,7 +51,13 @@ const createProjectSchema = z.object({
   description: z.string().min(1),
   is_new: z.coerce.number().int().min(0).max(1).default(1),
   project_cost: z.coerce.number().min(0).optional().nullable(),
-  nature_of_project: z.coerce.number().int().min(1).max(2).optional().nullable(),
+  nature_of_project: z.coerce
+    .number()
+    .int()
+    .min(1)
+    .max(2)
+    .optional()
+    .nullable(),
   priority: z.coerce.number().int().min(1).max(3).optional().nullable(),
   project_execution_type: z.coerce
     .number()
@@ -68,7 +71,7 @@ const createProjectSchema = z.object({
   sector_id: z.coerce.number().int().positive(),
   sec_ids: z
     .array(z.coerce.number().int().positive())
-    .min(1, 'At least one department is required'),
+    .min(1, "At least one department is required"),
   no_days_employed_direct: z.coerce.number().int().min(0).default(0),
   no_persons_employed_direct: z.coerce.number().int().min(0).default(0),
   no_days_employed_indirect: z.coerce.number().int().min(0).default(0),
@@ -90,7 +93,7 @@ export async function POST(req: NextRequest) {
   const parsed = createProjectSchema.safeParse(body);
   if (!parsed.success) {
     return NextResponse.json(
-      { error: 'Validation failed', issues: parsed.error.issues },
+      { error: "Validation failed", issues: parsed.error.issues },
       { status: 400 },
     );
   }
@@ -153,8 +156,9 @@ export async function POST(req: NextRequest) {
       RETURNING project_code
     `);
     const projectCode =
-      ((codeResult.rows[0] as { project_code: string | null } | undefined)
-        ?.project_code) ?? `HDP-${codeYear}-${String(projectId).padStart(4, '0')}`;
+      (codeResult.rows[0] as { project_code: string | null } | undefined)
+        ?.project_code ??
+      `HDP-${codeYear}-${String(projectId).padStart(4, "0")}`;
 
     // Link to all selected secretaries — one row per department.
     // Legacy table has `id bigint NOT NULL` with no sequence — generate IDs
@@ -162,8 +166,7 @@ export async function POST(req: NextRequest) {
     const maxRes = await db.execute(sql`
       SELECT COALESCE(MAX(id), 0) AS m FROM hdp.project_secretary
     `);
-    let nextLinkId =
-      Number((maxRes.rows[0] as { m: number | string }).m) + 1;
+    let nextLinkId = Number((maxRes.rows[0] as { m: number | string }).m) + 1;
     const uniqueSecIds = Array.from(new Set(d.sec_ids));
     for (const secId of uniqueSecIds) {
       await db.execute(sql`
@@ -176,7 +179,7 @@ export async function POST(req: NextRequest) {
     await writeAudit({
       userId: session.userId,
       action: AUDIT_ACTIONS.PROJECT_CREATED,
-      entity: 'master_projects',
+      entity: "master_projects",
       entityId: projectId,
       request: req,
       meta: {
@@ -187,12 +190,9 @@ export async function POST(req: NextRequest) {
       },
     });
 
-    return NextResponse.json(
-      { projectId, projectCode },
-      { status: 201 },
-    );
+    return NextResponse.json({ projectId, projectCode }, { status: 201 });
   } catch (err) {
-    console.error('POST /api/admin/projects failed', err);
+    console.error("POST /api/admin/projects failed", err);
     const pgErr = err as {
       message?: string;
       code?: string;
@@ -203,7 +203,7 @@ export async function POST(req: NextRequest) {
     };
     return NextResponse.json(
       {
-        error: 'Failed to create project',
+        error: "Failed to create project",
         // Detailed PG fields surfaced so the form can show "column X does not exist"
         // and the dev can patch the schema or the INSERT without re-running.
         debug: {

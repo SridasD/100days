@@ -74,6 +74,7 @@ export async function listVerifierProjects(
         WHERE i.project_id = mp.project_id
           AND i.submitted_date IS NOT NULL
       )
+      AND COALESCE(mp.is_archived, false) = false
       ${isCentral ? sql`` : sql`AND ps.sec_id = ${secId}`}
     ORDER BY mp.project_id, mp.project_name ASC
   `);
@@ -189,6 +190,7 @@ export async function getVerifierIndicator(indicatorId: number, secId: number) {
     INNER JOIN hdp.project_secretary ps ON i.project_id = ps.project_id
     WHERE i.indicator_id = ${indicatorId}
       AND ps.sec_id = ${secId}
+      AND COALESCE(mp.is_archived, false) = false
     LIMIT 1
   `);
 

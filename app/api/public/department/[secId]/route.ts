@@ -1,6 +1,6 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { sql } from 'drizzle-orm';
-import { db } from '@/lib/db/client';
+import { NextRequest, NextResponse } from "next/server";
+import { sql } from "drizzle-orm";
+import { db } from "@/lib/db/client";
 
 // Public department detail. Returns the department label, headline stats,
 // and the full list of projects under that sec_id with their indicator /
@@ -10,7 +10,7 @@ import { db } from '@/lib/db/client';
 //   master_projects.is_completed = 2 → 'completed'
 //   master_projects.is_completed = 1 → 'in-progress'
 //   anything else (0 / NULL)         → 'not-started'
-export const runtime = 'nodejs';
+export const runtime = "nodejs";
 
 export async function GET(
   _req: NextRequest,
@@ -19,7 +19,7 @@ export async function GET(
   const { secId } = await params;
   const id = Number(secId);
   if (!Number.isFinite(id) || id <= 0) {
-    return NextResponse.json({ error: 'Invalid secId' }, { status: 400 });
+    return NextResponse.json({ error: "Invalid secId" }, { status: 400 });
   }
 
   try {
@@ -38,23 +38,31 @@ export async function GET(
           FROM hdp.master_projects mp
           INNER JOIN hdp.project_secretary ps ON mp.project_id = ps.project_id
           WHERE ps.sec_id = ms.sec_id
+            AND COALESCE(mp.is_archived, false) = false
         ), 0) AS projects,
         COALESCE((
           SELECT COUNT(DISTINCT mp.project_id)::int
           FROM hdp.master_projects mp
           INNER JOIN hdp.project_secretary ps ON mp.project_id = ps.project_id
-          WHERE ps.sec_id = ms.sec_id AND mp.is_completed = 2
+          WHERE ps.sec_id = ms.sec_id
+            AND mp.is_completed = 2
+            AND COALESCE(mp.is_archived, false) = false
         ), 0) AS completed,
         COALESCE((
           SELECT COUNT(*)::int FROM hdp.indicators i
+          INNER JOIN hdp.master_projects mp ON i.project_id = mp.project_id
           INNER JOIN hdp.project_secretary ps ON i.project_id = ps.project_id
           WHERE ps.sec_id = ms.sec_id
+            AND COALESCE(mp.is_archived, false) = false
         ), 0) AS indicators,
         COALESCE((
           SELECT COUNT(*)::int FROM hdp.gallery g
           INNER JOIN hdp.indicators i ON g.indicator_id = i.indicator_id
+          INNER JOIN hdp.master_projects mp ON i.project_id = mp.project_id
           INNER JOIN hdp.project_secretary ps ON i.project_id = ps.project_id
-          WHERE ps.sec_id = ms.sec_id AND g.gallery_type = 2
+          WHERE ps.sec_id = ms.sec_id
+            AND COALESCE(mp.is_archived, false) = false
+            AND g.gallery_type = 2
         ), 0) AS video_count
       FROM hdp.master_secretary ms
       WHERE ms.sec_id = ${id}
@@ -63,7 +71,7 @@ export async function GET(
     const headRow = head.rows[0] as any;
     if (!headRow) {
       return NextResponse.json(
-        { error: 'Department not found' },
+        { error: "Department not found" },
         { status: 404 },
       );
     }
@@ -121,18 +129,19 @@ export async function GET(
       FROM hdp.master_projects mp
       INNER JOIN hdp.project_secretary ps ON mp.project_id = ps.project_id
       WHERE ps.sec_id = ${id}
+        AND COALESCE(mp.is_archived, false) = false
       ORDER BY mp.project_id ASC
     `);
 
     const projects = (projectsResult.rows as Array<any>).map((r) => {
       const isCompleted = Number(r.is_completed) || 0;
-      let status: 'completed' | 'in-progress' | 'not-started' = 'not-started';
-      if (isCompleted === 2) status = 'completed';
-      else if (isCompleted === 1) status = 'in-progress';
+      let status: "completed" | "in-progress" | "not-started" = "not-started";
+      if (isCompleted === 2) status = "completed";
+      else if (isCompleted === 1) status = "in-progress";
       return {
         projectId: Number(r.project_id),
         projectCode: r.project_code ?? null,
-        name: r.project_name ?? '',
+        name: r.project_name ?? "",
         costInLakhs: Number(r.project_cost) || 0,
         indicatorsTotal: Number(r.indicators_total) || 0,
         indicatorsCompleted: Number(r.indicators_completed) || 0,
@@ -148,7 +157,7 @@ export async function GET(
     return NextResponse.json({
       department: {
         secId: Number(headRow.sec_id),
-        nameMal: headRow.secretary_name_mal ?? headRow.secretary_name ?? '',
+        nameMal: headRow.secretary_name_mal ?? headRow.secretary_name ?? "",
         stats: {
           projects: Number(headRow.projects) || 0,
           completed: Number(headRow.completed) || 0,
@@ -159,9 +168,9 @@ export async function GET(
       },
     });
   } catch (err) {
-    console.error('GET /api/public/department/[secId] failed', err);
+    console.error("GET /api/public/department/[secId] failed", err);
     return NextResponse.json(
-      { error: 'Failed to load department' },
+      { error: "Failed to load department" },
       { status: 500 },
     );
   }

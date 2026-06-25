@@ -1,6 +1,6 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { sql } from 'drizzle-orm';
-import { db } from '@/lib/db/client';
+import { NextRequest, NextResponse } from "next/server";
+import { sql } from "drizzle-orm";
+import { db } from "@/lib/db/client";
 
 // Public project detail. Returns:
 //   - project headline (name, code, cost, status, departments)
@@ -9,7 +9,7 @@ import { db } from '@/lib/db/client';
 //
 // Verifier-corrected values are preferred over nodal-submitted ones whenever
 // a verified row exists, mirroring how the rest of the public site reads.
-export const runtime = 'nodejs';
+export const runtime = "nodejs";
 
 export async function GET(
   _req: NextRequest,
@@ -18,7 +18,7 @@ export async function GET(
   const { projectId } = await params;
   const id = Number(projectId);
   if (!Number.isFinite(id) || id <= 0) {
-    return NextResponse.json({ error: 'Invalid projectId' }, { status: 400 });
+    return NextResponse.json({ error: "Invalid projectId" }, { status: 400 });
   }
 
   try {
@@ -56,17 +56,18 @@ export async function GET(
         ) AS primary_dept_name
       FROM hdp.master_projects mp
       WHERE mp.project_id = ${id}
+        AND COALESCE(mp.is_archived, false) = false
       LIMIT 1
     `);
     const headRow = head.rows[0] as any;
     if (!headRow) {
-      return NextResponse.json({ error: 'Project not found' }, { status: 404 });
+      return NextResponse.json({ error: "Project not found" }, { status: 404 });
     }
 
     const isCompleted = Number(headRow.is_completed) || 0;
-    let status: 'completed' | 'in-progress' | 'not-started' = 'not-started';
-    if (isCompleted === 2) status = 'completed';
-    else if (isCompleted === 1) status = 'in-progress';
+    let status: "completed" | "in-progress" | "not-started" = "not-started";
+    if (isCompleted === 2) status = "completed";
+    else if (isCompleted === 1) status = "in-progress";
 
     // ----- 2. Indicators with progress -----------------------------------
     const inds = await db.execute(sql`
@@ -120,16 +121,16 @@ export async function GET(
           : 0;
       return {
         indicatorId: Number(r.indicator_id),
-        name: r.indicator_name ?? '',
-        unit: r.unit ?? '',
-        district: r.district_name ?? '—',
+        name: r.indicator_name ?? "",
+        unit: r.unit ?? "",
+        district: r.district_name ?? "—",
         physicalTarget: physTarget,
         physicalAchievement: physAch,
         financialTarget: finTarget,
         financialAchievement: finAch,
         physicalPct: physPct,
         financialPct: finPct,
-        description: r.description ?? '',
+        description: r.description ?? "",
         verified: Boolean(r.verified_date),
         imageCount: Number(r.image_count) || 0,
         videoCount: Number(r.video_count) || 0,
@@ -161,27 +162,28 @@ export async function GET(
       .map((g) => ({
         galleryId: Number(g.gallery_id),
         imagePath: g.image_path,
-        description: g.description ?? '',
+        description: g.description ?? "",
         uploadedOn: g.uploaded_on,
         indicatorId: Number(g.indicator_id),
-        indicatorName: g.indicator_name ?? '',
+        indicatorName: g.indicator_name ?? "",
       }));
     const videos = (gallery.rows as Array<any>)
       .filter((g) => Number(g.gallery_type) === 2)
       .map((g) => ({
         galleryId: Number(g.gallery_id),
         embedSrc: g.image_path, // stores the youtube/embed url
-        description: g.description ?? '',
+        description: g.description ?? "",
         uploadedOn: g.uploaded_on,
         indicatorId: Number(g.indicator_id),
-        indicatorName: g.indicator_name ?? '',
+        indicatorName: g.indicator_name ?? "",
       }));
 
     // ----- 4. Aggregate progress for the headline -----------------------
     const overallPhysical =
       indicators.length > 0
         ? Math.round(
-            indicators.reduce((s, i) => s + i.physicalPct, 0) / indicators.length,
+            indicators.reduce((s, i) => s + i.physicalPct, 0) /
+              indicators.length,
           )
         : 0;
     const overallFinancial =
@@ -196,16 +198,16 @@ export async function GET(
       project: {
         projectId: Number(headRow.project_id),
         projectCode: headRow.project_code ?? null,
-        name: headRow.project_name ?? '',
-        description: headRow.description ?? '',
+        name: headRow.project_name ?? "",
+        description: headRow.description ?? "",
         costInLakhs: Number(headRow.project_cost) || 0,
         status,
         completionDate: headRow.completion_date ?? null,
-        departments: headRow.departments ?? '',
+        departments: headRow.departments ?? "",
         primarySecId: headRow.primary_sec_id
           ? Number(headRow.primary_sec_id)
           : null,
-        primaryDeptName: headRow.primary_dept_name ?? '',
+        primaryDeptName: headRow.primary_dept_name ?? "",
         overallPhysicalPct: overallPhysical,
         overallFinancialPct: overallFinancial,
         indicators,
@@ -214,9 +216,9 @@ export async function GET(
       },
     });
   } catch (err) {
-    console.error('GET /api/public/project/[projectId] failed', err);
+    console.error("GET /api/public/project/[projectId] failed", err);
     return NextResponse.json(
-      { error: 'Failed to load project' },
+      { error: "Failed to load project" },
       { status: 500 },
     );
   }

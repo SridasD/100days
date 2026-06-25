@@ -42,19 +42,20 @@ export async function GET(
       FROM hdp.indicators i
       JOIN hdp.master_projects mp ON i.project_id = mp.project_id
       WHERE i.district_id = ${districtId}
+        AND COALESCE(mp.is_archived, false) = false
       ORDER BY mp.project_name, i.indicator_name
     `);
 
     return NextResponse.json({
       districtName,
       indicators: indicatorsResult.rows.map((r: any) => ({
-        indicatorId: r.indicator_id,
+        indicatorId: Number(r.indicator_id),
         projectName: r.project_name,
         indicatorName: r.indicator_name,
-        physicalTarget: r.physical_target,
-        physicalAchievement: r.physical_achievement,
-        percentage: r.percentage,
-        verifiedPercentage: r.verified_percentage,
+        physicalTarget: Number(r.physical_target) || 0,
+        physicalAchievement: Number(r.physical_achievement) || 0,
+        percentage: Number(r.percentage) || 0,
+        verifiedPercentage: Number(r.verified_percentage) || 0,
         verifiedDate: r.verified_date,
         submittedDate: r.submitted_date,
       })),
