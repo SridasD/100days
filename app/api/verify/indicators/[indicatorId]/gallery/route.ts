@@ -261,7 +261,14 @@ function toEmbed(
       };
     }
   }
-  if (FB_PATTERN.test(url)) return { platform: "facebook", embedSrc: url };
+  if (FB_PATTERN.test(url)) {
+    return {
+      platform: "facebook",
+      embedSrc: `https://www.facebook.com/plugins/video.php?href=${encodeURIComponent(
+        url,
+      )}&show_text=false&width=560`,
+    };
+  }
   return null;
 }
 

@@ -107,6 +107,10 @@ export async function POST(
     const updated = await db.execute(sql`
       UPDATE hdp.indicators
       SET
+        physical_achievement = ${d.verified_physical_achievement},
+        financial_achievement = ${d.verified_financial_achievement},
+        percentage = ${verifiedPercentage},
+        physical_description = ${d.verified_description || null},
         verified_physical_achievement = ${d.verified_physical_achievement},
         verified_financial_achievement = ${d.verified_financial_achievement},
         verified_percentage = ${verifiedPercentage},
@@ -119,6 +123,15 @@ export async function POST(
         verified_date = now()
       WHERE indicator_id = ${id}
       RETURNING indicator_id, verified_by, verified_date, verified_percentage
+    `);
+
+    // Publish currently attached media to public views once the indicator
+    // itself is verified. Public APIs intentionally read only verified media.
+    await db.execute(sql`
+      UPDATE hdp.gallery
+      SET is_verified = true
+      WHERE indicator_id = ${id}
+        AND COALESCE(is_verified, false) = false
     `);
 
     const row = updated.rows[0];

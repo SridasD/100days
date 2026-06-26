@@ -60,6 +60,7 @@ interface ApiIndicator {
   submittedDate: string | null;
   verifiedDate: string | null;
   isVerified: boolean;
+  requiresReverification?: boolean;
   lastUpdatedAt: string | null;
   achievedDirectDays: number;
   achievedDirectPersons: number;
@@ -208,6 +209,11 @@ function IndicatorCard({
                   />
                   {i.isVerified ? 'Verified' : 'Not Verified'}
                 </Badge>
+                {i.isVerified && i.verifiedDate && (
+                  <Badge variant="neutral" className="bg-[#E8F5E9] text-[#1B5E20]">
+                    Verifier Final
+                  </Badge>
+                )}
                 {i.imageCount + i.documentCount > 0 && (
                   <span className="inline-flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-[11px] font-medium text-muted-foreground">
                     <Images className="h-3 w-3" aria-hidden />
@@ -271,6 +277,15 @@ function IndicatorCard({
               Last updated:{' '}
               <span className="font-medium text-foreground">
                 {new Date(i.lastUpdatedAt).toLocaleString('en-IN')}
+              </span>
+            </div>
+          )}
+          {i.isVerified && i.verifiedDate && (
+            <div className="flex items-center gap-1.5 text-[#1B5E20]">
+              <CheckCircle2 className="h-3.5 w-3.5" aria-hidden />
+              Finalized by verifier on{' '}
+              <span className="font-medium">
+                {new Date(i.verifiedDate).toLocaleString('en-IN')}
               </span>
             </div>
           )}

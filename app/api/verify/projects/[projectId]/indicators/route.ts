@@ -41,6 +41,22 @@ export async function GET(
             : null;
         const submittedDesc = r.physical_description ?? "";
         const verifiedDesc = r.verified_physical_description ?? null;
+        const submittedAt = r.submitted_date
+          ? new Date(r.submitted_date).getTime()
+          : 0;
+        const verifiedAt = r.verified_date
+          ? new Date(r.verified_date).getTime()
+          : 0;
+        const isCurrentVerified =
+          r.verified_date != null &&
+          (r.submitted_date == null || verifiedAt >= submittedAt);
+
+        const canonicalPhys =
+          isCurrentVerified && verifiedPhys != null ? verifiedPhys : submittedPhys;
+        const canonicalFin =
+          isCurrentVerified && verifiedFin != null ? verifiedFin : submittedFin;
+        const canonicalDesc =
+          isCurrentVerified && verifiedDesc != null ? verifiedDesc : submittedDesc;
         return {
           indicatorId: r.indicator_id,
           projectId: r.project_id,
@@ -49,11 +65,11 @@ export async function GET(
           submittedByName: r.submitted_by_name ?? "",
           physicalTarget: r.physical_target ? Number(r.physical_target) : 0,
           financialTarget: r.financial_target ? Number(r.financial_target) : 0,
-          // Verifier must review latest nodal submission. Previously verified
-          // values are sent separately for side-by-side comparison.
-          physicalAchievement: submittedPhys,
-          financialAchievement: submittedFin,
-          description: submittedDesc,
+          // Canonical values shown in the list: current verified values when
+          // the indicator is approved, otherwise latest nodal submission.
+          physicalAchievement: canonicalPhys,
+          financialAchievement: canonicalFin,
+          description: canonicalDesc,
           percentage: r.percentage ? Number(r.percentage) : 0,
           verifiedPercentage: r.verified_percentage
             ? Number(r.verified_percentage)

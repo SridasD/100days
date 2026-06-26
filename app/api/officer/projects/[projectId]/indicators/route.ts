@@ -112,7 +112,16 @@ export async function GET(
             ? Number(anyR.verified_financial_achievement)
             : null;
         const verifiedDesc = anyR.verified_physical_description ?? null;
-        const isVerified = !!r.verified_date;
+        const submittedAt = r.submitted_date
+          ? new Date(r.submitted_date).getTime()
+          : 0;
+        const verifiedAt = r.verified_date
+          ? new Date(r.verified_date).getTime()
+          : 0;
+        const isCurrentVerified =
+          !!r.verified_date && (!r.submitted_date || verifiedAt >= submittedAt);
+        const requiresReverification =
+          !!r.verified_date && !!r.submitted_date && submittedAt > verifiedAt;
 
         return {
           indicatorId: r.indicator_id,
@@ -138,12 +147,8 @@ export async function GET(
           completedDate: r.completed_date,
           submittedDate: r.submitted_date,
           verifiedDate: r.verified_date,
-          isVerified,
-          requiresReverification:
-            !!r.verified_date &&
-            !!r.submitted_date &&
-            new Date(r.submitted_date).getTime() >
-              new Date(r.verified_date).getTime(),
+          isVerified: isCurrentVerified,
+          requiresReverification,
           lastVerifiedSnapshot:
             !!r.verified_date
               ? {

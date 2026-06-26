@@ -77,7 +77,7 @@ export default function VerifyProjectIndicatorsPage({
   const [completeError, setCompleteError] = useState<string | null>(null);
   const [completedAt, setCompletedAt] = useState<string | null>(null);
 
-  const load = async () => {
+  const load = async (): Promise<Indicator[] | null> => {
     setLoading(true);
     setError(null);
     try {
@@ -91,8 +91,10 @@ export default function VerifyProjectIndicatorsPage({
       }
       const json = (await res.json()) as { indicators: Indicator[] };
       setIndicators(json.indicators);
+      return json.indicators;
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Unknown error');
+      return null;
     } finally {
       setLoading(false);
     }
@@ -401,9 +403,18 @@ export default function VerifyProjectIndicatorsPage({
         onOpenChange={(o) => !o && setVerifying(null)}
         indicator={verifying}
         onVerified={() => {
-          setVerifying(null);
           setToast('Indicator verified');
-          void load();
+          void load().then((latest) => {
+            if (!latest) return;
+            setVerifying((current) => {
+              if (!current) return current;
+              const next = latest.find(
+                (i) => i.indicatorId === current.indicatorId,
+              );
+              // Indicator might disappear from the queue due filters/permissions.
+              return next ?? null;
+            });
+          });
         }}
       />
 

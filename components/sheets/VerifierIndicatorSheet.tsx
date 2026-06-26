@@ -161,6 +161,7 @@ export function VerifierIndicatorSheet({
   const [remarks, setRemarks] = useState('');
   const [pendingSave, startSave] = useTransition();
   const [saveError, setSaveError] = useState<string | null>(null);
+  const remarksRef = useRef<HTMLTextAreaElement | null>(null);
 
   // Gallery state
   const [images, setImages] = useState<GalleryItem[]>([]);
@@ -178,19 +179,18 @@ export function VerifierIndicatorSheet({
   // verified values are shown as comparison context.
   useEffect(() => {
     if (!indicator) return;
-    const seedPhys =
-      indicator.submittedPhysicalAchievement ??
-      indicator.verifiedPhysicalAchievement ??
-      indicator.physicalAchievement;
-    const seedFin =
-      indicator.submittedFinancialAchievement ??
-      indicator.verifiedFinancialAchievement ??
-      indicator.financialAchievement;
-    const seedDesc =
-      indicator.submittedDescription ??
-      indicator.verifiedDescription ??
-      indicator.description ??
-      '';
+    const useSubmittedBaseline =
+      indicator.status === 'pending' ||
+      indicator.status === 'reverification_required';
+    const seedPhys = useSubmittedBaseline
+      ? (indicator.submittedPhysicalAchievement ?? indicator.physicalAchievement)
+      : (indicator.verifiedPhysicalAchievement ?? indicator.physicalAchievement);
+    const seedFin = useSubmittedBaseline
+      ? (indicator.submittedFinancialAchievement ?? indicator.financialAchievement)
+      : (indicator.verifiedFinancialAchievement ?? indicator.financialAchievement);
+    const seedDesc = useSubmittedBaseline
+      ? (indicator.submittedDescription ?? indicator.description ?? '')
+      : (indicator.verifiedDescription ?? indicator.description ?? '');
     setPhysical(seedPhys);
     setFinancial(seedFin);
     setDescription(seedDesc);
@@ -299,6 +299,12 @@ export function VerifierIndicatorSheet({
       setSaveError(
         'Please add remarks (min 5 chars) to explain your corrections.',
       );
+      setTab('verify');
+      // Keep the missing mandatory field in-view and focused.
+      requestAnimationFrame(() => {
+        remarksRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        remarksRef.current?.focus();
+      });
       return;
     }
     startSave(async () => {
@@ -463,7 +469,7 @@ export function VerifierIndicatorSheet({
               forceMount
               className="flex flex-1 flex-col overflow-hidden data-[state=inactive]:hidden"
             >
-              <div className="flex-1 space-y-5 overflow-y-auto px-6 py-5">
+              <div className="flex-1 space-y-5 overflow-y-auto px-6 py-5 pb-24">
                 {/* Submitted vs Verified comparison */}
                 <section>
                   <SectionTitle
@@ -644,10 +650,12 @@ export function VerifierIndicatorSheet({
                     }
                   />
                   <Textarea
+                    ref={remarksRef}
                     rows={3}
                     maxLength={2000}
                     value={remarks}
                     onChange={(e) => setRemarks(e.target.value)}
+                    aria-invalid={remarksRequired && !remarksOk}
                     placeholder={
                       remarksRequired
                         ? 'Explain why you corrected the values…'
@@ -679,6 +687,22 @@ export function VerifierIndicatorSheet({
               </div>
 
               <footer className="border-t bg-background px-6 py-3">
+                {(images.length > 0 || videos.length > 0) && (
+                  <p className="mb-2 text-[11px] text-muted-foreground">
+                    Approving this indicator will also verify attached evidence:
+                    {' '}
+                    <span className="font-medium text-foreground">
+                      {images.length} image{images.length === 1 ? '' : 's'}
+                    </span>
+                    {' '}
+                    and
+                    {' '}
+                    <span className="font-medium text-foreground">
+                      {videos.length} video{videos.length === 1 ? '' : 's'}
+                    </span>
+                    .
+                  </p>
+                )}
                 <Button
                   onClick={onApprove}
                   disabled={pendingSave}
