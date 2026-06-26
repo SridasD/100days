@@ -90,13 +90,39 @@ export async function POST(
       const b = afterVal == null ? 0 : Number(afterVal);
       if (a !== b) corrections[key] = { from: a, to: b };
     };
-    cmp("physical_achievement", before.physical_achievement, d.verified_physical_achievement);
-    cmp("financial_achievement", before.financial_achievement, d.verified_financial_achievement);
-    cmp("days_direct", before.achieved_no_days_employed_direct, d.verified_direct_days);
-    cmp("persons_direct", before.achieved_no_persons_employed_direct, d.verified_direct_persons);
-    cmp("days_indirect", before.achieved_no_days_employed_indirect, d.verified_indirect_days);
-    cmp("persons_indirect", before.achieved_no_persons_employed_indirect, d.verified_indirect_persons);
-    if ((before.physical_description ?? "") !== (d.verified_description ?? "")) {
+    cmp(
+      "physical_achievement",
+      before.physical_achievement,
+      d.verified_physical_achievement,
+    );
+    cmp(
+      "financial_achievement",
+      before.financial_achievement,
+      d.verified_financial_achievement,
+    );
+    cmp(
+      "days_direct",
+      before.achieved_no_days_employed_direct,
+      d.verified_direct_days,
+    );
+    cmp(
+      "persons_direct",
+      before.achieved_no_persons_employed_direct,
+      d.verified_direct_persons,
+    );
+    cmp(
+      "days_indirect",
+      before.achieved_no_days_employed_indirect,
+      d.verified_indirect_days,
+    );
+    cmp(
+      "persons_indirect",
+      before.achieved_no_persons_employed_indirect,
+      d.verified_indirect_persons,
+    );
+    if (
+      (before.physical_description ?? "") !== (d.verified_description ?? "")
+    ) {
       corrections["description"] = {
         from: before.physical_description ?? "",
         to: d.verified_description ?? "",

@@ -653,8 +653,8 @@ function IndicatorRow({
                 pct={
                   ind.financialTarget > 0
                     ? Math.round(
-                        (ind.financialAchievement / ind.financialTarget) * 100,
-                      )
+                      (ind.financialAchievement / ind.financialTarget) * 100,
+                    )
                     : 0
                 }
                 tone="success"

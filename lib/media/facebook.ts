@@ -20,7 +20,8 @@ const FB_HOSTS = new Set([
   "www.fb.watch",
 ]);
 
-const FB_VIDEO_PATH_RE = /\/(?:watch|reel\/\d+|share\/v\/[A-Za-z0-9_-]+|[^/]+\/videos\/\d+)/i;
+const FB_VIDEO_PATH_RE =
+  /\/(?:watch|reel\/\d+|share\/v\/[A-Za-z0-9_-]+|[^/]+\/videos\/\d+)/i;
 const FB_WATCH_QUERY_ID_RE = /^\d+$/;
 
 function normalizeInput(input: string): string {
@@ -68,8 +69,7 @@ export function extractFacebookOriginalUrlFromEmbed(
   const parsed = parseUrl(normalizeInput(maybeEmbedUrl));
   if (!parsed) return null;
   const host = parsed.hostname.toLowerCase();
-  const isPluginHost =
-    host === "www.facebook.com" || host === "facebook.com";
+  const isPluginHost = host === "www.facebook.com" || host === "facebook.com";
   if (!isPluginHost || parsed.pathname !== "/plugins/video.php") return null;
   const href = parsed.searchParams.get("href");
   if (!href) return null;
