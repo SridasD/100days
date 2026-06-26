@@ -85,6 +85,10 @@ tmp-ai/
 .claude/
 HDP screens/
 
+# Local share artifacts / deployment handoff copies
+HDP-2026-share.zip
+PRODUCTION_DEPLOYMENT_STEPS.md
+
 # Drizzle local artifacts
 .drizzle/
 drizzle/meta/
