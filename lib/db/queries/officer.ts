@@ -25,8 +25,14 @@ export interface OfficerProjectRow {
   total_allocated: string | null;
 }
 
+export interface OfficerScope {
+  roleId: number;
+  secId: number;
+  deptId: number;
+}
+
 export async function listOfficerProjects(
-  secId: number,
+  scope: OfficerScope,
 ): Promise<OfficerProjectRow[]> {
   // DISTINCT ON keeps a project from appearing twice when it is linked to
   // multiple sec_ids that both match the officer's secId (rare, but possible
@@ -70,7 +76,16 @@ export async function listOfficerProjects(
       ), 0) AS total_allocated
     FROM hdp.master_projects mp
     INNER JOIN hdp.project_secretary ps ON mp.project_id = ps.project_id
-    WHERE ps.sec_id = ${secId}
+    WHERE (
+      (${scope.roleId} = 2 AND ps.sec_id = ${scope.secId})
+      OR
+      (${scope.roleId} = 6 AND EXISTS (
+        SELECT 1
+        FROM hdp.project_department pd
+        WHERE pd.project_id = mp.project_id
+          AND pd.dept_id = ${scope.deptId}
+      ))
+    )
       AND COALESCE(mp.is_archived, false) = false
     ORDER BY mp.project_id, mp.project_name ASC
   `);
@@ -90,7 +105,7 @@ export interface OfficerProjectDetailRow extends OfficerProjectRow {
 
 export async function getOfficerProject(
   projectId: number,
-  secId: number,
+  scope: OfficerScope,
 ): Promise<OfficerProjectDetailRow | null> {
   const result = await db.execute(sql`
     SELECT
@@ -127,7 +142,16 @@ export async function getOfficerProject(
     INNER JOIN hdp.project_secretary ps ON mp.project_id = ps.project_id
     LEFT JOIN hdp.master_secretary ms ON ps.sec_id = ms.sec_id
     WHERE mp.project_id = ${projectId}
-      AND ps.sec_id = ${secId}
+      AND (
+        (${scope.roleId} = 2 AND ps.sec_id = ${scope.secId})
+        OR
+        (${scope.roleId} = 6 AND EXISTS (
+          SELECT 1
+          FROM hdp.project_department pd
+          WHERE pd.project_id = mp.project_id
+            AND pd.dept_id = ${scope.deptId}
+        ))
+      )
       AND COALESCE(mp.is_archived, false) = false
     LIMIT 1
   `);
@@ -168,7 +192,7 @@ export interface OfficerIndicatorRow {
 
 export async function listIndicatorsForProject(
   projectId: number,
-  secId: number,
+  scope: OfficerScope,
 ): Promise<OfficerIndicatorRow[]> {
   const result = await db.execute(sql`
     SELECT
@@ -214,9 +238,22 @@ export async function listIndicatorsForProject(
       ), '') AS supporting_dept_names
     FROM hdp.indicators i
     LEFT JOIN hdp.master_district md ON i.district_id = md.district_id
-    INNER JOIN hdp.project_secretary ps ON i.project_id = ps.project_id
     WHERE i.project_id = ${projectId}
-      AND ps.sec_id = ${secId}
+      AND (
+        (${scope.roleId} = 2 AND EXISTS (
+          SELECT 1
+          FROM hdp.project_secretary ps
+          WHERE ps.project_id = i.project_id
+            AND ps.sec_id = ${scope.secId}
+        ))
+        OR
+        (${scope.roleId} = 6 AND EXISTS (
+          SELECT 1
+          FROM hdp.project_department pd
+          WHERE pd.project_id = i.project_id
+            AND pd.dept_id = ${scope.deptId}
+        ))
+      )
     ORDER BY i.indicator_id ASC
   `);
   return result.rows as unknown as OfficerIndicatorRow[];
@@ -228,14 +265,23 @@ export async function listIndicatorsForProject(
  */
 export async function officerOwnsIndicator(
   indicatorId: number,
-  secId: number,
+  scope: OfficerScope,
 ): Promise<boolean> {
   const result = await db.execute(sql`
     SELECT 1
     FROM hdp.indicators i
     INNER JOIN hdp.project_secretary ps ON i.project_id = ps.project_id
     WHERE i.indicator_id = ${indicatorId}
-      AND ps.sec_id = ${secId}
+      AND (
+        (${scope.roleId} = 2 AND ps.sec_id = ${scope.secId})
+        OR
+        (${scope.roleId} = 6 AND EXISTS (
+          SELECT 1
+          FROM hdp.project_department pd
+          WHERE pd.project_id = i.project_id
+            AND pd.dept_id = ${scope.deptId}
+        ))
+      )
     LIMIT 1
   `);
   return result.rows.length > 0;

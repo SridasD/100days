@@ -23,16 +23,17 @@ export default async function OfficerProjectsPage() {
   if (!token) redirect('/login');
 
   const roleId = Number(token.roleId ?? 0);
-  if (roleId !== 2) redirect('/login');
+  if (roleId !== 2 && roleId !== 6) redirect('/login');
 
   const userName = String(token.userName ?? token.name ?? '');
-  const roleLabel = 'Nodal Officer';
+  const roleLabel = roleId === 6 ? 'Head of Department' : 'Nodal Officer';
   // TODO: fetch real department label from master_secretary using session.secId
   const departmentLabel = userName.includes('Animal') ? 'Animal Husbandry' : '';
 
   return (
     <div className="flex min-h-screen flex-col bg-background">
       <KeralaHeader
+        homeHref="/officer/projects"
         right={
           <OfficerUserMenu
             roleLabel={roleLabel}

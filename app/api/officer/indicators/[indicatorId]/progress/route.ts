@@ -1,23 +1,23 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { sql } from 'drizzle-orm';
-import { z } from 'zod';
-import { isSession, requireOfficerSession } from '@/lib/auth/session';
-import { db } from '@/lib/db/client';
-import { officerOwnsIndicator } from '@/lib/db/queries/officer';
-import { writeAudit } from '@/lib/audit/writeAudit';
-import { AUDIT_ACTIONS } from '@/lib/db/schema/audit';
+import { NextRequest, NextResponse } from "next/server";
+import { sql } from "drizzle-orm";
+import { z } from "zod";
+import { isSession, requireOfficerSession } from "@/lib/auth/session";
+import { db } from "@/lib/db/client";
+import { officerOwnsIndicator } from "@/lib/db/queries/officer";
+import { writeAudit } from "@/lib/audit/writeAudit";
+import { AUDIT_ACTIONS } from "@/lib/db/schema/audit";
 
-export const runtime = 'nodejs';
+export const runtime = "nodejs";
 
 // physical_achievement has no fixed upper bound at parse time — the cap
 // depends on the indicator's unit + target, which we can only look up
 // after we know the indicator id. Range validation is done in the handler
 // once we've fetched the row.
 const progressSchema = z.object({
-  physical_achievement: z.coerce.number().min(0, 'Cannot be negative'),
+  physical_achievement: z.coerce.number().min(0, "Cannot be negative"),
   financial_achievement: z.coerce.number().min(0),
   completed_date: z.string().optional().nullable(),
-  description: z.string().max(2000).optional().default(''),
+  description: z.string().max(2000).optional().default(""),
   achieved_direct_days: z.coerce.number().int().min(0).default(0),
   achieved_direct_persons: z.coerce.number().int().min(0).default(0),
   achieved_indirect_days: z.coerce.number().int().min(0).default(0),
@@ -35,14 +35,18 @@ export async function PUT(
   const { indicatorId } = await params;
   const id = Number(indicatorId);
   if (!Number.isFinite(id)) {
-    return NextResponse.json({ error: 'Invalid indicatorId' }, { status: 400 });
+    return NextResponse.json({ error: "Invalid indicatorId" }, { status: 400 });
   }
 
   // Ownership check — Section 4.3 security boundary
-  const owns = await officerOwnsIndicator(id, session.secId);
+  const owns = await officerOwnsIndicator(id, {
+    roleId: session.roleId,
+    secId: session.secId,
+    deptId: session.deptId,
+  });
   if (!owns) {
     return NextResponse.json(
-      { error: 'Forbidden: indicator does not belong to your department' },
+      { error: "Forbidden: indicator does not belong to your department" },
       { status: 403 },
     );
   }
@@ -51,7 +55,7 @@ export async function PUT(
   const parsed = progressSchema.safeParse(body);
   if (!parsed.success) {
     return NextResponse.json(
-      { error: 'Validation failed', issues: parsed.error.issues },
+      { error: "Validation failed", issues: parsed.error.issues },
       { status: 400 },
     );
   }
@@ -88,12 +92,12 @@ export async function PUT(
       }
     | undefined;
   if (!metaRow) {
-    return NextResponse.json({ error: 'Indicator not found' }, { status: 404 });
+    return NextResponse.json({ error: "Indicator not found" }, { status: 404 });
   }
-  const unit = (metaRow.unit ?? '').trim().toLowerCase();
+  const unit = (metaRow.unit ?? "").trim().toLowerCase();
   const targetNum =
     metaRow.physical_target != null ? Number(metaRow.physical_target) : 0;
-  const isPercentage = unit === 'percentage';
+  const isPercentage = unit === "percentage";
   const cap = isPercentage
     ? 100
     : targetNum > 0
@@ -103,12 +107,12 @@ export async function PUT(
   if (d.physical_achievement > cap) {
     return NextResponse.json(
       {
-        error: 'Validation failed',
+        error: "Validation failed",
         issues: [
           {
-            path: ['physical_achievement'],
+            path: ["physical_achievement"],
             message: isPercentage
-              ? 'Percentage cannot exceed 100.'
+              ? "Percentage cannot exceed 100."
               : `Cannot exceed the physical target (${targetNum}).`,
           },
         ],
@@ -119,17 +123,16 @@ export async function PUT(
 
   // 100% completion still requires a completion date — derive the ratio
   // from achievement vs the cap so the rule works for any unit type.
-  const pct = Number.isFinite(cap) && cap > 0
-    ? (d.physical_achievement / cap) * 100
-    : 0;
+  const pct =
+    Number.isFinite(cap) && cap > 0 ? (d.physical_achievement / cap) * 100 : 0;
   if (pct >= 100 && !completedDate) {
     return NextResponse.json(
       {
-        error: 'Validation failed',
+        error: "Validation failed",
         issues: [
           {
-            path: ['completed_date'],
-            message: 'Required when 100% complete.',
+            path: ["completed_date"],
+            message: "Required when 100% complete.",
           },
         ],
       },
@@ -164,7 +167,7 @@ export async function PUT(
     const row = updated.rows[0];
     if (!row) {
       return NextResponse.json(
-        { error: 'Indicator not found' },
+        { error: "Indicator not found" },
         { status: 404 },
       );
     }
@@ -172,7 +175,7 @@ export async function PUT(
     await writeAudit({
       userId: session.userId,
       action: AUDIT_ACTIONS.INDICATOR_SUBMITTED,
-      entity: 'indicators',
+      entity: "indicators",
       entityId: id,
       request: req,
       secId: session.secId,
@@ -202,9 +205,9 @@ export async function PUT(
 
     return NextResponse.json({ indicator: row });
   } catch (err) {
-    console.error('PUT progress failed', err);
+    console.error("PUT progress failed", err);
     return NextResponse.json(
-      { error: 'Failed to update indicator' },
+      { error: "Failed to update indicator" },
       { status: 500 },
     );
   }

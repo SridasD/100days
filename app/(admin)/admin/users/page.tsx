@@ -32,6 +32,7 @@ interface AdminUser {
 const ROLE_NAMES: Record<number, string> = {
   1: 'Verification Officer',
   2: 'Nodal Officer',
+  6: 'Head of Department',
   3: 'Admin',
 };
 

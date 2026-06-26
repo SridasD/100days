@@ -1,10 +1,10 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { sql } from 'drizzle-orm';
-import { isSession, requireOfficerSession } from '@/lib/auth/session';
-import { db } from '@/lib/db/client';
-import { listOfficerProjects } from '@/lib/db/queries/officer';
+import { NextRequest, NextResponse } from "next/server";
+import { sql } from "drizzle-orm";
+import { isSession, requireOfficerSession } from "@/lib/auth/session";
+import { db } from "@/lib/db/client";
+import { listOfficerProjects } from "@/lib/db/queries/officer";
 
-export const runtime = 'nodejs';
+export const runtime = "nodejs";
 
 export async function GET(_req: NextRequest) {
   const sessionOrResponse = await requireOfficerSession();
@@ -14,7 +14,17 @@ export async function GET(_req: NextRequest) {
   try {
     // Resolve scope label for the header chrome.
     let departmentLabel: string | null = null;
-    if (session.secId > 0) {
+    if (session.roleId === 6 && session.deptId > 0) {
+      const r = await db.execute(sql`
+        SELECT dept_name
+        FROM hdp.master_department
+        WHERE dept_id = ${session.deptId}
+        LIMIT 1
+      `);
+      departmentLabel =
+        (r.rows[0] as { dept_name: string | null } | undefined)?.dept_name ??
+        null;
+    } else if (session.secId > 0) {
       const r = await db.execute(sql`
         SELECT secretary_name
         FROM hdp.master_secretary
@@ -26,10 +36,16 @@ export async function GET(_req: NextRequest) {
           ?.secretary_name ?? null;
     }
 
-    const rows = await listOfficerProjects(session.secId);
+    const rows = await listOfficerProjects({
+      roleId: session.roleId,
+      secId: session.secId,
+      deptId: session.deptId,
+    });
     return NextResponse.json({
       scope: {
+        roleId: session.roleId,
         secId: session.secId,
+        deptId: session.deptId,
         departmentLabel,
       },
       projects: rows.map((r) => {
@@ -55,9 +71,9 @@ export async function GET(_req: NextRequest) {
       }),
     });
   } catch (err) {
-    console.error('GET /api/officer/projects failed', err);
+    console.error("GET /api/officer/projects failed", err);
     return NextResponse.json(
-      { error: 'Failed to load projects' },
+      { error: "Failed to load projects" },
       { status: 500 },
     );
   }

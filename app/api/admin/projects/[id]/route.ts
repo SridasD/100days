@@ -62,7 +62,8 @@ export async function GET(
       .filter((n): n is string => !!n);
     const fallbackSecId = deptResult.rows[0]
       ? Number(
-          (deptResult.rows[0] as { sec_id: number | string | null }).sec_id ?? 0,
+          (deptResult.rows[0] as { sec_id: number | string | null }).sec_id ??
+            0,
         ) || null
       : null;
     const fallbackSecretaryName = deptResult.rows[0]
@@ -96,10 +97,7 @@ export async function GET(
         extraOne: row.extra_one ?? "",
         extraTwo: row.extra_two ?? "",
         extraThree: row.extra_three ?? "",
-        secId:
-          secRow?.sec_id != null
-            ? Number(secRow.sec_id)
-            : fallbackSecId,
+        secId: secRow?.sec_id != null ? Number(secRow.sec_id) : fallbackSecId,
         secretaryName: secRow?.secretary_name ?? fallbackSecretaryName,
         secIds:
           secRow?.sec_id != null
@@ -151,7 +149,10 @@ const updateSchema = z.object({
   is_completed: z.coerce.number().int().min(0).max(2).default(0),
   completion_date: z.string().optional().nullable(),
   sector_id: z.coerce.number().int().positive(),
-  sec_id: z.coerce.number().int().positive("Administrative department is required"),
+  sec_id: z.coerce
+    .number()
+    .int()
+    .positive("Administrative department is required"),
   dept_ids: z
     .array(z.coerce.number().int().positive())
     .min(1, "At least one implementing department is required"),

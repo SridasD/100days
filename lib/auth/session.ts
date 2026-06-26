@@ -11,11 +11,13 @@ export interface OfficerSession {
   userName: string;
   roleId: number;
   secId: number;
+  deptId: number;
 }
 
 export const ROLE = {
   VERIFICATION_OFFICER: 1,
   NODAL_OFFICER: 2,
+  HEAD_OF_DEPARTMENT: 6,
   ADMIN: 3,
   OSD_ADMIN: 4,
 } as const;
@@ -42,6 +44,7 @@ export async function requireSession(
     name?: string | null;
     roleId?: number | string | null;
     secId?: number | string | null;
+    deptId?: number | string | null;
   } | null = null;
 
   if (req) {
@@ -80,6 +83,7 @@ export async function requireSession(
       name: (token.name as string | null | undefined) ?? null,
       roleId: Number(token.roleId ?? 0),
       secId: Number(token.secId ?? 0),
+      deptId: Number(token.deptId ?? 0),
     };
   }
 
@@ -95,11 +99,12 @@ export async function requireSession(
   // Re-resolve live sec_id / role_id from DB so admin updates take effect
   // without forcing every user to log out + back in.
   let liveSecId = user.secId;
+  let liveDeptId = user.deptId;
   let liveRoleId = user.roleId;
   let liveUserName = user.name ?? user.loginName;
   try {
     const fresh = await db.execute(sql`
-      SELECT sec_id, role_id, user_name, status
+      SELECT sec_id, dept_id, role_id, user_name, status
       FROM hdp.user_details
       WHERE user_id = ${userId}
       LIMIT 1
@@ -107,6 +112,7 @@ export async function requireSession(
     const row = fresh.rows[0] as
       | {
           sec_id: number | null;
+          dept_id: number | null;
           role_id: number | null;
           user_name: string | null;
           status: number | null;
@@ -120,6 +126,7 @@ export async function requireSession(
         );
       }
       liveSecId = row.sec_id ?? user.secId;
+      liveDeptId = row.dept_id ?? user.deptId;
       liveRoleId = row.role_id ?? user.roleId;
       liveUserName = row.user_name ?? liveUserName;
     }
@@ -133,6 +140,7 @@ export async function requireSession(
     userName: liveUserName,
     roleId: liveRoleId,
     secId: liveSecId,
+    deptId: liveDeptId,
   };
 }
 
@@ -141,7 +149,7 @@ export async function requireOfficerSession(
 ): Promise<OfficerSession | NextResponse> {
   const s = await requireSession(req);
   if (s instanceof NextResponse) return s;
-  if (s.roleId !== ROLE.NODAL_OFFICER) {
+  if (s.roleId !== ROLE.NODAL_OFFICER && s.roleId !== ROLE.HEAD_OF_DEPARTMENT) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
   return s;

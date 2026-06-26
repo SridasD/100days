@@ -54,7 +54,7 @@ export function LoginForm() {
         const roleId = session.user?.roleId;
         if (roleId === 4) return '/admin/osd/dashboard';
         if (roleId === 3) return '/admin/dashboard';
-        if (roleId === 2) return '/officer/projects';
+        if (roleId === 2 || roleId === 6) return '/officer/projects';
         if (roleId === 1) return '/verify/projects';
       }
     } catch {

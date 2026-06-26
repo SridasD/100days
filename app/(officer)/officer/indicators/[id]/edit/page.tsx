@@ -57,7 +57,7 @@ export default function OfficerEditIndicatorPage({
 
   return (
     <div className="flex min-h-screen flex-col bg-background">
-      <KeralaHeader right={<OfficerUserMenu roleLabel="Nodal Officer" />} />
+      <KeralaHeader homeHref="/officer/projects" right={<OfficerUserMenu roleLabel="Nodal Officer" />} />
 
       <main className="container mx-auto flex-1 space-y-6 px-4 py-8">
         <div className="space-y-2">

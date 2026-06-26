@@ -326,10 +326,10 @@ export function IndicatorForm({ projectId, indicatorId }: Props) {
     const pctUsedAfter =
       budget.projectCost > 0
         ? Math.min(
-            100,
-            ((budget.totalAllocated + enteredFinancial) / budget.projectCost) *
-              100,
-          )
+          100,
+          ((budget.totalAllocated + enteredFinancial) / budget.projectCost) *
+          100,
+        )
         : 0;
     return { remainingAfter, exceeds, pctUsedBefore, pctUsedAfter };
   }, [budget, enteredFinancial]);
@@ -369,15 +369,13 @@ export function IndicatorForm({ projectId, indicatorId }: Props) {
         if (!res.ok) {
           const body = await res.json().catch(() => ({}));
           const debug = body.debug
-            ? `\nDB: ${body.debug.message ?? ''}${
-                body.debug.detail ? ' · ' + body.debug.detail : ''
-              }${body.debug.column ? ' · column: ' + body.debug.column : ''}`
+            ? `\nDB: ${body.debug.message ?? ''}${body.debug.detail ? ' · ' + body.debug.detail : ''
+            }${body.debug.column ? ' · column: ' + body.debug.column : ''}`
             : '';
           throw new Error((body.error ?? `HTTP ${res.status}`) + debug);
         }
         router.push(
-          `/officer/projects/${projectId}/indicators?${
-            isEdit ? 'edited' : 'created'
+          `/officer/projects/${projectId}/indicators?${isEdit ? 'edited' : 'created'
           }=1`,
         );
       } catch (e) {
@@ -416,444 +414,443 @@ export function IndicatorForm({ projectId, indicatorId }: Props) {
           control — including the multi-select panels — without touching
           each input individually. */}
       <fieldset className="contents">
-      {serverError && (
-        <div className="flex items-start gap-2 rounded-lg border border-error-red/30 bg-error-red/5 p-3 text-sm text-error-red">
-          <AlertTriangle className="mt-0.5 h-4 w-4 flex-shrink-0" />
-          <pre className="whitespace-pre-wrap font-sans">{serverError}</pre>
-        </div>
-      )}
-
-      {/* PROJECT BUDGET CONTEXT */}
-      {budgetError ? (
-        <div className="flex items-center gap-2 rounded-lg border border-warning-amber/30 bg-warning-amber/10 p-3 text-xs text-warning-amber">
-          <Info className="h-4 w-4" />
-          Could not load project budget: {budgetError}
-        </div>
-      ) : !budget ? (
-        <div className="flex items-center gap-2 text-xs text-muted-foreground">
-          <Loader2 className="h-3.5 w-3.5 animate-spin" />
-          Loading project budget…
-        </div>
-      ) : (
-        <Card className="border-l-4 border-l-[#2E7D32] shadow-sm">
-          <CardContent className="space-y-3 p-5">
-            <div className="flex flex-wrap items-baseline justify-between gap-2">
-              <h2 className="flex items-center gap-2 text-sm font-semibold text-foreground">
-                <Wallet className="h-4 w-4 text-[#2E7D32]" aria-hidden />
-                {budget.projectName || 'Project budget'}
-              </h2>
-              <span className="text-[11px] text-muted-foreground">
-                {budget.indicatorsTotal} existing{' '}
-                {budget.indicatorsTotal === 1 ? 'indicator' : 'indicators'}
-              </span>
-            </div>
-            <div className="grid gap-3 sm:grid-cols-3">
-              <BudgetStat
-                label="Total project cost"
-                value={budget.projectCost}
-                tone="muted"
-              />
-              <BudgetStat
-                label="Already allocated"
-                value={budget.totalAllocated}
-                tone="info"
-              />
-              <BudgetStat
-                label="Available balance"
-                value={budget.balance}
-                tone={budget.balance > 0 ? 'success' : 'error'}
-              />
-            </div>
-            <div className="space-y-1.5">
-              <div className="flex items-center justify-between text-[11px] text-muted-foreground">
-                <span>Allocation against project cost</span>
-                <span className="font-mono">
-                  {budgetState
-                    ? `${budgetState.pctUsedBefore.toFixed(1)}% used`
-                    : '—'}
-                </span>
-              </div>
-              <div className="relative h-2 w-full overflow-hidden rounded-full bg-muted">
-                <div
-                  className="absolute inset-y-0 left-0 bg-kerala-blue/60 transition-all duration-300"
-                  style={{ width: `${budgetState?.pctUsedBefore ?? 0}%` }}
-                />
-                {budgetState && enteredFinancial > 0 && (
-                  <div
-                    className={cn(
-                      'absolute inset-y-0 transition-all duration-300',
-                      budgetState.exceeds
-                        ? 'bg-error-red/80'
-                        : 'bg-success-green/80',
-                    )}
-                    style={{
-                      left: `${budgetState.pctUsedBefore}%`,
-                      width: `${
-                        budgetState.pctUsedAfter - budgetState.pctUsedBefore
-                      }%`,
-                    }}
-                  />
-                )}
-              </div>
-            </div>
-            {budgetState && enteredFinancial > 0 && (
-              <div
-                className={cn(
-                  'flex items-start gap-2 rounded-md p-2.5 text-xs',
-                  budgetState.exceeds
-                    ? 'border border-error-red/30 bg-error-red/5 text-error-red'
-                    : 'border border-success-green/30 bg-success-green/5 text-success-green',
-                )}
-              >
-                {budgetState.exceeds ? (
-                  <>
-                    <AlertTriangle className="mt-0.5 h-4 w-4 flex-shrink-0" />
-                    <span>
-                      <span className="font-semibold">
-                        Exceeds available balance by ₹{' '}
-                        {inrFormat.format(Math.abs(budgetState.remainingAfter))}{' '}
-                        Lakhs.
-                      </span>{' '}
-                      Reduce the financial target or ask the administrator to
-                      revise the project cost.
-                    </span>
-                  </>
-                ) : (
-                  <>
-                    <CheckCircle2 className="mt-0.5 h-4 w-4 flex-shrink-0" />
-                    <span>
-                      After saving, the project will have ₹{' '}
-                      <span className="font-semibold">
-                        {inrFormat.format(budgetState.remainingAfter)} Lakhs
-                      </span>{' '}
-                      remaining for future indicators.
-                    </span>
-                  </>
-                )}
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      )}
-
-      {/* ============== INDICATOR DETAILS ============== */}
-      <Card className="overflow-hidden">
-        <div
-          style={{ backgroundColor: '#2E7D32' }}
-          className="px-6 py-3 text-center text-sm font-semibold uppercase tracking-wide text-white"
-        >
-          {isEdit ? 'Edit Indicator Details' : 'Add New Indicator Details'}
-        </div>
-
-        {locked && (
-          <div className="flex items-start gap-2 border-b bg-[#E8F5E9] px-6 py-3 text-xs text-[#1B5E20]">
-            <CheckCircle2 className="mt-0.5 h-4 w-4 flex-shrink-0" />
-            <p>
-              This indicator was previously verified. Your edits will be saved
-              as a new submission and will require verification again.
-            </p>
+        {serverError && (
+          <div className="flex items-start gap-2 rounded-lg border border-error-red/30 bg-error-red/5 p-3 text-sm text-error-red">
+            <AlertTriangle className="mt-0.5 h-4 w-4 flex-shrink-0" />
+            <pre className="whitespace-pre-wrap font-sans">{serverError}</pre>
           </div>
         )}
 
-        <CardContent className="space-y-5 p-6">
-          {/* Indicator name */}
-          <Field
-            label="Indicator Name"
-            required
-            error={errors.indicator_name?.message}
+        {/* PROJECT BUDGET CONTEXT */}
+        {budgetError ? (
+          <div className="flex items-center gap-2 rounded-lg border border-warning-amber/30 bg-warning-amber/10 p-3 text-xs text-warning-amber">
+            <Info className="h-4 w-4" />
+            Could not load project budget: {budgetError}
+          </div>
+        ) : !budget ? (
+          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            Loading project budget…
+          </div>
+        ) : (
+          <Card className="border-l-4 border-l-[#2E7D32] shadow-sm">
+            <CardContent className="space-y-3 p-5">
+              <div className="flex flex-wrap items-baseline justify-between gap-2">
+                <h2 className="flex items-center gap-2 text-sm font-semibold text-foreground">
+                  <Wallet className="h-4 w-4 text-[#2E7D32]" aria-hidden />
+                  {budget.projectName || 'Project budget'}
+                </h2>
+                <span className="text-[11px] text-muted-foreground">
+                  {budget.indicatorsTotal} existing{' '}
+                  {budget.indicatorsTotal === 1 ? 'indicator' : 'indicators'}
+                </span>
+              </div>
+              <div className="grid gap-3 sm:grid-cols-3">
+                <BudgetStat
+                  label="Total project cost"
+                  value={budget.projectCost}
+                  tone="muted"
+                />
+                <BudgetStat
+                  label="Already allocated"
+                  value={budget.totalAllocated}
+                  tone="info"
+                />
+                <BudgetStat
+                  label="Available balance"
+                  value={budget.balance}
+                  tone={budget.balance > 0 ? 'success' : 'error'}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between text-[11px] text-muted-foreground">
+                  <span>Allocation against project cost</span>
+                  <span className="font-mono">
+                    {budgetState
+                      ? `${budgetState.pctUsedBefore.toFixed(1)}% used`
+                      : '—'}
+                  </span>
+                </div>
+                <div className="relative h-2 w-full overflow-hidden rounded-full bg-muted">
+                  <div
+                    className="absolute inset-y-0 left-0 bg-kerala-blue/60 transition-all duration-300"
+                    style={{ width: `${budgetState?.pctUsedBefore ?? 0}%` }}
+                  />
+                  {budgetState && enteredFinancial > 0 && (
+                    <div
+                      className={cn(
+                        'absolute inset-y-0 transition-all duration-300',
+                        budgetState.exceeds
+                          ? 'bg-error-red/80'
+                          : 'bg-success-green/80',
+                      )}
+                      style={{
+                        left: `${budgetState.pctUsedBefore}%`,
+                        width: `${budgetState.pctUsedAfter - budgetState.pctUsedBefore
+                          }%`,
+                      }}
+                    />
+                  )}
+                </div>
+              </div>
+              {budgetState && enteredFinancial > 0 && (
+                <div
+                  className={cn(
+                    'flex items-start gap-2 rounded-md p-2.5 text-xs',
+                    budgetState.exceeds
+                      ? 'border border-error-red/30 bg-error-red/5 text-error-red'
+                      : 'border border-success-green/30 bg-success-green/5 text-success-green',
+                  )}
+                >
+                  {budgetState.exceeds ? (
+                    <>
+                      <AlertTriangle className="mt-0.5 h-4 w-4 flex-shrink-0" />
+                      <span>
+                        <span className="font-semibold">
+                          Exceeds available balance by ₹{' '}
+                          {inrFormat.format(Math.abs(budgetState.remainingAfter))}{' '}
+                          Lakhs.
+                        </span>{' '}
+                        Reduce the financial target or ask the administrator to
+                        revise the project cost.
+                      </span>
+                    </>
+                  ) : (
+                    <>
+                      <CheckCircle2 className="mt-0.5 h-4 w-4 flex-shrink-0" />
+                      <span>
+                        After saving, the project will have ₹{' '}
+                        <span className="font-semibold">
+                          {inrFormat.format(budgetState.remainingAfter)} Lakhs
+                        </span>{' '}
+                        remaining for future indicators.
+                      </span>
+                    </>
+                  )}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        )}
+
+        {/* ============== INDICATOR DETAILS ============== */}
+        <Card className="overflow-hidden">
+          <div
+            style={{ backgroundColor: '#2E7D32' }}
+            className="px-6 py-3 text-center text-sm font-semibold uppercase tracking-wide text-white"
           >
-            <Textarea
-              rows={3}
-              maxLength={255}
-              {...register('indicator_name')}
-              placeholder="Describe what this indicator measures"
-            />
-          </Field>
-
-          {/* Unit + Physical Target + Financial Target */}
-          <div className="grid gap-4 lg:grid-cols-3">
-            <Field
-              label="Unit of Measurement"
-              required
-              error={errors.unit?.message}
-            >
-              <select {...register('unit')} className={selectClass}>
-                <option value="">Choose option</option>
-                {UNIT_OPTIONS.map((u) => (
-                  <option key={u} value={u}>
-                    {u}
-                  </option>
-                ))}
-              </select>
-            </Field>
-
-            <Field
-              label="Physical Target"
-              required
-              error={errors.physical_target?.message}
-            >
-              <div className="relative">
-                <Target
-                  aria-hidden
-                  className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground"
-                />
-                <Input
-                  type="number"
-                  step="any"
-                  min={0}
-                  placeholder="0"
-                  className="pl-9"
-                  {...register('physical_target')}
-                />
-              </div>
-            </Field>
-
-            <Field
-              label="Financial Target (in Lakh)"
-              required
-              error={errors.financial_target?.message}
-            >
-              <div className="relative">
-                <IndianRupee
-                  aria-hidden
-                  className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground"
-                />
-                <Input
-                  type="number"
-                  step="0.01"
-                  min={0}
-                  placeholder="0.00"
-                  className="pl-9"
-                  {...register('financial_target')}
-                />
-              </div>
-            </Field>
+            {isEdit ? 'Edit Indicator Details' : 'Add New Indicator Details'}
           </div>
 
-          {/* District → Local Body Type → Local Body cascade */}
-          <div className="grid gap-4 lg:grid-cols-3">
+          {locked && (
+            <div className="flex items-start gap-2 border-b bg-[#E8F5E9] px-6 py-3 text-xs text-[#1B5E20]">
+              <CheckCircle2 className="mt-0.5 h-4 w-4 flex-shrink-0" />
+              <p>
+                This indicator was previously verified. Your edits will be saved
+                as a new submission and will require verification again.
+              </p>
+            </div>
+          )}
+
+          <CardContent className="space-y-5 p-6">
+            {/* Indicator name */}
             <Field
-              label="Implementation District"
+              label="Indicator Name"
               required
-              error={errors.district_id?.message}
+              error={errors.indicator_name?.message}
             >
-              <div className="relative">
-                <MapPin
-                  aria-hidden
-                  className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground"
-                />
-                <select
-                  {...register('district_id')}
-                  className={cn(selectClass, 'pl-9')}
-                >
-                  <option value={ALL}>All Districts</option>
-                  {master?.districts.map((d) => (
-                    <option key={d.district_id} value={d.district_id}>
-                      {d.district_name}
-                    </option>
-                  ))}
-                </select>
-              </div>
+              <Textarea
+                rows={3}
+                maxLength={255}
+                {...register('indicator_name')}
+                placeholder="Describe what this indicator measures"
+              />
             </Field>
 
-            {/* Local body type — only when a specific district is selected.
-                Sentinel rows (ids 1 & 2) are filtered out at the API. */}
-            {districtId > 0 ? (
-              <Field label="Implementation Local Body Type" required>
-                <select
-                  {...register('local_body_type_id')}
-                  className={selectClass}
-                >
-                  <option value={ALL}>All Types</option>
-                  {(master?.localBodyTypes ?? []).map((t) => (
-                    <option
-                      key={t.localbody_type_id}
-                      value={t.localbody_type_id}
-                    >
-                      {t.localbody_type_name}
-                    </option>
-                  ))}
-                </select>
-              </Field>
-            ) : (
-              <CascadeHint message="Applies to all districts — Local Body Type & Implementation Local Body are not required." />
-            )}
-
-            {/* Local body multi-select — only when both district + type are specific */}
-            {districtId > 0 && localBodyTypeId > 0 ? (
+            {/* Unit + Physical Target + Financial Target */}
+            <div className="grid gap-4 lg:grid-cols-3">
               <Field
-                label={`Implementation Local Body — ${localBodyIds.length} selected`}
+                label="Unit of Measurement"
                 required
-                error={errors.local_body_ids?.message as string}
+                error={errors.unit?.message}
               >
-                <MultiSelectPanel
-                  options={filteredLocalBodies.map((lb) => ({
-                    id: lb.localbody_id,
-                    name: lb.localbody_name ?? `#${lb.localbody_id}`,
-                  }))}
-                  selected={localBodyIds}
-                  onToggle={(id) =>
-                    setValue(
-                      'local_body_ids',
-                      localBodyIds.includes(id)
-                        ? localBodyIds.filter((x) => x !== id)
-                        : [...localBodyIds, id],
-                      { shouldValidate: true, shouldDirty: true },
-                    )
-                  }
-                  onSelectMany={(ids) =>
-                    setValue('local_body_ids', ids, {
-                      shouldValidate: true,
-                      shouldDirty: true,
-                    })
-                  }
-                  onClear={() =>
-                    setValue('local_body_ids', [], {
-                      shouldValidate: true,
-                      shouldDirty: true,
-                    })
-                  }
-                  emptyHint="No local bodies match this district and type."
-                />
+                <select {...register('unit')} className={selectClass}>
+                  <option value="">Choose option</option>
+                  {UNIT_OPTIONS.map((u) => (
+                    <option key={u} value={u}>
+                      {u}
+                    </option>
+                  ))}
+                </select>
               </Field>
-            ) : districtId > 0 ? (
-              <CascadeHint message="Applies to all local bodies in this district." />
-            ) : (
-              <div />
-            )}
-          </div>
 
-          {/* Beneficiary multi-select */}
-          <Field
-            label={`Beneficiary Type — ${beneficiaryIds.length} selected`}
-            error={errors.beneficiary_ids?.message as string}
-          >
-            <MultiSelectPanel
-              options={(master?.beneficiaries ?? []).map((b) => ({
-                id: b.beneficiary_id,
-                name: b.beneficiary_name ?? `#${b.beneficiary_id}`,
-              }))}
-              selected={beneficiaryIds}
-              onToggle={(id) =>
-                setValue(
-                  'beneficiary_ids',
-                  beneficiaryIds.includes(id)
-                    ? beneficiaryIds.filter((x) => x !== id)
-                    : [...beneficiaryIds, id],
-                  { shouldValidate: true, shouldDirty: true },
-                )
-              }
-              onSelectMany={(ids) =>
-                setValue('beneficiary_ids', ids, {
-                  shouldValidate: true,
-                  shouldDirty: true,
-                })
-              }
-              onClear={() =>
-                setValue('beneficiary_ids', [], {
-                  shouldValidate: true,
-                  shouldDirty: true,
-                })
-              }
-              emptyHint="No beneficiaries available."
-            />
-          </Field>
-
-          <Field
-            label={`Supporting Implementing Departments (Optional) — ${supportingDeptIds.length} selected`}
-            error={errors.supporting_dept_ids?.message as string}
-          >
-            <MultiSelectPanel
-              options={(master?.departments ?? []).map((d) => ({
-                id: d.dept_id,
-                name: d.dept_name ?? `#${d.dept_id}`,
-              }))}
-              selected={supportingDeptIds}
-              onToggle={(id) =>
-                setValue(
-                  'supporting_dept_ids',
-                  supportingDeptIds.includes(id)
-                    ? supportingDeptIds.filter((x) => x !== id)
-                    : [...supportingDeptIds, id],
-                  { shouldValidate: true, shouldDirty: true },
-                )
-              }
-              onSelectMany={(ids) =>
-                setValue('supporting_dept_ids', ids, {
-                  shouldValidate: true,
-                  shouldDirty: true,
-                })
-              }
-              onClear={() =>
-                setValue('supporting_dept_ids', [], {
-                  shouldValidate: true,
-                  shouldDirty: true,
-                })
-              }
-              emptyHint="No departments available."
-            />
-          </Field>
-
-          {/* Lat/Lng — optional */}
-          <div>
-            <p className="mb-2 flex items-center gap-1.5 text-xs font-medium text-warning-amber">
-              <Info className="h-3 w-3" aria-hidden />
-              Please enter the Location of the Project Implementation (if
-              applicable)
-            </p>
-            <div className="grid gap-4 sm:grid-cols-2">
-              <Field label="Latitude" error={errors.latitude?.message as string}>
-                <Input
-                  type="number"
-                  step="any"
-                  placeholder="eg: 8.614822"
-                  {...register('latitude')}
-                />
-              </Field>
               <Field
-                label="Longitude"
-                error={errors.longitude?.message as string}
+                label="Physical Target"
+                required
+                error={errors.physical_target?.message}
               >
-                <Input
-                  type="number"
-                  step="any"
-                  placeholder="eg: 76.852976"
-                  {...register('longitude')}
-                />
+                <div className="relative">
+                  <Target
+                    aria-hidden
+                    className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground"
+                  />
+                  <Input
+                    type="number"
+                    step="any"
+                    min={0}
+                    placeholder="0"
+                    className="pl-9"
+                    {...register('physical_target')}
+                  />
+                </div>
+              </Field>
+
+              <Field
+                label="Financial Target (in Lakh)"
+                required
+                error={errors.financial_target?.message}
+              >
+                <div className="relative">
+                  <IndianRupee
+                    aria-hidden
+                    className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground"
+                  />
+                  <Input
+                    type="number"
+                    step="0.01"
+                    min={0}
+                    placeholder="0.00"
+                    className="pl-9"
+                    {...register('financial_target')}
+                  />
+                </div>
               </Field>
             </div>
-          </div>
-        </CardContent>
-      </Card>
 
-      <div className="flex flex-wrap items-center justify-end gap-2">
-        <Button
-          type="button"
-          variant="outline"
-          onClick={() => router.back()}
-          disabled={pending}
-          className="cursor-pointer"
-        >
-          Cancel
-        </Button>
-        <Button
-          type="submit"
-          disabled={pending || locked}
-          className="cursor-pointer bg-[#2E7D32] hover:bg-[#256328]"
-        >
-          {pending ? (
-            <>
-              <Loader2 className="h-4 w-4 animate-spin" />
-              Saving…
-            </>
-          ) : (
-            <>
-              <CheckCircle2 className="h-4 w-4" />
-              {isEdit ? 'Save changes' : 'Create Indicator'}
-            </>
-          )}
-        </Button>
-      </div>
+            {/* District → Local Body Type → Local Body cascade */}
+            <div className="grid gap-4 lg:grid-cols-3">
+              <Field
+                label="Implementation District"
+                required
+                error={errors.district_id?.message}
+              >
+                <div className="relative">
+                  <MapPin
+                    aria-hidden
+                    className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground"
+                  />
+                  <select
+                    {...register('district_id')}
+                    className={cn(selectClass, 'pl-9')}
+                  >
+                    <option value={ALL}>All Districts</option>
+                    {master?.districts.map((d) => (
+                      <option key={d.district_id} value={d.district_id}>
+                        {d.district_name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </Field>
+
+              {/* Local body type — only when a specific district is selected.
+                Sentinel rows (ids 1 & 2) are filtered out at the API. */}
+              {districtId > 0 ? (
+                <Field label="Implementation Local Body Type" required>
+                  <select
+                    {...register('local_body_type_id')}
+                    className={selectClass}
+                  >
+                    <option value={ALL}>All Types</option>
+                    {(master?.localBodyTypes ?? []).map((t) => (
+                      <option
+                        key={t.localbody_type_id}
+                        value={t.localbody_type_id}
+                      >
+                        {t.localbody_type_name}
+                      </option>
+                    ))}
+                  </select>
+                </Field>
+              ) : (
+                <CascadeHint message="Applies to all districts — Local Body Type & Implementation Local Body are not required." />
+              )}
+
+              {/* Local body multi-select — only when both district + type are specific */}
+              {districtId > 0 && localBodyTypeId > 0 ? (
+                <Field
+                  label={`Implementation Local Body — ${localBodyIds.length} selected`}
+                  required
+                  error={errors.local_body_ids?.message as string}
+                >
+                  <MultiSelectPanel
+                    options={filteredLocalBodies.map((lb) => ({
+                      id: lb.localbody_id,
+                      name: lb.localbody_name ?? `#${lb.localbody_id}`,
+                    }))}
+                    selected={localBodyIds}
+                    onToggle={(id) =>
+                      setValue(
+                        'local_body_ids',
+                        localBodyIds.includes(id)
+                          ? localBodyIds.filter((x) => x !== id)
+                          : [...localBodyIds, id],
+                        { shouldValidate: true, shouldDirty: true },
+                      )
+                    }
+                    onSelectMany={(ids) =>
+                      setValue('local_body_ids', ids, {
+                        shouldValidate: true,
+                        shouldDirty: true,
+                      })
+                    }
+                    onClear={() =>
+                      setValue('local_body_ids', [], {
+                        shouldValidate: true,
+                        shouldDirty: true,
+                      })
+                    }
+                    emptyHint="No local bodies match this district and type."
+                  />
+                </Field>
+              ) : districtId > 0 ? (
+                <CascadeHint message="Applies to all local bodies in this district." />
+              ) : (
+                <div />
+              )}
+            </div>
+
+            {/* Beneficiary multi-select */}
+            <Field
+              label={`Beneficiary Type — ${beneficiaryIds.length} selected`}
+              error={errors.beneficiary_ids?.message as string}
+            >
+              <MultiSelectPanel
+                options={(master?.beneficiaries ?? []).map((b) => ({
+                  id: b.beneficiary_id,
+                  name: b.beneficiary_name ?? `#${b.beneficiary_id}`,
+                }))}
+                selected={beneficiaryIds}
+                onToggle={(id) =>
+                  setValue(
+                    'beneficiary_ids',
+                    beneficiaryIds.includes(id)
+                      ? beneficiaryIds.filter((x) => x !== id)
+                      : [...beneficiaryIds, id],
+                    { shouldValidate: true, shouldDirty: true },
+                  )
+                }
+                onSelectMany={(ids) =>
+                  setValue('beneficiary_ids', ids, {
+                    shouldValidate: true,
+                    shouldDirty: true,
+                  })
+                }
+                onClear={() =>
+                  setValue('beneficiary_ids', [], {
+                    shouldValidate: true,
+                    shouldDirty: true,
+                  })
+                }
+                emptyHint="No beneficiaries available."
+              />
+            </Field>
+
+            <Field
+              label={`Supporting Implementing Departments (Optional) — ${supportingDeptIds.length} selected`}
+              error={errors.supporting_dept_ids?.message as string}
+            >
+              <MultiSelectPanel
+                options={(master?.departments ?? []).map((d) => ({
+                  id: d.dept_id,
+                  name: d.dept_name ?? `#${d.dept_id}`,
+                }))}
+                selected={supportingDeptIds}
+                onToggle={(id) =>
+                  setValue(
+                    'supporting_dept_ids',
+                    supportingDeptIds.includes(id)
+                      ? supportingDeptIds.filter((x) => x !== id)
+                      : [...supportingDeptIds, id],
+                    { shouldValidate: true, shouldDirty: true },
+                  )
+                }
+                onSelectMany={(ids) =>
+                  setValue('supporting_dept_ids', ids, {
+                    shouldValidate: true,
+                    shouldDirty: true,
+                  })
+                }
+                onClear={() =>
+                  setValue('supporting_dept_ids', [], {
+                    shouldValidate: true,
+                    shouldDirty: true,
+                  })
+                }
+                emptyHint="No departments available."
+              />
+            </Field>
+
+            {/* Lat/Lng — optional */}
+            <div>
+              <p className="mb-2 flex items-center gap-1.5 text-xs font-medium text-warning-amber">
+                <Info className="h-3 w-3" aria-hidden />
+                Please enter the Location of the Project Implementation (if
+                applicable)
+              </p>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <Field label="Latitude" error={errors.latitude?.message as string}>
+                  <Input
+                    type="number"
+                    step="any"
+                    placeholder="eg: 8.614822"
+                    {...register('latitude')}
+                  />
+                </Field>
+                <Field
+                  label="Longitude"
+                  error={errors.longitude?.message as string}
+                >
+                  <Input
+                    type="number"
+                    step="any"
+                    placeholder="eg: 76.852976"
+                    {...register('longitude')}
+                  />
+                </Field>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <div className="flex flex-wrap items-center justify-end gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => router.back()}
+            disabled={pending}
+            className="cursor-pointer"
+          >
+            Cancel
+          </Button>
+          <Button
+            type="submit"
+            disabled={pending || locked}
+            className="cursor-pointer bg-[#2E7D32] hover:bg-[#256328]"
+          >
+            {pending ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Saving…
+              </>
+            ) : (
+              <>
+                <CheckCircle2 className="h-4 w-4" />
+                {isEdit ? 'Save changes' : 'Create Indicator'}
+              </>
+            )}
+          </Button>
+        </div>
       </fieldset>
     </form>
   );

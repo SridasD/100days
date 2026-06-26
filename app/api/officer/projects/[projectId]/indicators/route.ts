@@ -99,7 +99,11 @@ export async function GET(
   }
 
   try {
-    const rows = await listIndicatorsForProject(id, session.secId);
+    const rows = await listIndicatorsForProject(id, {
+      roleId: session.roleId,
+      secId: session.secId,
+      deptId: session.deptId,
+    });
     return NextResponse.json({
       indicators: rows.map((r) => {
         const anyR = r as unknown as {
@@ -166,7 +170,7 @@ export async function GET(
           imageCount: r.image_count,
           videoCount: r.video_count,
           documentCount: r.document_count,
-          supportingDeptNames: anyR.supporting_dept_names ?? '',
+          supportingDeptNames: anyR.supporting_dept_names ?? "",
         };
       }),
     });
@@ -213,11 +217,26 @@ export async function POST(
     return NextResponse.json({ error: "Invalid projectId" }, { status: 400 });
   }
 
-  // Ownership — officer can only add indicators to projects in their sec
+  // Ownership — Nodal Officer by sec_id, HOD by dept_id.
   const own = await db.execute(sql`
     SELECT 1
-    FROM hdp.project_secretary
-    WHERE project_id = ${id} AND sec_id = ${session.secId}
+    FROM hdp.master_projects mp
+    WHERE mp.project_id = ${id}
+      AND (
+        (${session.roleId} = 2 AND EXISTS (
+          SELECT 1
+          FROM hdp.project_secretary ps
+          WHERE ps.project_id = mp.project_id
+            AND ps.sec_id = ${session.secId}
+        ))
+        OR
+        (${session.roleId} = 6 AND EXISTS (
+          SELECT 1
+          FROM hdp.project_department pd
+          WHERE pd.project_id = mp.project_id
+            AND pd.dept_id = ${session.deptId}
+        ))
+      )
     LIMIT 1
   `);
   if (own.rows.length === 0) {

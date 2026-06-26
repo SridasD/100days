@@ -27,6 +27,7 @@ export default function OfficerNewIndicatorPage() {
   return (
     <div className="flex min-h-screen flex-col bg-background">
       <KeralaHeader
+        homeHref="/officer/projects"
         right={
           <OfficerUserMenu
             roleLabel={roleLabel}

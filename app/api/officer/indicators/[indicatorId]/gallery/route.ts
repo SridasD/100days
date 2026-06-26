@@ -37,7 +37,11 @@ export async function GET(
     return NextResponse.json({ error: "Invalid indicatorId" }, { status: 400 });
   }
 
-  const owns = await officerOwnsIndicator(id, session.secId);
+  const owns = await officerOwnsIndicator(id, {
+    roleId: session.roleId,
+    secId: session.secId,
+    deptId: session.deptId,
+  });
   if (!owns) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
@@ -76,7 +80,11 @@ export async function POST(
     return NextResponse.json({ error: "Invalid indicatorId" }, { status: 400 });
   }
 
-  const owns = await officerOwnsIndicator(id, session.secId);
+  const owns = await officerOwnsIndicator(id, {
+    roleId: session.roleId,
+    secId: session.secId,
+    deptId: session.deptId,
+  });
   if (!owns) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
@@ -400,7 +408,11 @@ export async function DELETE(
     );
   }
 
-  const owns = await officerOwnsIndicator(id, session.secId);
+  const owns = await officerOwnsIndicator(id, {
+    roleId: session.roleId,
+    secId: session.secId,
+    deptId: session.deptId,
+  });
   if (!owns) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
