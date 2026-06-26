@@ -77,7 +77,7 @@ export async function listOfficerProjects(
     FROM hdp.master_projects mp
     INNER JOIN hdp.project_secretary ps ON mp.project_id = ps.project_id
     WHERE (
-      (${scope.roleId} = 2 AND ps.sec_id = ${scope.secId})
+      (${scope.roleId} IN (2, 5) AND ps.sec_id = ${scope.secId})
       OR
       (${scope.roleId} = 6 AND EXISTS (
         SELECT 1
@@ -143,7 +143,7 @@ export async function getOfficerProject(
     LEFT JOIN hdp.master_secretary ms ON ps.sec_id = ms.sec_id
     WHERE mp.project_id = ${projectId}
       AND (
-        (${scope.roleId} = 2 AND ps.sec_id = ${scope.secId})
+        (${scope.roleId} IN (2, 5) AND ps.sec_id = ${scope.secId})
         OR
         (${scope.roleId} = 6 AND EXISTS (
           SELECT 1
@@ -240,7 +240,7 @@ export async function listIndicatorsForProject(
     LEFT JOIN hdp.master_district md ON i.district_id = md.district_id
     WHERE i.project_id = ${projectId}
       AND (
-        (${scope.roleId} = 2 AND EXISTS (
+        (${scope.roleId} IN (2, 5) AND EXISTS (
           SELECT 1
           FROM hdp.project_secretary ps
           WHERE ps.project_id = i.project_id
@@ -273,7 +273,7 @@ export async function officerOwnsIndicator(
     INNER JOIN hdp.project_secretary ps ON i.project_id = ps.project_id
     WHERE i.indicator_id = ${indicatorId}
       AND (
-        (${scope.roleId} = 2 AND ps.sec_id = ${scope.secId})
+        (${scope.roleId} IN (2, 5) AND ps.sec_id = ${scope.secId})
         OR
         (${scope.roleId} = 6 AND EXISTS (
           SELECT 1
