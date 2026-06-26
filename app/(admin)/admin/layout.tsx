@@ -32,7 +32,13 @@ interface SessionProfile {
     roleId: number;
 }
 
-function AdminNav({ closeOnNavigate = false }: { closeOnNavigate?: boolean }) {
+function AdminNav({
+    closeOnNavigate = false,
+    collapsed = false,
+}: {
+    closeOnNavigate?: boolean;
+    collapsed?: boolean;
+}) {
     const pathname = usePathname();
     const isOsd = pathname.startsWith('/admin/osd');
     const navItems = isOsd
@@ -62,15 +68,17 @@ function AdminNav({ closeOnNavigate = false }: { closeOnNavigate?: boolean }) {
                     <Link
                         key={item.href}
                         href={item.href}
+                        title={item.label}
                         className={cn(
-                            'flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors',
+                            'flex items-center rounded-lg text-sm font-medium transition-colors',
+                            collapsed ? 'justify-center gap-0 px-2 py-2.5' : 'gap-3 px-3 py-2.5',
                             active
                                 ? 'bg-kerala-blue text-white shadow-sm'
                                 : 'text-muted-foreground hover:bg-muted hover:text-foreground',
                         )}
                     >
                         <Icon className="h-4 w-4" />
-                        <span>{item.label}</span>
+                        {!collapsed ? <span>{item.label}</span> : <span className="sr-only">{item.label}</span>}
                     </Link>
                 );
 
@@ -91,6 +99,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
     const router = useRouter();
     const isOsd = pathname.startsWith('/admin/osd');
     const [profile, setProfile] = useState<SessionProfile | null>(null);
+    const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
     const roleLabel = isOsd ? 'OSD Administrator' : 'Admin';
     const departmentLabel = isOsd ? 'OSD / CMO' : 'CMO';
 
@@ -132,18 +141,46 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
             />
 
             <div className={cn('mx-auto flex w-full flex-1 gap-6 px-4 py-6', isOsd ? 'max-w-[1720px]' : 'max-w-[1400px]')}>
-                {!isOsd ? (
+                {!isOsd && !sidebarCollapsed ? (
                     <aside className="hidden w-72 shrink-0 lg:block">
                         <div className="sticky top-24 rounded-xl border bg-background p-4 shadow-sm">
-                            <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                                Admin Console
-                            </p>
+                            <div className="mb-3 flex items-center justify-between gap-2">
+                                <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                                    Admin Console
+                                </p>
+                                <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-8 w-8 shrink-0"
+                                    onClick={() => setSidebarCollapsed(true)}
+                                    aria-label="Collapse sidebar"
+                                >
+                                    <Menu className="h-4 w-4" />
+                                </Button>
+                            </div>
                             <AdminNav />
                         </div>
                     </aside>
                 ) : null}
 
                 <div className="flex min-w-0 flex-1 flex-col">
+                    {!isOsd ? (
+                        <div className="mb-3 hidden lg:flex">
+                            <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                className="h-9 gap-2"
+                                onClick={() => setSidebarCollapsed((value) => !value)}
+                                aria-label={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+                            >
+                                <Menu className="h-4 w-4" />
+                                {sidebarCollapsed ? 'Show menu' : 'Hide menu'}
+                            </Button>
+                        </div>
+                    ) : null}
+
                     <div className={cn('mb-3 lg:hidden', isOsd && 'hidden')}>
                         <Sheet>
                             <SheetTrigger asChild>

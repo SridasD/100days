@@ -45,11 +45,18 @@ interface LocalBody {
   localbody_type_id: number | null;
   district_id: number | null;
 }
+interface Department {
+  dept_id: number;
+  sec_id: number | null;
+  dept_name: string | null;
+  dept_name_mal: string | null;
+}
 interface MasterData {
   districts: District[];
   beneficiaries: Beneficiary[];
   localBodyTypes: LocalBodyType[];
   localBodies: LocalBody[];
+  departments: Department[];
 }
 
 interface ProjectBudget {
@@ -95,6 +102,7 @@ const formSchema = z
     beneficiary_ids: z
       .array(z.coerce.number().int().positive())
       .default([]),
+    supporting_dept_ids: z.array(z.coerce.number().int().positive()).default([]),
     latitude: z.coerce.number().optional().nullable(),
     longitude: z.coerce.number().optional().nullable(),
   })
@@ -166,6 +174,7 @@ export function IndicatorForm({ projectId, indicatorId }: Props) {
       local_body_type_id: ALL,
       local_body_ids: [],
       beneficiary_ids: [],
+      supporting_dept_ids: [],
       latitude: undefined,
       longitude: undefined,
     },
@@ -195,6 +204,7 @@ export function IndicatorForm({ projectId, indicatorId }: Props) {
             localBodyTypeId: number;
             localBodyIds: number[];
             beneficiaryIds: number[];
+            supportingDeptIds: number[];
             latitude: number | null;
             longitude: number | null;
             isVerified: boolean;
@@ -212,6 +222,7 @@ export function IndicatorForm({ projectId, indicatorId }: Props) {
             local_body_type_id: i.localBodyTypeId || ALL,
             local_body_ids: i.localBodyIds ?? [],
             beneficiary_ids: i.beneficiaryIds ?? [],
+            supporting_dept_ids: i.supportingDeptIds ?? [],
             latitude: i.latitude ?? undefined,
             longitude: i.longitude ?? undefined,
           });
@@ -273,6 +284,7 @@ export function IndicatorForm({ projectId, indicatorId }: Props) {
   const localBodyTypeId = Number(watch('local_body_type_id')) || ALL;
   const localBodyIds = (watch('local_body_ids') ?? []) as number[];
   const beneficiaryIds = (watch('beneficiary_ids') ?? []) as number[];
+  const supportingDeptIds = (watch('supporting_dept_ids') ?? []) as number[];
 
   // Reset downstream when the user CHANGES an upstream field.
   // Skipped until the form is prefilled in edit mode so we don't wipe the
@@ -744,6 +756,41 @@ export function IndicatorForm({ projectId, indicatorId }: Props) {
                 })
               }
               emptyHint="No beneficiaries available."
+            />
+          </Field>
+
+          <Field
+            label={`Supporting Implementing Departments (Optional) — ${supportingDeptIds.length} selected`}
+            error={errors.supporting_dept_ids?.message as string}
+          >
+            <MultiSelectPanel
+              options={(master?.departments ?? []).map((d) => ({
+                id: d.dept_id,
+                name: d.dept_name ?? `#${d.dept_id}`,
+              }))}
+              selected={supportingDeptIds}
+              onToggle={(id) =>
+                setValue(
+                  'supporting_dept_ids',
+                  supportingDeptIds.includes(id)
+                    ? supportingDeptIds.filter((x) => x !== id)
+                    : [...supportingDeptIds, id],
+                  { shouldValidate: true, shouldDirty: true },
+                )
+              }
+              onSelectMany={(ids) =>
+                setValue('supporting_dept_ids', ids, {
+                  shouldValidate: true,
+                  shouldDirty: true,
+                })
+              }
+              onClear={() =>
+                setValue('supporting_dept_ids', [], {
+                  shouldValidate: true,
+                  shouldDirty: true,
+                })
+              }
+              emptyHint="No departments available."
             />
           </Field>
 

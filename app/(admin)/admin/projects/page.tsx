@@ -56,6 +56,7 @@ interface AdminProject {
   stage: number | null;
   secId: number | null;
   secretaryName: string | null;
+  departmentNames: string | null;
   indicatorsCount: number;
 }
 
@@ -99,6 +100,7 @@ export default function AdminProjectsPage() {
   const [query, setQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | ProjectStatus>('all');
   const [departmentFilter, setDepartmentFilter] = useState('all');
+  const [departmentSearch, setDepartmentSearch] = useState('');
 
   // Catch ?created=HDP-2026-NNNN from the form redirect and surface a toast.
   const searchParams = useSearchParams();
@@ -181,6 +183,7 @@ export default function AdminProjectsPage() {
         project.projectName ?? '',
         project.projectNameMal ?? '',
         project.secretaryName ?? '',
+        project.departmentNames ?? '',
         project.description ?? '',
       ].some((value) => value.toLowerCase().includes(term));
     });
@@ -213,6 +216,14 @@ export default function AdminProjectsPage() {
   }, [filteredProjects]);
 
   const hasActiveFilters = query.trim() || statusFilter !== 'all' || departmentFilter !== 'all';
+
+  useEffect(() => {
+    if (departmentFilter === 'all') {
+      setDepartmentSearch('');
+      return;
+    }
+    setDepartmentSearch(departmentFilter);
+  }, [departmentFilter]);
 
   const openArchiveDialog = async (project: AdminProject) => {
     setDeletingProjectId(project.projectId);
@@ -426,19 +437,49 @@ export default function AdminProjectsPage() {
                 <SelectItem value="not-started">Not Started</SelectItem>
               </SelectContent>
             </Select>
-            <Select value={departmentFilter} onValueChange={setDepartmentFilter}>
-              <SelectTrigger>
-                <SelectValue placeholder="Filter by department" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All departments</SelectItem>
+            <div className="relative">
+              <Input
+                value={departmentSearch}
+                onChange={(event) => {
+                  const value = event.target.value;
+                  setDepartmentSearch(value);
+
+                  if (!value.trim()) {
+                    setDepartmentFilter('all');
+                    return;
+                  }
+
+                  const match = departmentOptions.find(
+                    (department) => department.toLowerCase() === value.trim().toLowerCase(),
+                  );
+                  if (match) {
+                    setDepartmentFilter(match);
+                  }
+                }}
+                onBlur={() => {
+                  const value = departmentSearch.trim();
+                  if (!value) {
+                    setDepartmentFilter('all');
+                    return;
+                  }
+
+                  const match = departmentOptions.find(
+                    (department) => department.toLowerCase() === value.toLowerCase(),
+                  );
+                  if (match) {
+                    setDepartmentFilter(match);
+                  }
+                }}
+                placeholder="Type to find a department"
+                aria-label="Filter by department"
+                list="department-filter-options"
+              />
+              <datalist id="department-filter-options">
                 {departmentOptions.map((department) => (
-                  <SelectItem key={department} value={department}>
-                    {department}
-                  </SelectItem>
+                  <option key={department} value={department} />
                 ))}
-              </SelectContent>
-            </Select>
+              </datalist>
+            </div>
             <Button
               type="button"
               variant="outline"
@@ -447,6 +488,7 @@ export default function AdminProjectsPage() {
                 setQuery('');
                 setStatusFilter('all');
                 setDepartmentFilter('all');
+                setDepartmentSearch('');
               }}
               className="gap-2"
             >
@@ -550,6 +592,11 @@ export default function AdminProjectsPage() {
                           <TableCell>
                             <div className="space-y-1">
                               <p className="font-medium text-foreground">{project.projectName ?? 'Untitled Project'}</p>
+                              {project.departmentNames ? (
+                                <p className="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">
+                                  {project.departmentNames}
+                                </p>
+                              ) : null}
                               {project.description ? (
                                 <p className="line-clamp-2 max-w-4xl text-xs leading-5 text-muted-foreground">
                                   {project.description}

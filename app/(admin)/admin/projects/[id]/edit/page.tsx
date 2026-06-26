@@ -35,8 +35,9 @@ interface ApiProject {
   extraOne: string;
   extraTwo: string;
   extraThree: string;
-  secIds: number[];
-  secretaryNames: string[];
+  secId: number | null;
+  deptIds: number[];
+  departmentNames: string[];
 }
 
 export default function AdminProjectEditPage() {
@@ -74,7 +75,8 @@ export default function AdminProjectEditPage() {
         ? data.completionDate.slice(0, 10)
         : '',
       sector_id: data.sectorId ?? 0,
-      sec_ids: data.secIds ?? [],
+      sec_id: data.secId ?? 0,
+      dept_ids: data.deptIds ?? [],
       no_days_employed_direct: data.noDaysEmployedDirect,
       no_persons_employed_direct: data.noPersonsEmployedDirect,
       no_days_employed_indirect: data.noDaysEmployedIndirect,

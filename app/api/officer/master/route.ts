@@ -12,7 +12,13 @@ export async function GET(_req: NextRequest) {
   if (!isSession(sessionOrResponse)) return sessionOrResponse;
 
   try {
-    const [districtsResult, beneficiariesResult, lbTypesResult, lbsResult] =
+    const [
+      districtsResult,
+      beneficiariesResult,
+      lbTypesResult,
+      lbsResult,
+      departmentsResult,
+    ] =
       await Promise.all([
         db.execute(sql`
           SELECT district_id, district_name FROM hdp.master_district
@@ -36,6 +42,12 @@ export async function GET(_req: NextRequest) {
           FROM hdp.master_localbody
           ORDER BY localbody_name ASC
         `),
+        db.execute(sql`
+          SELECT dept_id, sec_id, dept_name, dept_name_mal
+          FROM hdp.master_department
+          WHERE is_used = true
+          ORDER BY dept_name ASC
+        `),
       ]);
 
     return NextResponse.json({
@@ -56,6 +68,12 @@ export async function GET(_req: NextRequest) {
         localbody_name: string | null;
         localbody_type_id: number | null;
         district_id: number | null;
+      }>,
+      departments: departmentsResult.rows as Array<{
+        dept_id: number;
+        sec_id: number | null;
+        dept_name: string | null;
+        dept_name_mal: string | null;
       }>,
     });
   } catch (err) {

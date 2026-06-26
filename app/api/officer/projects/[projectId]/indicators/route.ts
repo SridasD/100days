@@ -45,6 +45,10 @@ async function ensureIndicatorCascadeColumns() {
         ALTER TABLE hdp.indicators
           ADD COLUMN IF NOT EXISTS longitude numeric(9,6)
       `);
+      await db.execute(sql`
+        ALTER TABLE hdp.indicators
+          ADD COLUMN IF NOT EXISTS supporting_dept_ids integer[] DEFAULT '{}'::integer[]
+      `);
 
       // ---- Ensure indicator_id has its own sequence --------------------
       // The deployed table was missing the sequence default, forcing every
@@ -102,6 +106,7 @@ export async function GET(
           verified_physical_achievement: number | null;
           verified_financial_achievement: string | number | null;
           verified_physical_description: string | null;
+          supporting_dept_names: string | null;
         };
         const verifiedPhys =
           anyR.verified_physical_achievement != null
@@ -161,6 +166,7 @@ export async function GET(
           imageCount: r.image_count,
           videoCount: r.video_count,
           documentCount: r.document_count,
+          supportingDeptNames: anyR.supporting_dept_names ?? '',
         };
       }),
     });
@@ -188,6 +194,7 @@ const createIndicatorSchema = z.object({
   local_body_type_id: z.coerce.number().int().positive().optional().nullable(),
   local_body_ids: z.array(z.coerce.number().int().positive()).default([]),
   beneficiary_ids: z.array(z.coerce.number().int().positive()).default([]),
+  supporting_dept_ids: z.array(z.coerce.number().int().positive()).default([]),
   latitude: z.coerce.number().optional().nullable(),
   longitude: z.coerce.number().optional().nullable(),
 });
@@ -247,15 +254,17 @@ export async function POST(
     // integers so there is no injection surface.
     const localBodyArr = d.local_body_ids ?? [];
     const beneficiaryArr = d.beneficiary_ids ?? [];
+    const supportingDeptArr = d.supporting_dept_ids ?? [];
     const localBodyLit = `{${localBodyArr.join(",")}}`;
     const beneficiaryLit = `{${beneficiaryArr.join(",")}}`;
+    const supportingDeptLit = `{${supportingDeptArr.join(",")}}`;
 
     // indicator_id is supplied by the sequence default we ensured above.
     const inserted = await db.execute(sql`
       INSERT INTO hdp.indicators (
         project_id, indicator_name, district_id, unit,
         physical_target, financial_target, physical_description,
-        local_body_type, local_body_id, beneficiary,
+        local_body_type, local_body_id, beneficiary, supporting_dept_ids,
         latitude, longitude,
         submitted_by, submitted_date
       ) VALUES (
@@ -269,6 +278,7 @@ export async function POST(
         ${d.local_body_type_id ?? 0},
         ${localBodyLit}::integer[],
         ${beneficiaryLit}::integer[],
+        ${supportingDeptLit}::integer[],
         ${d.latitude ?? null},
         ${d.longitude ?? null},
         ${session.userId},
