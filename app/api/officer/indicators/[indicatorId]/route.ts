@@ -9,6 +9,23 @@ import { AUDIT_ACTIONS } from '@/lib/db/schema/audit';
 
 export const runtime = 'nodejs';
 
+let supportingDeptColumnEnsured: Promise<void> | null = null;
+async function ensureSupportingDeptColumn() {
+  if (supportingDeptColumnEnsured) return supportingDeptColumnEnsured;
+  supportingDeptColumnEnsured = (async () => {
+    try {
+      await db.execute(sql`
+        ALTER TABLE hdp.indicators
+          ADD COLUMN IF NOT EXISTS supporting_dept_ids integer[] DEFAULT '{}'::integer[]
+      `);
+    } catch (err) {
+      supportingDeptColumnEnsured = null;
+      throw err;
+    }
+  })();
+  return supportingDeptColumnEnsured;
+}
+
 // ---------------------------------------------------------------------------
 // GET — fetch a single indicator for the edit form (officer-owned only)
 // ---------------------------------------------------------------------------
@@ -32,6 +49,8 @@ export async function GET(
   }
 
   try {
+    await ensureSupportingDeptColumn();
+
     const r = await db.execute(sql`
       SELECT
         i.indicator_id,
@@ -45,6 +64,7 @@ export async function GET(
         i.local_body_type,
         i.local_body_id,
         i.beneficiary,
+        i.supporting_dept_ids,
         i.latitude,
         i.longitude,
         i.submitted_date,
@@ -74,6 +94,9 @@ export async function GET(
           : [],
         beneficiaryIds: Array.isArray(row.beneficiary)
           ? (row.beneficiary as number[]).map(Number)
+          : [],
+        supportingDeptIds: Array.isArray(row.supporting_dept_ids)
+          ? (row.supporting_dept_ids as number[]).map(Number)
           : [],
         latitude: row.latitude != null ? Number(row.latitude) : null,
         longitude: row.longitude != null ? Number(row.longitude) : null,
@@ -106,6 +129,7 @@ const patchSchema = z.object({
   local_body_type_id: z.coerce.number().int().min(0).optional().nullable(),
   local_body_ids: z.array(z.coerce.number().int().positive()).default([]),
   beneficiary_ids: z.array(z.coerce.number().int().positive()).default([]),
+  supporting_dept_ids: z.array(z.coerce.number().int().positive()).default([]),
   latitude: z.coerce.number().optional().nullable(),
   longitude: z.coerce.number().optional().nullable(),
 });
@@ -159,9 +183,12 @@ export async function PATCH(
   };
 
   try {
+    await ensureSupportingDeptColumn();
+
     // Build the Postgres array literals — same approach as the POST handler.
     const localBodyLit = `{${(d.local_body_ids ?? []).join(',')}}`;
     const beneficiaryLit = `{${(d.beneficiary_ids ?? []).join(',')}}`;
+    const supportingDeptLit = `{${(d.supporting_dept_ids ?? []).join(',')}}`;
 
     await db.execute(sql`
       UPDATE hdp.indicators
@@ -175,6 +202,7 @@ export async function PATCH(
         local_body_type = ${d.local_body_type_id ?? 0},
         local_body_id = ${localBodyLit}::integer[],
         beneficiary = ${beneficiaryLit}::integer[],
+        supporting_dept_ids = ${supportingDeptLit}::integer[],
         latitude = ${d.latitude ?? null},
         longitude = ${d.longitude ?? null},
         submitted_by = ${session.userId},

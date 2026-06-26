@@ -69,6 +69,7 @@ interface ApiIndicator {
   imageCount: number;
   videoCount: number;
   documentCount: number;
+  supportingDeptNames: string;
 }
 
 export interface IndicatorRow extends ApiIndicator { }
@@ -227,6 +228,14 @@ function IndicatorCard({
                   </span>
                 )}
               </div>
+              {i.supportingDeptNames && (
+                <p className="flex flex-wrap gap-x-1 gap-y-0.5 text-xs text-muted-foreground">
+                  <span className="font-medium text-foreground/80">
+                    Supporting departments:
+                  </span>
+                  <span>{i.supportingDeptNames}</span>
+                </p>
+              )}
             </div>
           </div>
 

@@ -163,6 +163,7 @@ export interface OfficerIndicatorRow {
   image_count: number;
   video_count: number;
   document_count: number;
+  supporting_dept_names: string | null;
 }
 
 export async function listIndicatorsForProject(
@@ -206,6 +207,11 @@ export async function listIndicatorsForProject(
         SELECT COUNT(*)::int FROM hdp.documents d
         WHERE d.indicator_id = i.indicator_id
       ), 0) AS document_count
+      ,COALESCE((
+        SELECT STRING_AGG(md.dept_name, ', ' ORDER BY md.dept_name)
+        FROM unnest(COALESCE(i.supporting_dept_ids, '{}'::integer[])) AS dept_ids(dept_id)
+        JOIN hdp.master_department md ON md.dept_id = dept_ids.dept_id
+      ), '') AS supporting_dept_names
     FROM hdp.indicators i
     LEFT JOIN hdp.master_district md ON i.district_id = md.district_id
     INNER JOIN hdp.project_secretary ps ON i.project_id = ps.project_id

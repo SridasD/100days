@@ -81,6 +81,8 @@ export interface AdminProjectRow {
   sec_id: number | null;
   /** Kept for back-compat; comma-joined list of all dept names. */
   secretary_name: string | null;
+  /** Comma-joined list of implementing department names. */
+  department_names: string | null;
   secretary_count: number;
   indicators_count: number;
 }
@@ -113,6 +115,12 @@ export async function listAllProjects(): Promise<AdminProjectRow[]> {
         LEFT JOIN hdp.master_secretary ms ON ps.sec_id = ms.sec_id
         WHERE ps.project_id = mp.project_id
       ) AS secretary_name,
+      (
+        SELECT STRING_AGG(md.dept_name, ', ' ORDER BY md.dept_name)
+        FROM hdp.project_department pd
+        LEFT JOIN hdp.master_department md ON pd.dept_id = md.dept_id
+        WHERE pd.project_id = mp.project_id
+      ) AS department_names,
       COALESCE((
         SELECT COUNT(*)::int FROM hdp.project_secretary ps
         WHERE ps.project_id = mp.project_id
@@ -166,12 +174,24 @@ export async function getProject(projectId: number) {
  * Get all master data (secretaries, sectors, roles, districts) for dropdowns
  */
 export async function getAdminMasterData() {
-  const [secretariesResult, sectorsResult, rolesResult, districtsResult] =
+  const [
+    secretariesResult,
+    departmentsResult,
+    sectorsResult,
+    rolesResult,
+    districtsResult,
+  ] =
     await Promise.all([
       db.execute(sql`
       SELECT sec_id, secretary_name FROM hdp.master_secretary
       WHERE is_used = true
       ORDER BY secretary_name ASC
+    `),
+      db.execute(sql`
+      SELECT dept_id, sec_id, dept_name, dept_name_mal
+      FROM hdp.master_department
+      WHERE is_used = true
+      ORDER BY dept_name ASC
     `),
       db.execute(sql`
       SELECT sector_id, sector_name FROM hdp.master_sector
@@ -191,6 +211,12 @@ export async function getAdminMasterData() {
     secretaries: secretariesResult.rows as Array<{
       sec_id: number;
       secretary_name: string | null;
+    }>,
+    departments: departmentsResult.rows as Array<{
+      dept_id: number;
+      sec_id: number | null;
+      dept_name: string | null;
+      dept_name_mal: string | null;
     }>,
     sectors: sectorsResult.rows as Array<{
       sector_id: number;

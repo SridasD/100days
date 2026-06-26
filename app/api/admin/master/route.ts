@@ -16,6 +16,7 @@ export async function GET(_req: NextRequest) {
     const data = await getAdminMasterData();
     return NextResponse.json({
       secretaries: data.secretaries,
+      departments: data.departments,
       sectors: data.sectors,
       roles: data.roles,
       districts: data.districts,

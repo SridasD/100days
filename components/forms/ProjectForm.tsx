@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useTransition } from 'react';
+import { useEffect, useMemo, useRef, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -18,6 +18,12 @@ import { cn } from '@/lib/utils';
 // ---------------------------------------------------------------------------
 interface MasterData {
   secretaries: { sec_id: number; secretary_name: string | null }[];
+  departments: {
+    dept_id: number;
+    sec_id: number | null;
+    dept_name: string | null;
+    dept_name_mal: string | null;
+  }[];
   sectors: { sector_id: number; sector_name: string | null }[];
 }
 
@@ -35,10 +41,12 @@ const formSchema = z.object({
   is_completed: z.coerce.number().int().min(0).max(2),
   completion_date: z.string().optional(),
   sector_id: z.coerce.number().int().positive('Select a sector'),
-  // One or more administrative departments
-  sec_ids: z
+  // Exactly one administrative department (Secretary)
+  sec_id: z.coerce.number().int().positive('Select an administrative department'),
+  // One or more implementing departments (HOD)
+  dept_ids: z
     .array(z.coerce.number().int().positive())
-    .min(1, 'Select at least one department'),
+    .min(1, 'Select at least one implementing department'),
   no_days_employed_direct: z.coerce.number().int().min(0).default(0),
   no_persons_employed_direct: z.coerce.number().int().min(0).default(0),
   no_days_employed_indirect: z.coerce.number().int().min(0).default(0),
@@ -80,12 +88,15 @@ export function ProjectForm({ projectId, defaults, redirectTo = '/admin/projects
   const [pending, startTransition] = useTransition();
 
   const [deptSearch, setDeptSearch] = useState('');
+  const deptSearchRef = useRef<HTMLInputElement | null>(null);
 
   const {
     register,
     handleSubmit,
     watch,
+    reset,
     setValue,
+    setFocus,
     formState: { errors },
   } = useForm<ProjectFormValues>({
     resolver: zodResolver(formSchema),
@@ -100,7 +111,8 @@ export function ProjectForm({ projectId, defaults, redirectTo = '/admin/projects
       is_completed: defaults?.is_completed ?? 0,
       completion_date: defaults?.completion_date ?? '',
       sector_id: defaults?.sector_id ?? 0,
-      sec_ids: defaults?.sec_ids ?? [],
+      sec_id: defaults?.sec_id ?? 0,
+      dept_ids: defaults?.dept_ids ?? [],
       no_days_employed_direct: defaults?.no_days_employed_direct ?? 0,
       no_persons_employed_direct: defaults?.no_persons_employed_direct ?? 0,
       no_days_employed_indirect: defaults?.no_days_employed_indirect ?? 0,
@@ -115,8 +127,59 @@ export function ProjectForm({ projectId, defaults, redirectTo = '/admin/projects
     mode: 'onTouched',
   });
 
-  const selectedSecIds = (watch('sec_ids') ?? []) as number[];
+  useEffect(() => {
+    if (!defaults || !isEdit) return;
+
+    reset({
+      project_name: defaults.project_name ?? '',
+      description: defaults.description ?? '',
+      is_new: defaults.is_new ?? 1,
+      project_cost: defaults.project_cost ?? 0,
+      nature_of_project: defaults.nature_of_project ?? 2,
+      priority: defaults.priority ?? 2,
+      project_execution_type: defaults.project_execution_type ?? 1,
+      is_completed: defaults.is_completed ?? 0,
+      completion_date: defaults.completion_date ?? '',
+      sector_id: defaults.sector_id ?? 0,
+      sec_id: defaults.sec_id ?? 0,
+      dept_ids: defaults.dept_ids ?? [],
+      no_days_employed_direct: defaults.no_days_employed_direct ?? 0,
+      no_persons_employed_direct: defaults.no_persons_employed_direct ?? 0,
+      no_days_employed_indirect: defaults.no_days_employed_indirect ?? 0,
+      no_persons_employed_indirect: defaults.no_persons_employed_indirect ?? 0,
+      other_benefits: defaults.other_benefits ?? '',
+      govt_policy_linkage: defaults.govt_policy_linkage ?? '',
+      manifesto_linkage: defaults.manifesto_linkage ?? '',
+      extra_one: defaults.extra_one ?? '',
+      extra_two: defaults.extra_two ?? '',
+      extra_three: defaults.extra_three ?? '',
+    });
+  }, [defaults, isEdit, reset]);
+
+  const selectedDeptIds = (watch('dept_ids') ?? []) as number[];
+  const selectedSecId = Number(watch('sec_id')) || 0;
   const isCompletedStatus = Number(watch('is_completed')) === 2;
+
+  const filteredDepartments = useMemo(() => {
+    if (!master || selectedSecId <= 0) return [];
+    return (master.departments ?? []).filter((d) => d.sec_id === selectedSecId);
+  }, [master, selectedSecId]);
+
+  useEffect(() => {
+    if (!master) return;
+
+    if (!selectedSecId) {
+      if (selectedDeptIds.length > 0) {
+        setValue('dept_ids', [], { shouldValidate: true, shouldDirty: false });
+      }
+      return;
+    }
+    const allowed = new Set(filteredDepartments.map((d) => d.dept_id));
+    const cleaned = selectedDeptIds.filter((id) => allowed.has(id));
+    if (cleaned.length !== selectedDeptIds.length) {
+      setValue('dept_ids', cleaned, { shouldValidate: true, shouldDirty: true });
+    }
+  }, [filteredDepartments, selectedDeptIds, selectedSecId, setValue]);
 
   // When the admin flips status away from "Completed", clear the date so a
   // stale value doesn't get submitted.
@@ -191,6 +254,24 @@ export function ProjectForm({ projectId, defaults, redirectTo = '/admin/projects
     });
   };
 
+  const onInvalid = (formErrors: Record<string, unknown>) => {
+    if (formErrors.sec_id) {
+      setFocus('sec_id');
+      return;
+    }
+    if (formErrors.dept_ids) {
+      deptSearchRef.current?.focus();
+      return;
+    }
+
+    const firstKey = Object.keys(formErrors)[0] as
+      | keyof ProjectFormValues
+      | undefined;
+    if (firstKey) {
+      setFocus(firstKey);
+    }
+  };
+
   if (!master && !masterError) {
     return (
       <div className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -212,7 +293,7 @@ export function ProjectForm({ projectId, defaults, redirectTo = '/admin/projects
 
   return (
     <form
-      onSubmit={handleSubmit(onValid)}
+      onSubmit={handleSubmit(onValid, onInvalid)}
       className="space-y-6"
       noValidate
       aria-label={isEdit ? 'Edit project' : 'New project'}
@@ -289,27 +370,49 @@ export function ProjectForm({ projectId, defaults, redirectTo = '/admin/projects
           </div>
 
           <Field
-            label={`Administrative departments — ${selectedSecIds.length} selected`}
+            label="Administrative Department"
             required
-            error={errors.sec_ids?.message as string}
+            error={errors.sec_id?.message as string}
+          >
+            <select {...register('sec_id')} className={selectClass}>
+              <option value={0}>— Select —</option>
+              {master?.secretaries.map((s) => (
+                <option key={s.sec_id} value={s.sec_id}>
+                  {s.secretary_name}
+                </option>
+              ))}
+            </select>
+          </Field>
+
+          <Field
+            label={`Implementing Departments — ${selectedDeptIds.length} selected`}
+            required
+            error={errors.dept_ids?.message as string}
           >
             <DepartmentMultiSelect
-              secretaries={master?.secretaries ?? []}
-              selected={selectedSecIds}
+              departments={filteredDepartments.map((d) => ({
+                dept_id: d.dept_id,
+                dept_name: d.dept_name,
+              }))}
+              selected={selectedDeptIds}
               search={deptSearch}
+              searchRef={deptSearchRef}
               onSearchChange={setDeptSearch}
               onToggle={(id) => {
-                const next = selectedSecIds.includes(id)
-                  ? selectedSecIds.filter((x) => x !== id)
-                  : [...selectedSecIds, id];
-                setValue('sec_ids', next, { shouldValidate: true, shouldDirty: true });
+                const next = selectedDeptIds.includes(id)
+                  ? selectedDeptIds.filter((x) => x !== id)
+                  : [...selectedDeptIds, id];
+                setValue('dept_ids', next, {
+                  shouldValidate: true,
+                  shouldDirty: true,
+                });
               }}
               onClear={() =>
-                setValue('sec_ids', [], { shouldValidate: true, shouldDirty: true })
+                setValue('dept_ids', [], { shouldValidate: true, shouldDirty: true })
               }
+              disabled={selectedSecId <= 0}
             />
-            {/* Keep the field registered so Zod validation runs */}
-            <input type="hidden" {...register('sec_ids')} />
+            <input type="hidden" {...register('dept_ids')} />
           </Field>
 
           <div className="grid gap-4 sm:grid-cols-2">
@@ -439,31 +542,35 @@ const selectClass =
 // Multi-select panel for administrative departments
 // ---------------------------------------------------------------------------
 function DepartmentMultiSelect({
-  secretaries,
+  departments,
   selected,
   search,
+  searchRef,
   onSearchChange,
   onToggle,
   onClear,
+  disabled,
 }: {
-  secretaries: { sec_id: number; secretary_name: string | null }[];
+  departments: { dept_id: number; dept_name: string | null }[];
   selected: number[];
   search: string;
+  searchRef: React.RefObject<HTMLInputElement | null>;
   onSearchChange: (s: string) => void;
-  onToggle: (secId: number) => void;
+  onToggle: (deptId: number) => void;
   onClear: () => void;
+  disabled?: boolean;
 }) {
   const q = search.trim().toLowerCase();
   const filtered = q
-    ? secretaries.filter((s) =>
-        (s.secretary_name ?? '').toLowerCase().includes(q),
+    ? departments.filter((s) =>
+        (s.dept_name ?? '').toLowerCase().includes(q),
       )
-    : secretaries;
+    : departments;
 
   const selectedSet = new Set(selected);
-  const selectedLabels = secretaries
-    .filter((s) => selectedSet.has(s.sec_id))
-    .map((s) => ({ id: s.sec_id, name: s.secretary_name ?? `#${s.sec_id}` }));
+  const selectedLabels = departments
+    .filter((s) => selectedSet.has(s.dept_id))
+    .map((s) => ({ id: s.dept_id, name: s.dept_name ?? `#${s.dept_id}` }));
 
   return (
     <div className="space-y-2">
@@ -501,23 +608,33 @@ function DepartmentMultiSelect({
         <div className="relative border-b bg-muted/20">
           <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
           <Input
+            ref={searchRef}
             value={search}
             onChange={(e) => onSearchChange(e.target.value)}
-            placeholder={`Search ${secretaries.length} departments…`}
+            placeholder={
+              disabled
+                ? 'Select administrative department first…'
+                : `Search ${departments.length} departments…`
+            }
+            disabled={disabled}
             className="h-9 border-0 bg-transparent pl-8 text-sm shadow-none focus-visible:ring-0"
           />
         </div>
         <div className="max-h-56 overflow-y-auto">
-          {filtered.length === 0 ? (
+          {disabled ? (
+            <p className="px-3 py-4 text-center text-xs text-muted-foreground">
+              Choose an administrative department to load implementing departments.
+            </p>
+          ) : filtered.length === 0 ? (
             <p className="px-3 py-4 text-center text-xs text-muted-foreground">
               No departments match &quot;{search}&quot;
             </p>
           ) : (
             <ul className="divide-y">
               {filtered.map((s) => {
-                const isOn = selectedSet.has(s.sec_id);
+                const isOn = selectedSet.has(s.dept_id);
                 return (
-                  <li key={s.sec_id}>
+                  <li key={s.dept_id}>
                     <label
                       className={cn(
                         'flex cursor-pointer items-center gap-2 px-3 py-2 text-sm transition-colors duration-150 hover:bg-muted/40',
@@ -527,11 +644,11 @@ function DepartmentMultiSelect({
                       <input
                         type="checkbox"
                         checked={isOn}
-                        onChange={() => onToggle(s.sec_id)}
+                        onChange={() => onToggle(s.dept_id)}
                         className="h-4 w-4 cursor-pointer accent-[#2E7D32]"
                       />
                       <span className={cn(isOn && 'font-medium')}>
-                        {s.secretary_name}
+                        {s.dept_name}
                       </span>
                     </label>
                   </li>

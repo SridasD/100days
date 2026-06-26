@@ -69,9 +69,10 @@ const createProjectSchema = z.object({
   is_completed: z.coerce.number().int().min(0).max(2).default(0),
   completion_date: z.string().optional().nullable(),
   sector_id: z.coerce.number().int().positive(),
-  sec_ids: z
+  sec_id: z.coerce.number().int().positive("Administrative department is required"),
+  dept_ids: z
     .array(z.coerce.number().int().positive())
-    .min(1, "At least one department is required"),
+    .min(1, "At least one implementing department is required"),
   no_days_employed_direct: z.coerce.number().int().min(0).default(0),
   no_persons_employed_direct: z.coerce.number().int().min(0).default(0),
   no_days_employed_indirect: z.coerce.number().int().min(0).default(0),
@@ -161,20 +162,24 @@ export async function POST(req: NextRequest) {
         ?.project_code ??
       `HDP-${codeYear}-${String(projectId).padStart(4, "0")}`;
 
-    // Link to all selected secretaries — one row per department.
-    // Legacy table has `id bigint NOT NULL` with no sequence — generate IDs
-    // sequentially from the current MAX.
-    const maxRes = await db.execute(sql`
-      SELECT COALESCE(MAX(id), 0) AS m FROM hdp.project_secretary
+    await db.execute(sql`
+      INSERT INTO hdp.project_secretary (project_id, sec_id)
+      VALUES (${projectId}, ${d.sec_id})
     `);
-    let nextLinkId = Number((maxRes.rows[0] as { m: number | string }).m) + 1;
-    const uniqueSecIds = Array.from(new Set(d.sec_ids));
-    for (const secId of uniqueSecIds) {
+
+    // Link to selected implementing departments.
+    const maxDeptRes = await db.execute(sql`
+      SELECT COALESCE(MAX(id), 0) AS m FROM hdp.project_department
+    `);
+    let nextDeptLinkId =
+      Number((maxDeptRes.rows[0] as { m: number | string }).m) + 1;
+    const uniqueDeptIds = Array.from(new Set(d.dept_ids));
+    for (const deptId of uniqueDeptIds) {
       await db.execute(sql`
-        INSERT INTO hdp.project_secretary (id, project_id, sec_id)
-        VALUES (${nextLinkId}, ${projectId}, ${secId})
+        INSERT INTO hdp.project_department (id, project_id, dept_id)
+        VALUES (${nextDeptLinkId}, ${projectId}, ${deptId})
       `);
-      nextLinkId++;
+      nextDeptLinkId++;
     }
 
     await writeAudit({
@@ -185,7 +190,8 @@ export async function POST(req: NextRequest) {
       request: req,
       meta: {
         project_name: d.project_name,
-        sec_ids: uniqueSecIds,
+        sec_id: d.sec_id,
+        dept_ids: uniqueDeptIds,
         sector_id: d.sector_id,
         project_code: projectCode,
       },
