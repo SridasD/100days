@@ -15,6 +15,9 @@ export default async function LegacyRedirect() {
   if (roleId === ROLE.ADMIN) {
     redirect('/admin/settings/change-password');
   }
+  if (roleId === 5) {
+    redirect('/secretary/settings/change-password');
+  }
   // Nodal officer (role 2) or unknown — default to officer.
   redirect('/officer/settings/change-password');
 }

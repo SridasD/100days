@@ -70,6 +70,9 @@ export const authConfig: NextAuthConfig = {
         return Response.redirect(new URL("/officer/projects", nextUrl));
       if (role === 1 && pathname.startsWith("/officer"))
         return Response.redirect(new URL("/verify/projects", nextUrl));
+      if (role === 5 && pathname.startsWith("/secretary")) return true;
+      if (role === 5 && (pathname.startsWith("/officer") || pathname.startsWith("/verify") || pathname.startsWith("/admin")))
+        return Response.redirect(new URL("/secretary/dashboard", nextUrl));
       if (
         role === 4 &&
         pathname.startsWith("/admin") &&

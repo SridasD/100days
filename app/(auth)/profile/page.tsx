@@ -19,6 +19,7 @@ export default async function ProfileRoutePage() {
 }
 
 function resolveHomeHref(roleId: number): string {
+  if (roleId === 5) return '/secretary/dashboard';
   if (roleId === 4) return '/admin/osd/dashboard';
   if (roleId === 3) return '/admin/dashboard';
   if (roleId === 1) return '/verify/projects';

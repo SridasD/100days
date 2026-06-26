@@ -17,6 +17,7 @@ export interface OfficerSession {
 export const ROLE = {
   VERIFICATION_OFFICER: 1,
   NODAL_OFFICER: 2,
+  SECRETARY: 5,
   HEAD_OF_DEPARTMENT: 6,
   ADMIN: 3,
   OSD_ADMIN: 4,
@@ -149,7 +150,11 @@ export async function requireOfficerSession(
 ): Promise<OfficerSession | NextResponse> {
   const s = await requireSession(req);
   if (s instanceof NextResponse) return s;
-  if (s.roleId !== ROLE.NODAL_OFFICER && s.roleId !== ROLE.HEAD_OF_DEPARTMENT) {
+  if (
+    s.roleId !== ROLE.NODAL_OFFICER &&
+    s.roleId !== ROLE.HEAD_OF_DEPARTMENT &&
+    s.roleId !== ROLE.SECRETARY
+  ) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
   return s;

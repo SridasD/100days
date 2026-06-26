@@ -43,6 +43,10 @@ interface MeResponse {
   lastLogin: string | null;
 }
 
+interface ProfilePageProps {
+  homeHref?: string;
+}
+
 const ROLE_META: Record<number, { label: string; tone: string; icon: typeof Shield }> = {
   1: { label: 'Verification Officer', tone: 'bg-amber-500/10 text-amber-800 ring-amber-500/20', icon: Shield },
   2: { label: 'Nodal Officer', tone: 'bg-emerald-500/10 text-emerald-800 ring-emerald-500/20', icon: UserRound },
@@ -65,6 +69,7 @@ function initialsFrom(name: string): string {
 function changePasswordHref(roleId: number): string {
   if (roleId === 1) return '/verify/settings/change-password';
   if (roleId === 3) return '/admin/settings/change-password';
+  if (roleId === 5) return '/secretary/settings/change-password';
   return '/officer/settings/change-password';
 }
 
@@ -72,7 +77,7 @@ function roleFallbackLabel(roleId: number): string {
   return ROLE_META[roleId]?.label ?? 'User';
 }
 
-export function ProfilePage() {
+export function ProfilePage({ homeHref: homeHrefOverride }: ProfilePageProps) {
   const [me, setMe] = useState<MeResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [serverError, setServerError] = useState<string | null>(null);
@@ -113,15 +118,18 @@ export function ProfilePage() {
   const avatarLabel = me ? initialsFrom(me.userName || me.loginName || roleLabel) : 'H';
   const AvatarIcon = role?.icon ?? CircleUserRound;
   const homeHref =
-    me?.roleId === 4
-      ? '/admin/osd/dashboard'
-      : me?.roleId === 3
-        ? '/admin/dashboard'
-        : me?.roleId === 1
-          ? '/verify/projects'
-          : me?.roleId === 2 || me?.roleId === 6
-            ? '/officer/projects'
-            : '/';
+    homeHrefOverride ??
+    (me?.roleId === 5
+      ? '/secretary/dashboard'
+      : me?.roleId === 4
+        ? '/admin/osd/dashboard'
+        : me?.roleId === 3
+          ? '/admin/dashboard'
+          : me?.roleId === 1
+            ? '/verify/projects'
+            : me?.roleId === 2 || me?.roleId === 6
+              ? '/officer/projects'
+              : '/');
 
   const editableChanged = useMemo(() => {
     if (!me) return false;
