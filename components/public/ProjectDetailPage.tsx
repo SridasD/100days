@@ -37,6 +37,7 @@ import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { PublicNav } from './PublicNav';
 import { VerifiedDataBadge } from './VerifiedDataBadge';
+import { FacebookVideoEmbed } from '@/components/media/FacebookVideoEmbed';
 
 export type ProjectStatus = 'completed' | 'in-progress' | 'not-started';
 
@@ -686,41 +687,49 @@ function VideoThumb({ video }: { video: PublicProjectVideo }) {
   return (
     <figure className="overflow-hidden rounded-xl border bg-white shadow-sm">
       <div className="relative aspect-video bg-black">
-        {playing ? (
-          // Only mount the iframe after the user clicks play — saves
-          // bandwidth + avoids autoplay surprises.
-          <iframe
-            src={`${video.embedSrc}${video.embedSrc.includes('?') ? '&' : '?'
-              }autoplay=1`}
-            title={video.description || 'Project video'}
-            className="absolute inset-0 h-full w-full"
-            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-            allowFullScreen
-          />
-        ) : (
-          <button
-            type="button"
-            onClick={() => setPlaying(true)}
-            aria-label={video.description || 'Play video'}
-            className="group absolute inset-0 cursor-pointer"
-          >
-            {thumbUrl ? (
-              <img
-                src={thumbUrl}
-                alt=""
-                aria-hidden
-                className="h-full w-full object-cover opacity-90 transition-opacity duration-200 group-hover:opacity-100"
-                loading="lazy"
-              />
-            ) : (
-              <div className="h-full w-full bg-gradient-to-br from-black via-[#161616] to-[#1f1f1f]" />
-            )}
-            <span className="absolute inset-0 flex items-center justify-center">
-              <span className="flex h-14 w-14 items-center justify-center rounded-full bg-white/95 text-hdp-green shadow-lg transition-transform duration-200 group-hover:scale-110">
-                <PlayCircle className="h-8 w-8" />
+        {isYouTube ? (
+          playing ? (
+            // Only mount the iframe after the user clicks play — saves
+            // bandwidth + avoids autoplay surprises.
+            <iframe
+              src={`${video.embedSrc}${video.embedSrc.includes('?') ? '&' : '?'
+                }autoplay=1`}
+              title={video.description || 'Project video'}
+              className="absolute inset-0 h-full w-full"
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+              loading="lazy"
+              allowFullScreen
+            />
+          ) : (
+            <button
+              type="button"
+              onClick={() => setPlaying(true)}
+              aria-label={video.description || 'Play video'}
+              className="group absolute inset-0 cursor-pointer"
+            >
+              {thumbUrl ? (
+                <img
+                  src={thumbUrl}
+                  alt=""
+                  aria-hidden
+                  className="h-full w-full object-cover opacity-90 transition-opacity duration-200 group-hover:opacity-100"
+                  loading="lazy"
+                />
+              ) : (
+                <div className="h-full w-full bg-gradient-to-br from-black via-[#161616] to-[#1f1f1f]" />
+              )}
+              <span className="absolute inset-0 flex items-center justify-center">
+                <span className="flex h-14 w-14 items-center justify-center rounded-full bg-white/95 text-hdp-green shadow-lg transition-transform duration-200 group-hover:scale-110">
+                  <PlayCircle className="h-8 w-8" />
+                </span>
               </span>
-            </span>
-          </button>
+            </button>
+          )
+        ) : (
+          <FacebookVideoEmbed
+            sourceUrl={video.embedSrc}
+            title={video.description || 'Facebook project video'}
+          />
         )}
       </div>
       <figcaption className="flex flex-wrap items-center justify-between gap-2 border-t bg-white p-3">

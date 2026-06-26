@@ -272,7 +272,7 @@ const YT_PATTERNS = [
   /youtube\.com\/shorts\/([A-Za-z0-9_-]{11})/,
 ];
 const FB_PATTERN =
-  /(?:facebook\.com\/(?:[A-Za-z0-9.\-_]+\/videos\/\d+|watch\/?\?v=\d+|share\/v\/[A-Za-z0-9_-]+)|fb\.watch\/[A-Za-z0-9_-]+)/i;
+  /(?:facebook\.com\/(?:reel\/\d+|[A-Za-z0-9.\-_]+\/videos\/\d+|watch\/?\?v=\d+|share\/v\/[A-Za-z0-9_-]+)|fb\.watch\/[A-Za-z0-9_-]+)/i;
 
 function toEmbed(
   url: string,
