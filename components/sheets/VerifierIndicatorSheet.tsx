@@ -490,7 +490,7 @@ export function VerifierIndicatorSheet({
                         ₹{' '}
                         {inrFormat.format(
                           indicator.submittedFinancialAchievement ??
-                            indicator.financialAchievement,
+                          indicator.financialAchievement,
                         )}{' '}
                         / ₹ {inrFormat.format(indicator.financialTarget)}
                       </KV>
@@ -501,8 +501,8 @@ export function VerifierIndicatorSheet({
                       <KV label="On">
                         {indicator.submittedDate
                           ? new Date(indicator.submittedDate).toLocaleString(
-                              'en-IN',
-                            )
+                            'en-IN',
+                          )
                           : '—'}
                       </KV>
                       {(indicator.submittedDescription ?? indicator.description) && (
@@ -664,8 +664,8 @@ export function VerifierIndicatorSheet({
                     className={cn(
                       'mt-2 resize-y',
                       remarksRequired &&
-                        !remarksOk &&
-                        'border-error-red focus-visible:ring-error-red',
+                      !remarksOk &&
+                      'border-error-red focus-visible:ring-error-red',
                     )}
                   />
                   {remarksRequired && !remarksOk && (

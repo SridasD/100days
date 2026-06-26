@@ -1,13 +1,13 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { sql } from 'drizzle-orm';
-import { z } from 'zod';
-import { isSession, requireOfficerSession } from '@/lib/auth/session';
-import { db } from '@/lib/db/client';
-import { listIndicatorsForProject } from '@/lib/db/queries/officer';
-import { writeAudit } from '@/lib/audit/writeAudit';
-import { AUDIT_ACTIONS } from '@/lib/db/schema/audit';
+import { NextRequest, NextResponse } from "next/server";
+import { sql } from "drizzle-orm";
+import { z } from "zod";
+import { isSession, requireOfficerSession } from "@/lib/auth/session";
+import { db } from "@/lib/db/client";
+import { listIndicatorsForProject } from "@/lib/db/queries/officer";
+import { writeAudit } from "@/lib/audit/writeAudit";
+import { AUDIT_ACTIONS } from "@/lib/db/schema/audit";
 
-export const runtime = 'nodejs';
+export const runtime = "nodejs";
 
 // ---------------------------------------------------------------------------
 // Self-healing schema guard.
@@ -91,7 +91,7 @@ export async function GET(
   const { projectId } = await params;
   const id = Number(projectId);
   if (!Number.isFinite(id)) {
-    return NextResponse.json({ error: 'Invalid projectId' }, { status: 400 });
+    return NextResponse.json({ error: "Invalid projectId" }, { status: 400 });
   }
 
   try {
@@ -126,37 +126,33 @@ export async function GET(
         return {
           indicatorId: r.indicator_id,
           projectId: r.project_id,
-          name: r.indicator_name ?? '',
-          unit: r.unit ?? '',
+          name: r.indicator_name ?? "",
+          unit: r.unit ?? "",
           districtId: r.district_id,
-          district: r.district_name ?? '',
+          district: r.district_name ?? "",
           physicalTarget: r.physical_target ? Number(r.physical_target) : 0,
-          physicalAchievement:
-            r.physical_achievement ?? 0,
+          physicalAchievement: r.physical_achievement ?? 0,
           financialTarget: r.financial_target ? Number(r.financial_target) : 0,
-          financialAchievement:
-            r.financial_achievement
-              ? Number(r.financial_achievement)
-              : 0,
+          financialAchievement: r.financial_achievement
+            ? Number(r.financial_achievement)
+            : 0,
           percentage: r.percentage ? Number(r.percentage) : 0,
           verifiedPercentage: r.verified_percentage
             ? Number(r.verified_percentage)
             : 0,
-          description:
-            r.physical_description ?? '',
+          description: r.physical_description ?? "",
           completedDate: r.completed_date,
           submittedDate: r.submitted_date,
           verifiedDate: r.verified_date,
           isVerified: isCurrentVerified,
           requiresReverification,
-          lastVerifiedSnapshot:
-            !!r.verified_date
-              ? {
-                  physicalAchievement: verifiedPhys,
-                  financialAchievement: verifiedFin,
-                  description: verifiedDesc,
-                }
-              : null,
+          lastVerifiedSnapshot: !!r.verified_date
+            ? {
+                physicalAchievement: verifiedPhys,
+                financialAchievement: verifiedFin,
+                description: verifiedDesc,
+              }
+            : null,
           lastUpdatedAt: r.submitted_date,
           achievedDirectDays: r.achieved_no_days_employed_direct ?? 0,
           achievedDirectPersons: r.achieved_no_persons_employed_direct ?? 0,
@@ -169,9 +165,9 @@ export async function GET(
       }),
     });
   } catch (err) {
-    console.error('GET indicators failed', err);
+    console.error("GET indicators failed", err);
     return NextResponse.json(
-      { error: 'Failed to load indicators' },
+      { error: "Failed to load indicators" },
       { status: 500 },
     );
   }
@@ -207,7 +203,7 @@ export async function POST(
   const { projectId } = await params;
   const id = Number(projectId);
   if (!Number.isFinite(id)) {
-    return NextResponse.json({ error: 'Invalid projectId' }, { status: 400 });
+    return NextResponse.json({ error: "Invalid projectId" }, { status: 400 });
   }
 
   // Ownership — officer can only add indicators to projects in their sec
@@ -219,7 +215,7 @@ export async function POST(
   `);
   if (own.rows.length === 0) {
     return NextResponse.json(
-      { error: 'Forbidden: project not assigned to your department' },
+      { error: "Forbidden: project not assigned to your department" },
       { status: 403 },
     );
   }
@@ -228,7 +224,7 @@ export async function POST(
   const parsed = createIndicatorSchema.safeParse(body);
   if (!parsed.success) {
     return NextResponse.json(
-      { error: 'Validation failed', issues: parsed.error.issues },
+      { error: "Validation failed", issues: parsed.error.issues },
       { status: 400 },
     );
   }
@@ -251,8 +247,8 @@ export async function POST(
     // integers so there is no injection surface.
     const localBodyArr = d.local_body_ids ?? [];
     const beneficiaryArr = d.beneficiary_ids ?? [];
-    const localBodyLit = `{${localBodyArr.join(',')}}`;
-    const beneficiaryLit = `{${beneficiaryArr.join(',')}}`;
+    const localBodyLit = `{${localBodyArr.join(",")}}`;
+    const beneficiaryLit = `{${beneficiaryArr.join(",")}}`;
 
     // indicator_id is supplied by the sequence default we ensured above.
     const inserted = await db.execute(sql`
@@ -287,7 +283,7 @@ export async function POST(
     await writeAudit({
       userId: session.userId,
       action: AUDIT_ACTIONS.INDICATOR_CREATED,
-      entity: 'indicators',
+      entity: "indicators",
       entityId: newId,
       request: req,
       secId: session.secId,
@@ -296,7 +292,7 @@ export async function POST(
 
     return NextResponse.json({ indicatorId: newId }, { status: 201 });
   } catch (err) {
-    console.error('POST indicators failed', err);
+    console.error("POST indicators failed", err);
     const pgErr = err as {
       message?: string;
       code?: string;
@@ -307,7 +303,7 @@ export async function POST(
     };
     return NextResponse.json(
       {
-        error: 'Failed to create indicator',
+        error: "Failed to create indicator",
         debug: {
           message: pgErr.message,
           code: pgErr.code,

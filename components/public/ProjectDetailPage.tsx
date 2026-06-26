@@ -985,8 +985,8 @@ function TabButton({
       aria-selected={active}
       onClick={onClick}
       className={`inline-flex cursor-pointer items-center gap-1.5 rounded-full px-3 py-1.5 font-medium transition-colors duration-150 ${active
-          ? 'bg-hdp-green text-white shadow'
-          : 'text-muted-foreground hover:text-hdp-green'
+        ? 'bg-hdp-green text-white shadow'
+        : 'text-muted-foreground hover:text-hdp-green'
         }`}
     >
       {children}

@@ -52,11 +52,15 @@ export async function GET(
           (r.submitted_date == null || verifiedAt >= submittedAt);
 
         const canonicalPhys =
-          isCurrentVerified && verifiedPhys != null ? verifiedPhys : submittedPhys;
+          isCurrentVerified && verifiedPhys != null
+            ? verifiedPhys
+            : submittedPhys;
         const canonicalFin =
           isCurrentVerified && verifiedFin != null ? verifiedFin : submittedFin;
         const canonicalDesc =
-          isCurrentVerified && verifiedDesc != null ? verifiedDesc : submittedDesc;
+          isCurrentVerified && verifiedDesc != null
+            ? verifiedDesc
+            : submittedDesc;
         return {
           indicatorId: r.indicator_id,
           projectId: r.project_id,
