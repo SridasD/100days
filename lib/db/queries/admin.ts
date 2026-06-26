@@ -60,8 +60,8 @@ export async function getUser(userId: number) {
       ud.designation,
       ud.registered_on,
       ud.last_login
-    FROM hdp.user_details
-    WHERE user_id = ${userId}
+    FROM hdp.user_details ud
+    WHERE ud.user_id = ${userId}
     LIMIT 1
   `);
   return result.rows[0] ?? null;
@@ -122,6 +122,7 @@ export async function listAllProjects(): Promise<AdminProjectRow[]> {
         WHERE i.project_id = mp.project_id
       ), 0) AS indicators_count
     FROM hdp.master_projects mp
+    WHERE COALESCE((to_jsonb(mp)->>'is_archived')::boolean, false) = false
     ORDER BY mp.project_name ASC
   `);
   return result.rows as unknown as AdminProjectRow[];
@@ -155,6 +156,7 @@ export async function getProject(projectId: number) {
     LEFT JOIN hdp.project_secretary ps ON mp.project_id = ps.project_id
     LEFT JOIN hdp.master_secretary ms ON ps.sec_id = ms.sec_id
     WHERE mp.project_id = ${projectId}
+      AND COALESCE((to_jsonb(mp)->>'is_archived')::boolean, false) = false
     LIMIT 1
   `);
   return result.rows[0] ?? null;

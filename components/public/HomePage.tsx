@@ -641,16 +641,16 @@ function PublicFooter() {
         </div>
 
         <FooterCol titleMal="ദ്രുത ബന്ധങ്ങൾ">
-          <FooterLink href="/" labelMal="മുഖപ്പ്" />
+          <FooterLink href="/" labelMal="ഹോം" />
           <FooterLink href="/public/projects" labelMal="പദ്ധതികൾ" />
-          <FooterLink href="/public/gallery" labelMal="ചിത്രശാല" />
+          <FooterLink href="/public/gallery" labelMal="ഗാലറി" />
         </FooterCol>
 
         <FooterCol titleMal="വിവരങ്ങൾ">
           <FooterLink href="/public/progress" labelMal="പദ്ധതി പുരോഗതി" />
           <FooterLink href="/public/departments" labelMal="വകുപ്പുകൾ" />
           <FooterLink href="/public/sectors" labelMal="മേഖലകൾ" />
-          <FooterLink href="/login" labelMal="ഔദ്യോഗിക പ്രവേശനം" />
+          <FooterLink href="/login" labelMal="ഔദ്യോഗിക ലോഗിൻ" />
         </FooterCol>
 
         <FooterCol titleMal="സാങ്കേതിക പിന്തുണ">

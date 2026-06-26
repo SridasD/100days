@@ -1,24 +1,24 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { sql } from 'drizzle-orm';
-import { z } from 'zod';
+import { NextRequest, NextResponse } from "next/server";
+import { sql } from "drizzle-orm";
+import { z } from "zod";
 import {
   isVerifierSession,
   requireVerifierSession,
-} from '@/lib/auth/verifier-session';
-import { db } from '@/lib/db/client';
-import { writeAudit } from '@/lib/audit/writeAudit';
-import { AUDIT_ACTIONS } from '@/lib/db/schema/audit';
+} from "@/lib/auth/verifier-session";
+import { db } from "@/lib/db/client";
+import { writeAudit } from "@/lib/audit/writeAudit";
+import { AUDIT_ACTIONS } from "@/lib/db/schema/audit";
 
 // Mark a project as physically completed.
 // Allowed only when EVERY indicator on the project has been verified at
 // 100% (verified_percentage >= 100). The verifier is the role with the
 // authority to declare completion — the nodal officer's `percentage` is
 // just a self-report.
-export const runtime = 'nodejs';
+export const runtime = "nodejs";
 
 const completeSchema = z.object({
-  completion_date: z.string().min(1, 'Completion date is required'),
-  remarks: z.string().max(2000).optional().default(''),
+  completion_date: z.string().min(1, "Completion date is required"),
+  remarks: z.string().max(2000).optional().default(""),
 });
 
 export async function POST(
@@ -32,19 +32,23 @@ export async function POST(
   const { projectId } = await params;
   const id = Number(projectId);
   if (!Number.isFinite(id)) {
-    return NextResponse.json({ error: 'Invalid projectId' }, { status: 400 });
+    return NextResponse.json({ error: "Invalid projectId" }, { status: 400 });
   }
 
   // Sec_id scoping — central verifier (sec_id=0) can complete any project.
   if (session.secId && session.secId > 0) {
     const owns = await db.execute(sql`
-      SELECT 1 FROM hdp.project_secretary
-      WHERE project_id = ${id} AND sec_id = ${session.secId}
+      SELECT 1
+      FROM hdp.project_secretary ps
+      INNER JOIN hdp.master_projects mp ON mp.project_id = ps.project_id
+      WHERE ps.project_id = ${id}
+        AND ps.sec_id = ${session.secId}
+        AND COALESCE(mp.is_archived, false) = false
       LIMIT 1
     `);
     if (owns.rows.length === 0) {
       return NextResponse.json(
-        { error: 'Forbidden: project not assigned to your department' },
+        { error: "Forbidden: project not assigned to your department" },
         { status: 403 },
       );
     }
@@ -54,7 +58,7 @@ export async function POST(
   const parsed = completeSchema.safeParse(body);
   if (!parsed.success) {
     return NextResponse.json(
-      { error: 'Validation failed', issues: parsed.error.issues },
+      { error: "Validation failed", issues: parsed.error.issues },
       { status: 400 },
     );
   }
@@ -68,6 +72,7 @@ export async function POST(
         SUM(
           CASE
             WHEN verified_date IS NOT NULL
+              AND (submitted_date IS NULL OR verified_date >= submitted_date)
               AND COALESCE(verified_percentage, 0) >= 100
             THEN 1 ELSE 0
           END
@@ -78,7 +83,7 @@ export async function POST(
     const row = stats.rows[0] as { total: number; completed: number };
     if (!row || row.total === 0) {
       return NextResponse.json(
-        { error: 'Project has no indicators yet — cannot mark complete.' },
+        { error: "Project has no indicators yet — cannot mark complete." },
         { status: 400 },
       );
     }
@@ -98,17 +103,18 @@ export async function POST(
         completion_date = ${d.completion_date}::date,
         updated_by     = ${session.userId}
       WHERE project_id = ${id}
+        AND COALESCE(is_archived, false) = false
     `);
 
     await writeAudit({
       userId: session.userId,
       action: AUDIT_ACTIONS.PROJECT_UPDATED,
-      entity: 'master_projects',
+      entity: "master_projects",
       entityId: id,
       request: req,
       secId: session.secId,
       meta: {
-        action: 'PROJECT_COMPLETED',
+        action: "PROJECT_COMPLETED",
         completion_date: d.completion_date,
         remarks: d.remarks || null,
         verified_indicators: row.completed,
@@ -122,12 +128,16 @@ export async function POST(
       completionDate: d.completion_date,
     });
   } catch (err) {
-    console.error('POST /api/verify/projects/[id]/complete failed', err);
+    console.error("POST /api/verify/projects/[id]/complete failed", err);
     const pgErr = err as { message?: string; code?: string; detail?: string };
     return NextResponse.json(
       {
-        error: 'Failed to mark project complete',
-        debug: { message: pgErr.message, code: pgErr.code, detail: pgErr.detail },
+        error: "Failed to mark project complete",
+        debug: {
+          message: pgErr.message,
+          code: pgErr.code,
+          detail: pgErr.detail,
+        },
       },
       { status: 500 },
     );

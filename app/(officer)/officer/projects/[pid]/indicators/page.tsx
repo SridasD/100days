@@ -8,7 +8,6 @@ import {
   Target,
   Users,
 } from 'lucide-react';
-import { auth } from '@/auth';
 import { KeralaHeader } from '@/components/layout/KeralaHeader';
 import { OfficerUserMenu } from '@/components/layout/OfficerUserMenu';
 import { SiteFooter } from '@/components/layout/SiteFooter';
@@ -17,6 +16,8 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { IndicatorTable } from '@/components/tables/IndicatorTable';
 import { getOfficerProject } from '@/lib/db/queries/officer';
+import { headers } from 'next/headers';
+import { getToken } from 'next-auth/jwt';
 
 // Appendix C.2 + C.3 — server component fetches the project banner via
 // Drizzle directly; IndicatorTable then fetches indicators client-side from
@@ -29,14 +30,21 @@ interface PageProps {
 export default async function OfficerProjectIndicatorsPage({
   params,
 }: PageProps) {
-  const session = await auth();
-  if (!session?.user) redirect('/login');
-  const user = session.user as {
-    id: string;
-    name?: string | null;
-    roleId: number;
-    secId: number;
-  };
+  const hdrs = await headers();
+  const token = await getToken({
+    req: {
+      headers: {
+        cookie: hdrs.get('cookie') ?? '',
+      },
+    } as any,
+    secret: process.env.AUTH_SECRET,
+  });
+  if (!token) redirect('/login');
+  const secId = Number(token.secId ?? 0);
+  const roleId = Number(token.roleId ?? 0);
+  if (!Number.isFinite(secId) || roleId !== 2) {
+    redirect('/login');
+  }
 
   const { pid } = await params;
   const projectIdNum = Number(pid);
@@ -44,7 +52,7 @@ export default async function OfficerProjectIndicatorsPage({
     redirect('/officer/projects');
   }
 
-  const project = await getOfficerProject(projectIdNum, user.secId);
+  const project = await getOfficerProject(projectIdNum, secId);
   if (!project) {
     redirect('/officer/projects');
   }
@@ -68,8 +76,8 @@ export default async function OfficerProjectIndicatorsPage({
   const pctDone =
     project.indicators_total > 0
       ? Math.round(
-          (project.indicators_completed / project.indicators_total) * 100,
-        )
+        (project.indicators_completed / project.indicators_total) * 100,
+      )
       : 0;
 
   return (

@@ -91,8 +91,10 @@ export async function GET(
 }
 
 // ---------------------------------------------------------------------------
-// PATCH — update an indicator's master fields. Locked once it has been
-// verified (verified_date IS NOT NULL); otherwise the officer can edit.
+// PATCH — update an indicator's master fields.
+// If the indicator was already verified, this creates a new pending
+// submission (re-verification required) while keeping the last verified
+// snapshot intact for public display.
 // ---------------------------------------------------------------------------
 const patchSchema = z.object({
   indicator_name: z.string().min(3).max(255),
@@ -127,22 +129,6 @@ export async function PATCH(
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
 
-  // Lock once verified — verifier owns the source-of-truth from that point on.
-  const lock = await db.execute(sql`
-    SELECT verified_date FROM hdp.indicators
-    WHERE indicator_id = ${id} LIMIT 1
-  `);
-  const lockRow = lock.rows[0] as { verified_date: string | null } | undefined;
-  if (lockRow?.verified_date) {
-    return NextResponse.json(
-      {
-        error:
-          'This indicator has already been verified and can no longer be edited.',
-      },
-      { status: 409 },
-    );
-  }
-
   const body = await req.json().catch(() => null);
   const parsed = patchSchema.safeParse(body);
   if (!parsed.success) {
@@ -152,6 +138,25 @@ export async function PATCH(
     );
   }
   const d = parsed.data;
+
+  const prev = await db.execute(sql`
+    SELECT
+      verified_date,
+      verified_physical_achievement,
+      verified_financial_achievement,
+      verified_percentage,
+      verified_physical_description
+    FROM hdp.indicators
+    WHERE indicator_id = ${id}
+    LIMIT 1
+  `);
+  const prevRow = (prev.rows[0] ?? {}) as {
+    verified_date?: string | null;
+    verified_physical_achievement?: number | null;
+    verified_financial_achievement?: number | string | null;
+    verified_percentage?: number | string | null;
+    verified_physical_description?: string | null;
+  };
 
   try {
     // Build the Postgres array literals — same approach as the POST handler.
@@ -171,7 +176,9 @@ export async function PATCH(
         local_body_id = ${localBodyLit}::integer[],
         beneficiary = ${beneficiaryLit}::integer[],
         latitude = ${d.latitude ?? null},
-        longitude = ${d.longitude ?? null}
+        longitude = ${d.longitude ?? null},
+        submitted_by = ${session.userId},
+        submitted_date = now()
       WHERE indicator_id = ${id}
     `);
 
@@ -182,7 +189,27 @@ export async function PATCH(
       entityId: id,
       request: req,
       secId: session.secId,
-      meta: { editedBy: session.userId, name: d.indicator_name },
+      meta: {
+        editedBy: session.userId,
+        name: d.indicator_name,
+        requires_reverification: true,
+        previous_verified: {
+          verified_date: prevRow.verified_date ?? null,
+          physical_achievement:
+            prevRow.verified_physical_achievement != null
+              ? Number(prevRow.verified_physical_achievement)
+              : null,
+          financial_achievement:
+            prevRow.verified_financial_achievement != null
+              ? Number(prevRow.verified_financial_achievement)
+              : null,
+          percentage:
+            prevRow.verified_percentage != null
+              ? Number(prevRow.verified_percentage)
+              : null,
+          description: prevRow.verified_physical_description ?? null,
+        },
+      },
     });
 
     return NextResponse.json({ ok: true, indicatorId: id });

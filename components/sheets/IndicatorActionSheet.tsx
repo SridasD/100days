@@ -544,7 +544,6 @@ export function IndicatorActionSheet({
                 hasMedia={mediaCount > 0 || videoCount > 0}
                 onSaved={(patch) => {
                   onProgressSaved(patch);
-                  setToast('Progress submitted');
                 }}
                 onJumpToMedia={() => setActiveTab('media')}
               />
@@ -790,7 +789,7 @@ function ProgressTabContent({
                 //   Anything else with a target → the target
                 //   No target / no unit → no cap (input attribute omitted)
                 {...((indicator?.unit ?? '').trim().toLowerCase() ===
-                'percentage'
+                  'percentage'
                   ? { max: 100 }
                   : physicalTarget > 0
                     ? { max: physicalTarget }
@@ -800,7 +799,7 @@ function ProgressTabContent({
                 className={cn(
                   'min-h-11',
                   errors.physical_achievement &&
-                    'border-error-red focus-visible:ring-error-red',
+                  'border-error-red focus-visible:ring-error-red',
                 )}
                 {...register('physical_achievement')}
               />
@@ -859,7 +858,7 @@ function ProgressTabContent({
                   className={cn(
                     'min-h-11 pl-9',
                     errors.financial_achievement &&
-                      'border-error-red focus-visible:ring-error-red',
+                    'border-error-red focus-visible:ring-error-red',
                   )}
                   {...register('financial_achievement')}
                 />
@@ -889,10 +888,10 @@ function ProgressTabContent({
                   'min-h-11',
                   !isCompleted && 'opacity-60',
                   isCompleted &&
-                    'border-success-green ring-1 ring-success-green/30',
+                  'border-success-green ring-1 ring-success-green/30',
                   highlightDate && 'animate-pulse',
                   errors.completed_date &&
-                    'border-error-red focus-visible:ring-error-red',
+                  'border-error-red focus-visible:ring-error-red',
                 )}
                 {...register('completed_date')}
               />
@@ -952,7 +951,7 @@ function ProgressTabContent({
             className={cn(
               'min-h-32 resize-y rounded-2xl',
               errors.description &&
-                'border-error-red focus-visible:ring-error-red',
+              'border-error-red focus-visible:ring-error-red',
             )}
             {...register('description')}
           />
@@ -1752,7 +1751,7 @@ function VideoTabContent({
           className={cn(
             'resize-none font-mono text-xs',
             !!url.trim() && !platform &&
-              'border-error-red focus-visible:ring-error-red',
+            'border-error-red focus-visible:ring-error-red',
           )}
         />
       </div>

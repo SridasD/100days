@@ -1,30 +1,21 @@
-import { NextResponse } from 'next/server';
-import { sql } from 'drizzle-orm';
-import { auth } from '@/auth';
-import { db } from '@/lib/db/client';
+import { NextResponse } from "next/server";
+import type { NextRequest } from "next/server";
+import { sql } from "drizzle-orm";
+import { requireSession, isSession } from "@/lib/auth/session";
+import { db } from "@/lib/db/client";
 
 // Returns the live profile of the currently signed-in user. The OfficerUserMenu
 // calls this on mount so that the displayed name + designation are always
 // up to date — independent of what was baked into the JWT at login. Useful
 // when an admin edits a user's designation, or when the JWT predates a
 // schema change (e.g. before we started storing designation in the token).
-export const runtime = 'nodejs';
+export const runtime = "nodejs";
 
-export async function GET() {
-  const session = await auth();
-  if (!session?.user) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
-  const sessionUser = session.user as {
-    id?: string;
-    loginName?: string;
-    roleId?: number;
-    secId?: number;
-  };
-  const userId = Number(sessionUser.id);
-  if (!Number.isFinite(userId)) {
-    return NextResponse.json({ error: 'Bad session' }, { status: 400 });
-  }
+export async function GET(req: NextRequest) {
+  const sessionOrResponse = await requireSession(req);
+  if (!isSession(sessionOrResponse)) return sessionOrResponse;
+  const session = sessionOrResponse;
+  const userId = session.userId;
 
   try {
     const r = await db.execute(sql`
@@ -59,13 +50,13 @@ export async function GET() {
         }
       | undefined;
     if (!row) {
-      return NextResponse.json({ error: 'User not found' }, { status: 404 });
+      return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
     return NextResponse.json({
       userId: Number(row.user_id),
-      userName: row.user_name ?? row.login_name ?? '',
-      loginName: row.login_name ?? '',
+      userName: row.user_name ?? row.login_name ?? "",
+      loginName: row.login_name ?? "",
       designation: row.designation ?? null,
       mobile: row.mobile_no ?? null,
       roleId: row.role_id ?? 0,
@@ -75,9 +66,9 @@ export async function GET() {
       lastLogin: row.last_login,
     });
   } catch (err) {
-    console.error('GET /api/me failed', err);
+    console.error("GET /api/me failed", err);
     return NextResponse.json(
-      { error: 'Failed to load profile' },
+      { error: "Failed to load profile" },
       { status: 500 },
     );
   }

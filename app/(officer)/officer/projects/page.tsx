@@ -2,21 +2,33 @@ import { KeralaHeader } from '@/components/layout/KeralaHeader';
 import { OfficerUserMenu } from '@/components/layout/OfficerUserMenu';
 import { SiteFooter } from '@/components/layout/SiteFooter';
 import { ProjectTable } from '@/components/tables/ProjectTable';
-import { auth } from '@/auth';
 import { redirect } from 'next/navigation';
+import { headers } from 'next/headers';
+import { getToken } from 'next-auth/jwt';
 
 // Appendix C.1 — Nodal Officer "My Projects".
 // URL: /officer/projects
 // ProjectTable now fetches its data from GET /api/officer/projects.
 
 export default async function OfficerProjectsPage() {
-  const session = await auth();
-  if (!session?.user) redirect('/login');
+  const hdrs = await headers();
+  const token = await getToken({
+    req: {
+      headers: {
+        cookie: hdrs.get('cookie') ?? '',
+      },
+    } as any,
+    secret: process.env.AUTH_SECRET,
+  });
+  if (!token) redirect('/login');
 
-  const user = session.user as { name?: string | null; roleId: number };
+  const roleId = Number(token.roleId ?? 0);
+  if (roleId !== 2) redirect('/login');
+
+  const userName = String(token.userName ?? token.name ?? '');
   const roleLabel = 'Nodal Officer';
   // TODO: fetch real department label from master_secretary using session.secId
-  const departmentLabel = user.name?.includes('Animal') ? 'Animal Husbandry' : '';
+  const departmentLabel = userName.includes('Animal') ? 'Animal Husbandry' : '';
 
   return (
     <div className="flex min-h-screen flex-col bg-background">

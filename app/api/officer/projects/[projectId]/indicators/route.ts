@@ -98,10 +98,6 @@ export async function GET(
     const rows = await listIndicatorsForProject(id, session.secId);
     return NextResponse.json({
       indicators: rows.map((r) => {
-        const isVerified = !!r.verified_date;
-        // After verification, the verified value is authoritative — show it
-        // everywhere the indicator surfaces. Nodal can still see what they
-        // originally submitted in the sheet's history tab.
         const anyR = r as unknown as {
           verified_physical_achievement: number | null;
           verified_financial_achievement: string | number | null;
@@ -116,6 +112,16 @@ export async function GET(
             ? Number(anyR.verified_financial_achievement)
             : null;
         const verifiedDesc = anyR.verified_physical_description ?? null;
+        const submittedAt = r.submitted_date
+          ? new Date(r.submitted_date).getTime()
+          : 0;
+        const verifiedAt = r.verified_date
+          ? new Date(r.verified_date).getTime()
+          : 0;
+        const isCurrentVerified =
+          !!r.verified_date && (!r.submitted_date || verifiedAt >= submittedAt);
+        const requiresReverification =
+          !!r.verified_date && !!r.submitted_date && submittedAt > verifiedAt;
 
         return {
           indicatorId: r.indicator_id,
@@ -126,28 +132,31 @@ export async function GET(
           district: r.district_name ?? '',
           physicalTarget: r.physical_target ? Number(r.physical_target) : 0,
           physicalAchievement:
-            isVerified && verifiedPhys !== null
-              ? verifiedPhys
-              : (r.physical_achievement ?? 0),
+            r.physical_achievement ?? 0,
           financialTarget: r.financial_target ? Number(r.financial_target) : 0,
           financialAchievement:
-            isVerified && verifiedFin !== null
-              ? verifiedFin
-              : r.financial_achievement
-                ? Number(r.financial_achievement)
-                : 0,
+            r.financial_achievement
+              ? Number(r.financial_achievement)
+              : 0,
           percentage: r.percentage ? Number(r.percentage) : 0,
           verifiedPercentage: r.verified_percentage
             ? Number(r.verified_percentage)
             : 0,
           description:
-            isVerified && verifiedDesc !== null
-              ? verifiedDesc
-              : (r.physical_description ?? ''),
+            r.physical_description ?? '',
           completedDate: r.completed_date,
           submittedDate: r.submitted_date,
           verifiedDate: r.verified_date,
-          isVerified,
+          isVerified: isCurrentVerified,
+          requiresReverification,
+          lastVerifiedSnapshot:
+            !!r.verified_date
+              ? {
+                  physicalAchievement: verifiedPhys,
+                  financialAchievement: verifiedFin,
+                  description: verifiedDesc,
+                }
+              : null,
           lastUpdatedAt: r.submitted_date,
           achievedDirectDays: r.achieved_no_days_employed_direct ?? 0,
           achievedDirectPersons: r.achieved_no_persons_employed_direct ?? 0,

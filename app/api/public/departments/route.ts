@@ -1,12 +1,12 @@
-import { NextResponse } from 'next/server';
-import { sql } from 'drizzle-orm';
-import { db } from '@/lib/db/client';
+import { NextResponse } from "next/server";
+import { sql } from "drizzle-orm";
+import { db } from "@/lib/db/client";
 
 // One row per department that has at least one project. Returns project /
 // indicator counts, total project cost, physical + financial progress %
 // (averages of verified_percentage and financial_achievement/target), media
 // counts, and an overall status.
-export const runtime = 'nodejs';
+export const runtime = "nodejs";
 
 export async function GET() {
   try {
@@ -22,13 +22,16 @@ export async function GET() {
           FROM hdp.master_projects mp
           INNER JOIN hdp.project_secretary ps ON mp.project_id = ps.project_id
           WHERE ps.sec_id = ms.sec_id
+            AND COALESCE(mp.is_archived, false) = false
         ), 0) AS projects,
 
         COALESCE((
           SELECT COUNT(*)::int
           FROM hdp.indicators i
+          INNER JOIN hdp.master_projects mp ON i.project_id = mp.project_id
           INNER JOIN hdp.project_secretary ps ON i.project_id = ps.project_id
           WHERE ps.sec_id = ms.sec_id
+            AND COALESCE(mp.is_archived, false) = false
         ), 0) AS indicators,
 
         COALESCE((
@@ -36,46 +39,63 @@ export async function GET() {
           FROM hdp.master_projects mp
           INNER JOIN hdp.project_secretary ps ON mp.project_id = ps.project_id
           WHERE ps.sec_id = ms.sec_id
+            AND COALESCE(mp.is_archived, false) = false
         ), 0) AS total_cost,
 
         COALESCE((
-          SELECT AVG(COALESCE(i.verified_percentage, i.percentage, 0))::numeric(5,2)
+          SELECT AVG(COALESCE(i.verified_percentage, 0))::numeric(5,2)
           FROM hdp.indicators i
+          INNER JOIN hdp.master_projects mp ON i.project_id = mp.project_id
           INNER JOIN hdp.project_secretary ps ON i.project_id = ps.project_id
           WHERE ps.sec_id = ms.sec_id
+            AND COALESCE(mp.is_archived, false) = false
+            AND i.verified_date IS NOT NULL
         ), 0) AS physical_pct,
 
         COALESCE((
           SELECT
             CASE
               WHEN SUM(COALESCE(i.financial_target, 0)) > 0
-              THEN (SUM(COALESCE(i.financial_achievement, 0))
+              THEN (SUM(COALESCE(i.verified_financial_achievement, 0))
                     / SUM(i.financial_target) * 100)::numeric(5,2)
               ELSE 0
             END
           FROM hdp.indicators i
+          INNER JOIN hdp.master_projects mp ON i.project_id = mp.project_id
           INNER JOIN hdp.project_secretary ps ON i.project_id = ps.project_id
           WHERE ps.sec_id = ms.sec_id
+            AND COALESCE(mp.is_archived, false) = false
+            AND i.verified_date IS NOT NULL
         ), 0) AS financial_pct,
 
         COALESCE((
           SELECT COUNT(*)::int FROM hdp.gallery g
           INNER JOIN hdp.indicators i ON g.indicator_id = i.indicator_id
+          INNER JOIN hdp.master_projects mp ON i.project_id = mp.project_id
           INNER JOIN hdp.project_secretary ps ON i.project_id = ps.project_id
-          WHERE ps.sec_id = ms.sec_id AND g.gallery_type = 1
+          WHERE ps.sec_id = ms.sec_id
+            AND COALESCE(mp.is_archived, false) = false
+            AND g.gallery_type = 1
+            AND COALESCE(g.is_verified, false) = true
         ), 0) AS image_count,
 
         COALESCE((
           SELECT COUNT(*)::int FROM hdp.gallery g
           INNER JOIN hdp.indicators i ON g.indicator_id = i.indicator_id
+          INNER JOIN hdp.master_projects mp ON i.project_id = mp.project_id
           INNER JOIN hdp.project_secretary ps ON i.project_id = ps.project_id
-          WHERE ps.sec_id = ms.sec_id AND g.gallery_type = 2
+          WHERE ps.sec_id = ms.sec_id
+            AND COALESCE(mp.is_archived, false) = false
+            AND g.gallery_type = 2
+            AND COALESCE(g.is_verified, false) = true
         ), 0) AS video_count
 
       FROM hdp.master_secretary ms
       WHERE EXISTS (
         SELECT 1 FROM hdp.project_secretary ps
+        INNER JOIN hdp.master_projects mp ON mp.project_id = ps.project_id
         WHERE ps.sec_id = ms.sec_id
+          AND COALESCE(mp.is_archived, false) = false
       )
       ORDER BY ms.secretary_name ASC
     `);
@@ -88,21 +108,21 @@ export async function GET() {
       //   no indicators yet → not-started
       //   physical 100% AND financial 100% → completed
       //   otherwise → in-progress
-      let status: 'completed' | 'in-progress' | 'not-started' = 'not-started';
+      let status: "completed" | "in-progress" | "not-started" = "not-started";
       if (indicators === 0) {
-        status = 'not-started';
+        status = "not-started";
       } else if (physicalPct >= 99.9 && financialPct >= 99.9) {
-        status = 'completed';
+        status = "completed";
       } else {
-        status = 'in-progress';
+        status = "in-progress";
       }
       return {
         secId: Number(row.sec_id),
         nameMal:
-          (typeof row.secretary_name_mal === 'string' &&
+          (typeof row.secretary_name_mal === "string" &&
             row.secretary_name_mal) ||
           row.secretary_name ||
-          '',
+          "",
         projects: Number(row.projects) || 0,
         indicators,
         costInLakhs: Number(row.total_cost) || 0,
@@ -116,9 +136,9 @@ export async function GET() {
 
     return NextResponse.json({ departments });
   } catch (err) {
-    console.error('GET /api/public/departments failed', err);
+    console.error("GET /api/public/departments failed", err);
     return NextResponse.json(
-      { error: 'Failed to load departments' },
+      { error: "Failed to load departments" },
       { status: 500 },
     );
   }

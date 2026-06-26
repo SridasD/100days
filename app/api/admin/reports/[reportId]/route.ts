@@ -12,10 +12,21 @@ async function generateSummaryReportCSV() {
   const result = await db.execute(sql`
     SELECT
       'Summary Report' as report_type,
-      (SELECT COUNT(*) FROM hdp.master_projects) as total_projects,
-      (SELECT COUNT(*) FROM hdp.master_projects WHERE is_completed = 1) as completed_projects,
-      (SELECT COUNT(*) FROM hdp.indicators) as total_indicators,
-      (SELECT COUNT(*) FROM hdp.indicators WHERE verified_date IS NOT NULL) as verified_indicators
+        (SELECT COUNT(*) FROM hdp.master_projects WHERE COALESCE(is_archived, false) = false) as total_projects,
+        (SELECT COUNT(*) FROM hdp.master_projects WHERE is_completed = 1 AND COALESCE(is_archived, false) = false) as completed_projects,
+      (SELECT COUNT(*) FROM hdp.indicators i
+        WHERE EXISTS (
+          SELECT 1 FROM hdp.master_projects mp
+          WHERE mp.project_id = i.project_id
+            AND COALESCE(mp.is_archived, false) = false
+        )) as total_indicators,
+      (SELECT COUNT(*) FROM hdp.indicators i
+        WHERE i.verified_date IS NOT NULL
+          AND EXISTS (
+            SELECT 1 FROM hdp.master_projects mp
+            WHERE mp.project_id = i.project_id
+              AND COALESCE(mp.is_archived, false) = false
+          )) as verified_indicators
   `);
 
   const row = result.rows[0] as any;
@@ -52,6 +63,7 @@ async function generateDepartmentWiseReportCSV() {
     LEFT JOIN hdp.master_projects mp ON ps.project_id = mp.project_id
     LEFT JOIN hdp.indicators i ON mp.project_id = i.project_id
     WHERE ms.is_used = true
+        AND (mp.project_id IS NULL OR COALESCE(mp.is_archived, false) = false)
     GROUP BY ms.sec_id, ms.secretary_name
     ORDER BY ms.secretary_name
   `);
@@ -89,6 +101,7 @@ async function generateCompletedProjectsReportCSV() {
     LEFT JOIN hdp.master_secretary ms ON ps.sec_id = ms.sec_id
     LEFT JOIN hdp.indicators i ON mp.project_id = i.project_id
     WHERE mp.is_completed = 1
+        AND COALESCE(mp.is_archived, false) = false
     GROUP BY mp.project_id, mp.project_code, mp.project_name, ms.secretary_name, mp.project_cost
     ORDER BY mp.project_name
   `);

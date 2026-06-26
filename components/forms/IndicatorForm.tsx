@@ -142,7 +142,7 @@ export function IndicatorForm({ projectId, indicatorId }: Props) {
   const [budgetError, setBudgetError] = useState<string | null>(null);
   const [serverError, setServerError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
-  /** Edit-mode lock state — true once the row has a verified_date. */
+  /** Edit-mode info state — true when this indicator was previously verified. */
   const [locked, setLocked] = useState(false);
   /** Tracks whether the edit GET has hydrated the form, so we don't run
    *  the "downstream resets on district change" effect during prefill. */
@@ -403,7 +403,7 @@ export function IndicatorForm({ projectId, indicatorId }: Props) {
       {/* Single fieldset wraps the live form so `locked` disables every
           control — including the multi-select panels — without touching
           each input individually. */}
-      <fieldset disabled={locked} className="contents">
+      <fieldset className="contents">
       {serverError && (
         <div className="flex items-start gap-2 rounded-lg border border-error-red/30 bg-error-red/5 p-3 text-sm text-error-red">
           <AlertTriangle className="mt-0.5 h-4 w-4 flex-shrink-0" />
@@ -537,8 +537,8 @@ export function IndicatorForm({ projectId, indicatorId }: Props) {
           <div className="flex items-start gap-2 border-b bg-[#E8F5E9] px-6 py-3 text-xs text-[#1B5E20]">
             <CheckCircle2 className="mt-0.5 h-4 w-4 flex-shrink-0" />
             <p>
-              This indicator has been verified. All fields are read-only — any
-              correction is now the verification officer&apos;s responsibility.
+              This indicator was previously verified. Your edits will be saved
+              as a new submission and will require verification again.
             </p>
           </div>
         )}

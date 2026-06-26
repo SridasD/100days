@@ -71,6 +71,10 @@ uploads/
 uploads_*/
 scripts/
 
+# Keep runtime upload data ignored, but allow upload API source code.
+!app/api/uploads/
+!app/api/uploads/**
+
 # AI/debug/generated artifacts
 reports/tmp/
 reports/debug/

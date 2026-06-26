@@ -1,5 +1,5 @@
-import { sql } from 'drizzle-orm';
-import { db } from '../client';
+import { sql } from "drizzle-orm";
+import { db } from "../client";
 
 // ---------------------------------------------------------------------------
 // Officer-scoped Drizzle queries.
@@ -71,6 +71,7 @@ export async function listOfficerProjects(
     FROM hdp.master_projects mp
     INNER JOIN hdp.project_secretary ps ON mp.project_id = ps.project_id
     WHERE ps.sec_id = ${secId}
+      AND COALESCE(mp.is_archived, false) = false
     ORDER BY mp.project_id, mp.project_name ASC
   `);
   return result.rows as unknown as OfficerProjectRow[];
@@ -127,6 +128,7 @@ export async function getOfficerProject(
     LEFT JOIN hdp.master_secretary ms ON ps.sec_id = ms.sec_id
     WHERE mp.project_id = ${projectId}
       AND ps.sec_id = ${secId}
+      AND COALESCE(mp.is_archived, false) = false
     LIMIT 1
   `);
   const row = (result.rows as unknown as OfficerProjectDetailRow[])[0];

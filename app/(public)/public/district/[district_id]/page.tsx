@@ -1,9 +1,8 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import Link from 'next/link';
 import { ArrowLeft, AlertTriangle, MapPin, BarChart3 } from 'lucide-react';
-import { useParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 import { KeralaHeader } from '@/components/layout/KeralaHeader';
 import { SiteFooter } from '@/components/layout/SiteFooter';
 import { Badge } from '@/components/ui/badge';
@@ -33,6 +32,7 @@ interface DistrictIndicator {
 
 export default function PublicDistrictPage() {
   const params = useParams();
+  const router = useRouter();
   const districtId = Number(params.district_id as string);
 
   const [indicators, setIndicators] = useState<DistrictIndicator[] | null>(
@@ -77,7 +77,10 @@ export default function PublicDistrictPage() {
       averageProgress:
         indicators.length > 0
           ? (
-            indicators.reduce((sum, i) => sum + i.verifiedPercentage, 0) /
+            indicators.reduce(
+              (sum, i) => sum + (Number(i.verifiedPercentage) || 0),
+              0,
+            ) /
             indicators.length
           ).toFixed(1)
           : '0',
@@ -90,15 +93,13 @@ export default function PublicDistrictPage() {
 
       <main className="container mx-auto flex-1 px-4 py-10">
         <Button
-          asChild
           variant="outline"
           size="sm"
           className="mb-6 cursor-pointer"
+          onClick={() => router.back()}
         >
-          <Link href="/">
-            <ArrowLeft className="h-4 w-4" />
-            Back to Overview
-          </Link>
+          <ArrowLeft className="h-4 w-4" />
+          Back to Overview
         </Button>
 
         {loading && (
@@ -199,49 +200,53 @@ export default function PublicDistrictPage() {
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {indicators.map((ind) => (
-                          <TableRow key={ind.indicatorId}>
-                            <TableCell className="font-medium">
-                              {ind.indicatorName}
-                            </TableCell>
-                            <TableCell className="text-sm">
-                              {ind.projectName}
-                            </TableCell>
-                            <TableCell className="font-mono text-sm">
-                              {ind.physicalTarget}
-                            </TableCell>
-                            <TableCell className="font-mono text-sm">
-                              {ind.physicalAchievement}
-                            </TableCell>
-                            <TableCell>
-                              <div className="w-24">
-                                <div className="flex items-center justify-between text-xs mb-1">
-                                  <span className="font-semibold">
-                                    {ind.verifiedPercentage.toFixed(0)}%
-                                  </span>
+                        {indicators.map((ind) => {
+                          const verifiedPct = Number(ind.verifiedPercentage) || 0;
+
+                          return (
+                            <TableRow key={ind.indicatorId}>
+                              <TableCell className="font-medium">
+                                {ind.indicatorName}
+                              </TableCell>
+                              <TableCell className="text-sm">
+                                {ind.projectName}
+                              </TableCell>
+                              <TableCell className="font-mono text-sm">
+                                {ind.physicalTarget}
+                              </TableCell>
+                              <TableCell className="font-mono text-sm">
+                                {ind.physicalAchievement}
+                              </TableCell>
+                              <TableCell>
+                                <div className="w-24">
+                                  <div className="flex items-center justify-between text-xs mb-1">
+                                    <span className="font-semibold">
+                                      {verifiedPct.toFixed(0)}%
+                                    </span>
+                                  </div>
+                                  <Progress
+                                    value={Math.min(
+                                      verifiedPct,
+                                      100,
+                                    )}
+                                    className="h-1.5"
+                                  />
                                 </div>
-                                <Progress
-                                  value={Math.min(
-                                    ind.verifiedPercentage,
-                                    100,
-                                  )}
-                                  className="h-1.5"
-                                />
-                              </div>
-                            </TableCell>
-                            <TableCell>
-                              <Badge
-                                className={
-                                  ind.verifiedDate
-                                    ? 'bg-success-green/90 text-white'
-                                    : 'bg-warning-amber/90 text-white'
-                                }
-                              >
-                                {ind.verifiedDate ? 'Verified' : 'Submitted'}
-                              </Badge>
-                            </TableCell>
-                          </TableRow>
-                        ))}
+                              </TableCell>
+                              <TableCell>
+                                <Badge
+                                  className={
+                                    ind.verifiedDate
+                                      ? 'bg-success-green/90 text-white'
+                                      : 'bg-warning-amber/90 text-white'
+                                  }
+                                >
+                                  {ind.verifiedDate ? 'Verified' : 'Submitted'}
+                                </Badge>
+                              </TableCell>
+                            </TableRow>
+                          );
+                        })}
                       </TableBody>
                     </Table>
                   </div>

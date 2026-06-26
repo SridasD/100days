@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
-import { useSearchParams } from 'next/navigation';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import {
   BarChart3,
   CalendarCheck2,
@@ -60,6 +60,7 @@ interface ApiIndicator {
   submittedDate: string | null;
   verifiedDate: string | null;
   isVerified: boolean;
+  requiresReverification?: boolean;
   lastUpdatedAt: string | null;
   achievedDirectDays: number;
   achievedDirectPersons: number;
@@ -70,7 +71,7 @@ interface ApiIndicator {
   documentCount: number;
 }
 
-export interface IndicatorRow extends ApiIndicator {}
+export interface IndicatorRow extends ApiIndicator { }
 
 export interface IndicatorTableProjectTargets {
   projectName: string;
@@ -208,6 +209,11 @@ function IndicatorCard({
                   />
                   {i.isVerified ? 'Verified' : 'Not Verified'}
                 </Badge>
+                {i.isVerified && i.verifiedDate && (
+                  <Badge variant="neutral" className="bg-[#E8F5E9] text-[#1B5E20]">
+                    Verifier Final
+                  </Badge>
+                )}
                 {i.imageCount + i.documentCount > 0 && (
                   <span className="inline-flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-[11px] font-medium text-muted-foreground">
                     <Images className="h-3 w-3" aria-hidden />
@@ -271,6 +277,15 @@ function IndicatorCard({
               Last updated:{' '}
               <span className="font-medium text-foreground">
                 {new Date(i.lastUpdatedAt).toLocaleString('en-IN')}
+              </span>
+            </div>
+          )}
+          {i.isVerified && i.verifiedDate && (
+            <div className="flex items-center gap-1.5 text-[#1B5E20]">
+              <CheckCircle2 className="h-3.5 w-3.5" aria-hidden />
+              Finalized by verifier on{' '}
+              <span className="font-medium">
+                {new Date(i.verifiedDate).toLocaleString('en-IN')}
               </span>
             </div>
           )}
@@ -434,6 +449,7 @@ export function IndicatorTable({ projectId, projectTargets }: Props) {
 
   const [showToast, setShowToast] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
+  const [queryToastHandled, setQueryToastHandled] = useState(false);
 
   const [sheetOpen, setSheetOpen] = useState(false);
   const [sheetTab, setSheetTab] = useState<ActionTab>('progress');
@@ -467,10 +483,26 @@ export function IndicatorTable({ projectId, projectTargets }: Props) {
   }, [load]);
 
   const params = useSearchParams();
+  const router = useRouter();
+  const pathname = usePathname();
   useEffect(() => {
-    if (params.get('updated') === '1') flashToast('Indicator updated');
+    if (queryToastHandled) return;
+
+    const created = params.get('created') === '1';
+    const updated = params.get('updated') === '1';
+    if (!created && !updated) return;
+
+    if (created) flashToast('Indicator created');
+    if (updated) flashToast('Indicator updated');
+
+    setQueryToastHandled(true);
+
+    const next = new URLSearchParams(params.toString());
+    next.delete('created');
+    next.delete('updated');
+    router.replace(next.size > 0 ? `${pathname}?${next.toString()}` : pathname);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [params]);
+  }, [params, pathname, queryToastHandled, router]);
 
   const flashToast = (msg: string) => {
     setToastMessage(msg);
@@ -516,25 +548,25 @@ export function IndicatorTable({ projectId, projectTargets }: Props) {
     setData((prev) =>
       prev
         ? prev.map((row) =>
-            row.indicatorId === id
-              ? {
-                  ...row,
-                  physicalAchievement: patch.physicalAchievement,
-                  financialAchievement: patch.financialAchievement,
-                  completedDate: patch.completedDate,
-                  lastUpdatedAt: patch.lastUpdatedAt,
-                  isVerified: false,
-                  percentage:
-                    row.physicalTarget > 0
-                      ? Math.min(
-                          100,
-                          (patch.physicalAchievement / row.physicalTarget) *
-                            100,
-                        )
-                      : 0,
-                }
-              : row,
-          )
+          row.indicatorId === id
+            ? {
+              ...row,
+              physicalAchievement: patch.physicalAchievement,
+              financialAchievement: patch.financialAchievement,
+              completedDate: patch.completedDate,
+              lastUpdatedAt: patch.lastUpdatedAt,
+              isVerified: false,
+              percentage:
+                row.physicalTarget > 0
+                  ? Math.min(
+                    100,
+                    (patch.physicalAchievement / row.physicalTarget) *
+                    100,
+                  )
+                  : 0,
+            }
+            : row,
+        )
         : prev,
     );
     flashToast('Progress saved');
@@ -551,8 +583,8 @@ export function IndicatorTable({ projectId, projectTargets }: Props) {
     setData((prev) =>
       prev
         ? prev.map((row) =>
-            row.indicatorId === id ? { ...row, ...counts } : row,
-          )
+          row.indicatorId === id ? { ...row, ...counts } : row,
+        )
         : prev,
     );
   };

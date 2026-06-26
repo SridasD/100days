@@ -1,6 +1,6 @@
-import { NextResponse } from 'next/server';
-import { sql } from 'drizzle-orm';
-import { db } from '@/lib/db/client';
+import { NextResponse } from "next/server";
+import { sql } from "drizzle-orm";
+import { db } from "@/lib/db/client";
 
 // Public sector listing for the home-page sector grid.
 // Joins each sector to:
@@ -13,7 +13,7 @@ import { db } from '@/lib/db/client';
 // back to the English `sector_name`. `sector_img_path` is the file name
 // stored in hdp.master_sector and resolved by the UI to
 // `/images/sector_images/<sector_img_path>`.
-export const runtime = 'nodejs';
+export const runtime = "nodejs";
 
 export async function GET() {
   try {
@@ -25,22 +25,26 @@ export async function GET() {
         COALESCE((
           SELECT COUNT(*)::int FROM hdp.master_projects mp
           WHERE mp.sector_id = ms.sector_id
+            AND COALESCE(mp.is_archived, false) = false
         ), 0) AS projects,
         COALESCE((
           SELECT COUNT(*)::int FROM hdp.indicators i
           INNER JOIN hdp.master_projects mp ON i.project_id = mp.project_id
           WHERE mp.sector_id = ms.sector_id
+            AND COALESCE(mp.is_archived, false) = false
         ), 0) AS indicators,
         COALESCE((
           SELECT COUNT(*)::int FROM hdp.indicators i
           INNER JOIN hdp.master_projects mp ON i.project_id = mp.project_id
           WHERE mp.sector_id = ms.sector_id
+            AND COALESCE(mp.is_archived, false) = false
             AND i.submitted_date IS NOT NULL
         ), 0) AS submitted,
         COALESCE((
           SELECT COUNT(*)::int FROM hdp.indicators i
           INNER JOIN hdp.master_projects mp ON i.project_id = mp.project_id
           WHERE mp.sector_id = ms.sector_id
+            AND COALESCE(mp.is_archived, false) = false
             AND i.verified_date IS NOT NULL
             AND COALESCE(i.verified_percentage, 0) >= 100
         ), 0) AS verified_complete
@@ -52,15 +56,15 @@ export async function GET() {
       const indicators = Number(r.indicators) || 0;
       const verifiedComplete = Number(r.verified_complete) || 0;
       const submitted = Number(r.submitted) || 0;
-      let status: 'completed' | 'in-progress' | 'not-started' = 'not-started';
+      let status: "completed" | "in-progress" | "not-started" = "not-started";
       if (indicators > 0 && verifiedComplete >= indicators) {
-        status = 'completed';
+        status = "completed";
       } else if (submitted > 0 || verifiedComplete > 0) {
-        status = 'in-progress';
+        status = "in-progress";
       }
       return {
         sectorId: Number(r.sector_id),
-        sectorName: r.sector_name ?? '',
+        sectorName: r.sector_name ?? "",
         imagePath: r.sector_img_path
           ? `/images/sector_images/${r.sector_img_path}`
           : null,
@@ -72,9 +76,9 @@ export async function GET() {
 
     return NextResponse.json({ sectors });
   } catch (err) {
-    console.error('GET /api/public/sectors failed', err);
+    console.error("GET /api/public/sectors failed", err);
     return NextResponse.json(
-      { error: 'Failed to load sectors' },
+      { error: "Failed to load sectors" },
       { status: 500 },
     );
   }

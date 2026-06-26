@@ -1,7 +1,6 @@
 -- Current sql file was generated after introspecting the database
 -- If you want to run this migration please uncomment this code before executing migrations
-/*
-CREATE SCHEMA "hdp";
+CREATE SCHEMA IF NOT EXISTS "hdp";
 --> statement-breakpoint
 CREATE TABLE IF NOT EXISTS "hdp"."indicators" (
 	"indicator_id" serial PRIMARY KEY NOT NULL,
@@ -9,10 +8,10 @@ CREATE TABLE IF NOT EXISTS "hdp"."indicators" (
 	"indicator_name" varchar(255),
 	"district_id" integer DEFAULT 0,
 	"local_body_type" integer DEFAULT 0,
-	"local_body_id" integer[],
+	"local_body_id" integer [],
 	"latitude" numeric(8, 6),
 	"longitude" numeric(9, 6),
-	"beneficiary" integer[] DEFAULT '{}',
+	"beneficiary" integer [] DEFAULT '{}',
 	"no_days_employed_direct" integer DEFAULT 0,
 	"no_persons_employed_direct" integer DEFAULT 0,
 	"no_days_employed_indirect" integer DEFAULT 0,
@@ -134,10 +133,10 @@ CREATE TABLE IF NOT EXISTS "hdp"."indicators_archive" (
 	"indicator_name" varchar(255),
 	"district_id" integer DEFAULT 0,
 	"local_body_type" integer DEFAULT 0,
-	"local_body_id" integer[],
+	"local_body_id" integer [],
 	"latitude" numeric(8, 6),
 	"longitude" numeric(9, 6),
-	"beneficiary" integer[] DEFAULT '{}',
+	"beneficiary" integer [] DEFAULT '{}',
 	"no_days_employed_direct" integer DEFAULT 0,
 	"no_persons_employed_direct" integer DEFAULT 0,
 	"no_days_employed_indirect" integer DEFAULT 0,
@@ -348,10 +347,243 @@ CREATE TABLE IF NOT EXISTS "hdp"."user_log" (
 	"sec_id" integer
 );
 --> statement-breakpoint
-CREATE UNIQUE INDEX IF NOT EXISTS "user_details_login_name_uindex" ON "hdp"."user_details" USING btree ("login_name" text_ops);--> statement-breakpoint
-CREATE VIEW "hdp"."indicators_stages" AS (SELECT i.indicator_id, i.project_id, i.district_id, i.indicator_name, i.unit, i.physical_target, i.physical_achievement, i.physical_description, i.verified_physical_achievement, i.verified_physical_description, i.submitted_by, i.submitted_date, i.verified_by, i.verified_date, i.percentage, i.verified_percentage, i.completed_date, mp.stage FROM hdp.indicators i JOIN hdp.master_projects mp ON i.project_id = mp.project_id);--> statement-breakpoint
-CREATE VIEW "hdp"."at_a_glance" AS (SELECT tnp.sec_id, tnp.secretary_name_mal, tnp.total_no_of_projects, tnp.project_cost, tni.financial_achievement, cp.completed_projects, tni.total_no_of_indicators, ci.total_no_of_indicators_fully_completed, img.total_images, video.total_video FROM ( SELECT ms.sec_id, ms.secretary_name_mal, count(mp.project_id) AS total_no_of_projects, sum(COALESCE(mp.project_cost, 0::numeric)) AS project_cost FROM hdp.master_secretary ms LEFT JOIN hdp.project_secretary ps ON ms.sec_id = ps.sec_id LEFT JOIN hdp.master_projects mp ON ps.project_id = mp.project_id AND mp.stage = 1 WHERE ms.is_used = true GROUP BY ms.sec_id ORDER BY ms.secretary_name_mal) tnp JOIN ( SELECT ms.sec_id, ms.secretary_name_mal, count(mp.project_id) AS completed_projects FROM hdp.master_secretary ms LEFT JOIN hdp.project_secretary ps ON ms.sec_id = ps.sec_id LEFT JOIN hdp.master_projects mp ON ps.project_id = mp.project_id AND mp.stage = 1 AND mp.is_completed = 2 WHERE ms.is_used = true GROUP BY ms.sec_id ORDER BY ms.secretary_name_mal) cp ON tnp.sec_id = cp.sec_id JOIN ( SELECT ms.sec_id, ms.secretary_name_mal, count(mp.project_id) AS inprogress_projects FROM hdp.master_secretary ms LEFT JOIN hdp.project_secretary ps ON ms.sec_id = ps.sec_id LEFT JOIN hdp.master_projects mp ON ps.project_id = mp.project_id AND mp.stage = 1 AND mp.is_completed = 1 WHERE ms.is_used = true GROUP BY ms.sec_id ORDER BY ms.secretary_name_mal) ip ON tnp.sec_id = ip.sec_id JOIN ( SELECT ms.sec_id, ms.secretary_name_mal, count(i.indicator_id) AS total_no_of_indicators, sum(COALESCE(i.financial_achievement, 0::numeric)) AS financial_achievement FROM hdp.master_secretary ms LEFT JOIN hdp.project_secretary ps ON ms.sec_id = ps.sec_id LEFT JOIN hdp.master_projects mp ON ps.project_id = mp.project_id AND mp.stage = 1 LEFT JOIN hdp.indicators i ON mp.project_id = i.project_id WHERE ms.is_used = true GROUP BY ms.sec_id ORDER BY ms.secretary_name_mal) tni ON tnp.sec_id = tni.sec_id JOIN ( SELECT ms.sec_id, ms.secretary_name_mal, count(i.indicator_id) AS total_no_of_indicators_fully_completed FROM hdp.master_secretary ms LEFT JOIN hdp.project_secretary ps ON ms.sec_id = ps.sec_id LEFT JOIN hdp.master_projects mp ON ps.project_id = mp.project_id AND mp.stage = 1 LEFT JOIN hdp.indicators i ON mp.project_id = i.project_id AND i.verified_percentage = 100::numeric WHERE ms.is_used = true GROUP BY ms.sec_id ORDER BY ms.secretary_name_mal) ci ON tnp.sec_id = ci.sec_id JOIN ( SELECT ms.sec_id, ms.secretary_name_mal, count(g.gallery_id) AS total_images FROM hdp.master_secretary ms LEFT JOIN hdp.project_secretary ps ON ms.sec_id = ps.sec_id LEFT JOIN hdp.master_projects mp ON ps.project_id = mp.project_id AND mp.stage = 1 LEFT JOIN hdp.indicators i ON mp.project_id = i.project_id LEFT JOIN hdp.gallery g ON i.indicator_id = g.indicator_id AND g.gallery_type = 1 WHERE ms.is_used = true GROUP BY ms.sec_id ORDER BY ms.secretary_name_mal) img ON tnp.sec_id = img.sec_id JOIN ( SELECT ms.sec_id, ms.secretary_name_mal, count(g.gallery_id) AS total_video FROM hdp.master_secretary ms LEFT JOIN hdp.project_secretary ps ON ms.sec_id = ps.sec_id LEFT JOIN hdp.master_projects mp ON ps.project_id = mp.project_id AND mp.stage = 1 LEFT JOIN hdp.indicators i ON mp.project_id = i.project_id LEFT JOIN hdp.gallery g ON i.indicator_id = g.indicator_id AND g.gallery_type = 2 WHERE ms.is_used = true GROUP BY ms.sec_id ORDER BY ms.secretary_name_mal) video ON tnp.sec_id = video.sec_id WHERE tnp.total_no_of_projects <> 0 ORDER BY tnp.total_no_of_projects DESC);--> statement-breakpoint
-CREATE VIEW "hdp"."project_perc" AS (WITH prj_ind AS ( SELECT mp.project_id, count(i.indicator_id) AS indicator_defined FROM hdp.master_projects mp LEFT JOIN hdp.indicators i ON mp.project_id = i.project_id GROUP BY mp.project_id ORDER BY mp.project_id ), pic AS ( SELECT count(indicators.indicator_id) AS indicators_completed_100_perc, indicators.project_id FROM hdp.indicators WHERE indicators.verified_percentage = 100::numeric GROUP BY indicators.project_id ORDER BY indicators.project_id ) SELECT prj_ind.project_id, prj_ind.indicator_defined, COALESCE(pic.indicators_completed_100_perc, 0::bigint) AS indicators_completed_100_percentage, COALESCE(round((pic.indicators_completed_100_perc::double precision / prj_ind.indicator_defined::double precision * 100::double precision)::numeric, 2), 0::numeric) AS perc FROM prj_ind LEFT JOIN pic ON prj_ind.project_id = pic.project_id);--> statement-breakpoint
-CREATE VIEW "hdp"."projects_without_indicators" AS (SELECT mp.project_id, count(i.indicator_id) AS indicator_defined FROM hdp.master_projects mp JOIN hdp.project_secretary ps ON mp.project_id = ps.project_id LEFT JOIN hdp.indicators i ON mp.project_id = i.project_id GROUP BY mp.project_id HAVING count(i.indicator_id) = 0);--> statement-breakpoint
-CREATE VIEW "hdp"."project_perc_based_on_status" AS (WITH tnp AS ( SELECT ms.sec_id, ms.secretary_name, count(mp.project_id) AS total_no_of_projects FROM hdp.master_secretary ms LEFT JOIN hdp.project_secretary ps ON ms.sec_id = ps.sec_id LEFT JOIN hdp.master_projects mp ON ps.project_id = mp.project_id WHERE ms.is_used = true GROUP BY ms.sec_id ORDER BY ms.secretary_name ), cp AS ( SELECT ms.sec_id, ms.secretary_name, count(mp.project_id) AS completed_projects FROM hdp.master_secretary ms LEFT JOIN hdp.project_secretary ps ON ms.sec_id = ps.sec_id LEFT JOIN hdp.master_projects mp ON ps.project_id = mp.project_id AND mp.is_completed = 2 WHERE ms.is_used = true GROUP BY ms.sec_id ORDER BY ms.secretary_name ), ip AS ( SELECT ms.sec_id, ms.secretary_name, count(mp.project_id) AS inprogress_projects FROM hdp.master_secretary ms LEFT JOIN hdp.project_secretary ps ON ms.sec_id = ps.sec_id LEFT JOIN hdp.master_projects mp ON ps.project_id = mp.project_id AND mp.is_completed = 1 WHERE ms.is_used = true GROUP BY ms.sec_id ORDER BY ms.secretary_name ), tni AS ( SELECT ms.sec_id, ms.secretary_name, count(i.indicator_id) AS total_no_of_indicators FROM hdp.master_secretary ms LEFT JOIN hdp.project_secretary ps ON ms.sec_id = ps.sec_id LEFT JOIN hdp.master_projects mp ON ps.project_id = mp.project_id LEFT JOIN hdp.indicators i ON mp.project_id = i.project_id WHERE ms.is_used = true GROUP BY ms.sec_id ORDER BY ms.secretary_name ) SELECT tnp.sec_id, tnp.secretary_name AS "Administrative Department", tnp.total_no_of_projects AS "Total number of projects", cp.completed_projects AS "Completed Projects", tni.total_no_of_indicators AS "Total number of indicators" FROM tnp JOIN cp ON tnp.sec_id = cp.sec_id JOIN ip ON tnp.sec_id = ip.sec_id JOIN tni ON tnp.sec_id = tni.sec_id WHERE tnp.total_no_of_projects > 0 ORDER BY tnp.secretary_name);
-*/
+CREATE UNIQUE INDEX IF NOT EXISTS "user_details_login_name_uindex" ON "hdp"."user_details" USING btree ("login_name" text_ops);
+--> statement-breakpoint
+CREATE VIEW "hdp"."indicators_stages" AS (
+	SELECT i.indicator_id,
+		i.project_id,
+		i.district_id,
+		i.indicator_name,
+		i.unit,
+		i.physical_target,
+		i.physical_achievement,
+		i.physical_description,
+		i.verified_physical_achievement,
+		i.verified_physical_description,
+		i.submitted_by,
+		i.submitted_date,
+		i.verified_by,
+		i.verified_date,
+		i.percentage,
+		i.verified_percentage,
+		i.completed_date,
+		mp.stage
+	FROM hdp.indicators i
+		JOIN hdp.master_projects mp ON i.project_id = mp.project_id
+);
+--> statement-breakpoint
+CREATE VIEW "hdp"."at_a_glance" AS (
+	SELECT tnp.sec_id,
+		tnp.secretary_name_mal,
+		tnp.total_no_of_projects,
+		tnp.project_cost,
+		tni.financial_achievement,
+		cp.completed_projects,
+		tni.total_no_of_indicators,
+		ci.total_no_of_indicators_fully_completed,
+		img.total_images,
+		video.total_video
+	FROM (
+			SELECT ms.sec_id,
+				ms.secretary_name_mal,
+				count(mp.project_id) AS total_no_of_projects,
+				sum(COALESCE(mp.project_cost, 0::numeric)) AS project_cost
+			FROM hdp.master_secretary ms
+				LEFT JOIN hdp.project_secretary ps ON ms.sec_id = ps.sec_id
+				LEFT JOIN hdp.master_projects mp ON ps.project_id = mp.project_id
+				AND mp.stage = 1
+			WHERE ms.is_used = true
+			GROUP BY ms.sec_id
+			ORDER BY ms.secretary_name_mal
+		) tnp
+		JOIN (
+			SELECT ms.sec_id,
+				ms.secretary_name_mal,
+				count(mp.project_id) AS completed_projects
+			FROM hdp.master_secretary ms
+				LEFT JOIN hdp.project_secretary ps ON ms.sec_id = ps.sec_id
+				LEFT JOIN hdp.master_projects mp ON ps.project_id = mp.project_id
+				AND mp.stage = 1
+				AND mp.is_completed = 2
+			WHERE ms.is_used = true
+			GROUP BY ms.sec_id
+			ORDER BY ms.secretary_name_mal
+		) cp ON tnp.sec_id = cp.sec_id
+		JOIN (
+			SELECT ms.sec_id,
+				ms.secretary_name_mal,
+				count(mp.project_id) AS inprogress_projects
+			FROM hdp.master_secretary ms
+				LEFT JOIN hdp.project_secretary ps ON ms.sec_id = ps.sec_id
+				LEFT JOIN hdp.master_projects mp ON ps.project_id = mp.project_id
+				AND mp.stage = 1
+				AND mp.is_completed = 1
+			WHERE ms.is_used = true
+			GROUP BY ms.sec_id
+			ORDER BY ms.secretary_name_mal
+		) ip ON tnp.sec_id = ip.sec_id
+		JOIN (
+			SELECT ms.sec_id,
+				ms.secretary_name_mal,
+				count(i.indicator_id) AS total_no_of_indicators,
+				sum(COALESCE(i.financial_achievement, 0::numeric)) AS financial_achievement
+			FROM hdp.master_secretary ms
+				LEFT JOIN hdp.project_secretary ps ON ms.sec_id = ps.sec_id
+				LEFT JOIN hdp.master_projects mp ON ps.project_id = mp.project_id
+				AND mp.stage = 1
+				LEFT JOIN hdp.indicators i ON mp.project_id = i.project_id
+			WHERE ms.is_used = true
+			GROUP BY ms.sec_id
+			ORDER BY ms.secretary_name_mal
+		) tni ON tnp.sec_id = tni.sec_id
+		JOIN (
+			SELECT ms.sec_id,
+				ms.secretary_name_mal,
+				count(i.indicator_id) AS total_no_of_indicators_fully_completed
+			FROM hdp.master_secretary ms
+				LEFT JOIN hdp.project_secretary ps ON ms.sec_id = ps.sec_id
+				LEFT JOIN hdp.master_projects mp ON ps.project_id = mp.project_id
+				AND mp.stage = 1
+				LEFT JOIN hdp.indicators i ON mp.project_id = i.project_id
+				AND i.verified_percentage = 100::numeric
+			WHERE ms.is_used = true
+			GROUP BY ms.sec_id
+			ORDER BY ms.secretary_name_mal
+		) ci ON tnp.sec_id = ci.sec_id
+		JOIN (
+			SELECT ms.sec_id,
+				ms.secretary_name_mal,
+				count(g.gallery_id) AS total_images
+			FROM hdp.master_secretary ms
+				LEFT JOIN hdp.project_secretary ps ON ms.sec_id = ps.sec_id
+				LEFT JOIN hdp.master_projects mp ON ps.project_id = mp.project_id
+				AND mp.stage = 1
+				LEFT JOIN hdp.indicators i ON mp.project_id = i.project_id
+				LEFT JOIN hdp.gallery g ON i.indicator_id = g.indicator_id
+				AND g.gallery_type = 1
+			WHERE ms.is_used = true
+			GROUP BY ms.sec_id
+			ORDER BY ms.secretary_name_mal
+		) img ON tnp.sec_id = img.sec_id
+		JOIN (
+			SELECT ms.sec_id,
+				ms.secretary_name_mal,
+				count(g.gallery_id) AS total_video
+			FROM hdp.master_secretary ms
+				LEFT JOIN hdp.project_secretary ps ON ms.sec_id = ps.sec_id
+				LEFT JOIN hdp.master_projects mp ON ps.project_id = mp.project_id
+				AND mp.stage = 1
+				LEFT JOIN hdp.indicators i ON mp.project_id = i.project_id
+				LEFT JOIN hdp.gallery g ON i.indicator_id = g.indicator_id
+				AND g.gallery_type = 2
+			WHERE ms.is_used = true
+			GROUP BY ms.sec_id
+			ORDER BY ms.secretary_name_mal
+		) video ON tnp.sec_id = video.sec_id
+	WHERE tnp.total_no_of_projects <> 0
+	ORDER BY tnp.total_no_of_projects DESC
+);
+--> statement-breakpoint
+CREATE VIEW "hdp"."project_perc" AS (
+	WITH prj_ind AS (
+		SELECT mp.project_id,
+			count(i.indicator_id) AS indicator_defined
+		FROM hdp.master_projects mp
+			LEFT JOIN hdp.indicators i ON mp.project_id = i.project_id
+		GROUP BY mp.project_id
+		ORDER BY mp.project_id
+	),
+	pic AS (
+		SELECT count(indicators.indicator_id) AS indicators_completed_100_perc,
+			indicators.project_id
+		FROM hdp.indicators
+		WHERE indicators.verified_percentage = 100::numeric
+		GROUP BY indicators.project_id
+		ORDER BY indicators.project_id
+	)
+	SELECT prj_ind.project_id,
+		prj_ind.indicator_defined,
+		COALESCE(pic.indicators_completed_100_perc, 0::bigint) AS indicators_completed_100_percentage,
+		COALESCE(
+			round(
+				(
+					pic.indicators_completed_100_perc::double precision / prj_ind.indicator_defined::double precision * 100::double precision
+				)::numeric,
+				2
+			),
+			0::numeric
+		) AS perc
+	FROM prj_ind
+		LEFT JOIN pic ON prj_ind.project_id = pic.project_id
+);
+--> statement-breakpoint
+CREATE VIEW "hdp"."projects_without_indicators" AS (
+	SELECT mp.project_id,
+		count(i.indicator_id) AS indicator_defined
+	FROM hdp.master_projects mp
+		JOIN hdp.project_secretary ps ON mp.project_id = ps.project_id
+		LEFT JOIN hdp.indicators i ON mp.project_id = i.project_id
+	GROUP BY mp.project_id
+	HAVING count(i.indicator_id) = 0
+);
+--> statement-breakpoint
+CREATE VIEW "hdp"."project_perc_based_on_status" AS (
+	WITH tnp AS (
+		SELECT ms.sec_id,
+			ms.secretary_name,
+			count(mp.project_id) AS total_no_of_projects
+		FROM hdp.master_secretary ms
+			LEFT JOIN hdp.project_secretary ps ON ms.sec_id = ps.sec_id
+			LEFT JOIN hdp.master_projects mp ON ps.project_id = mp.project_id
+		WHERE ms.is_used = true
+		GROUP BY ms.sec_id
+		ORDER BY ms.secretary_name
+	),
+	cp AS (
+		SELECT ms.sec_id,
+			ms.secretary_name,
+			count(mp.project_id) AS completed_projects
+		FROM hdp.master_secretary ms
+			LEFT JOIN hdp.project_secretary ps ON ms.sec_id = ps.sec_id
+			LEFT JOIN hdp.master_projects mp ON ps.project_id = mp.project_id
+			AND mp.is_completed = 2
+		WHERE ms.is_used = true
+		GROUP BY ms.sec_id
+		ORDER BY ms.secretary_name
+	),
+	ip AS (
+		SELECT ms.sec_id,
+			ms.secretary_name,
+			count(mp.project_id) AS inprogress_projects
+		FROM hdp.master_secretary ms
+			LEFT JOIN hdp.project_secretary ps ON ms.sec_id = ps.sec_id
+			LEFT JOIN hdp.master_projects mp ON ps.project_id = mp.project_id
+			AND mp.is_completed = 1
+		WHERE ms.is_used = true
+		GROUP BY ms.sec_id
+		ORDER BY ms.secretary_name
+	),
+	tni AS (
+		SELECT ms.sec_id,
+			ms.secretary_name,
+			count(i.indicator_id) AS total_no_of_indicators
+		FROM hdp.master_secretary ms
+			LEFT JOIN hdp.project_secretary ps ON ms.sec_id = ps.sec_id
+			LEFT JOIN hdp.master_projects mp ON ps.project_id = mp.project_id
+			LEFT JOIN hdp.indicators i ON mp.project_id = i.project_id
+		WHERE ms.is_used = true
+		GROUP BY ms.sec_id
+		ORDER BY ms.secretary_name
+	)
+	SELECT tnp.sec_id,
+		tnp.secretary_name AS "Administrative Department",
+		tnp.total_no_of_projects AS "Total number of projects",
+		cp.completed_projects AS "Completed Projects",
+		tni.total_no_of_indicators AS "Total number of indicators"
+	FROM tnp
+		JOIN cp ON tnp.sec_id = cp.sec_id
+		JOIN ip ON tnp.sec_id = ip.sec_id
+		JOIN tni ON tnp.sec_id = tni.sec_id
+	WHERE tnp.total_no_of_projects > 0
+	ORDER BY tnp.secretary_name
+);

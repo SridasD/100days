@@ -1,0 +1,117 @@
+
+> hdp-portal@2.0.0 typecheck
+> tsc --noEmit
+
+.next/types/app/api/admin/reports/[reportId]/route.ts(49,7): error TS2344: Type '{ __tag__: "GET"; __param_position__: "second"; __param_type__: { params: { reportId: string; }; }; }' does not satisfy the constraint 'ParamCheck<RouteContext>'.
+  The types of '__param_type__.params' are incompatible between these types.
+    Type '{ reportId: string; }' is missing the following properties from type 'Promise<any>': then, catch, finally, [Symbol.toStringTag]
+.next/types/validator.ts(639,31): error TS2344: Type 'typeof import("D:/Sridas - Old Lap/2026/WORKSPACE/HDP-2026/app/api/admin/reports/[reportId]/route")' does not satisfy the constraint 'RouteHandlerConfig<"/api/admin/reports/[reportId]">'.
+  Types of property 'GET' are incompatible.
+    Type '(req: NextRequest, { params }: { params: { reportId: string; }; }) => Promise<NextResponse<unknown>>' is not assignable to type '(request: NextRequest, context: { params: Promise<{ reportId: string; }>; }) => void | Response | Promise<void | Response>'.
+      Types of parameters '__1' and 'context' are incompatible.
+        Type '{ params: Promise<{ reportId: string; }>; }' is not assignable to type '{ params: { reportId: string; }; }'.
+          Types of property 'params' are incompatible.
+            Property 'reportId' is missing in type 'Promise<{ reportId: string; }>' but required in type '{ reportId: string; }'.
+.next/types/validator.ts(783,31): error TS2344: Type 'typeof import("D:/Sridas - Old Lap/2026/WORKSPACE/HDP-2026/app/api/public/district/[district_id]/route")' does not satisfy the constraint 'RouteHandlerConfig<"/api/public/district/[district_id]">'.
+  Types of property 'GET' are incompatible.
+    Type '(_req: NextRequest, { params }: { params: { district_id: string; }; }) => Promise<NextResponse<{ error: string; }> | NextResponse<{ districtName: any; indicators: { indicatorId: number; ... 7 more ...; submittedDate: any; }[]; }>>' is not assignable to type '(request: NextRequest, context: { params: Promise<{ district_id: string; }>; }) => void | Response | Promise<void | Response>'.
+      Types of parameters '__1' and 'context' are incompatible.
+        Type '{ params: Promise<{ district_id: string; }>; }' is not assignable to type '{ params: { district_id: string; }; }'.
+          Types of property 'params' are incompatible.
+            Property 'district_id' is missing in type 'Promise<{ district_id: string; }>' but required in type '{ district_id: string; }'.
+app/(officer)/officer/projects/[pid]/indicators/page.tsx(40,5): error TS2322: Type 'string | undefined' is not assignable to type 'string | string[]'.
+  Type 'undefined' is not assignable to type 'string | string[]'.
+app/(officer)/officer/projects/page.tsx(21,5): error TS2322: Type 'string | undefined' is not assignable to type 'string | string[]'.
+  Type 'undefined' is not assignable to type 'string | string[]'.
+app/api/admin/projects/[id]/archive/route.ts(185,15): error TS2339: Property 'roleId' does not exist on type 'OfficerSession | NextResponse<unknown>'.
+  Property 'roleId' does not exist on type 'NextResponse<unknown>'.
+app/api/admin/projects/[id]/archive/route.ts(185,48): error TS2339: Property 'roleId' does not exist on type 'OfficerSession | NextResponse<unknown>'.
+  Property 'roleId' does not exist on type 'NextResponse<unknown>'.
+app/api/admin/projects/[id]/archive/route.ts(208,20): error TS2339: Property 'userId' does not exist on type 'OfficerSession | NextResponse<unknown>'.
+  Property 'userId' does not exist on type 'NextResponse<unknown>'.
+app/api/admin/projects/[id]/archive/route.ts(278,27): error TS2339: Property 'userId' does not exist on type 'OfficerSession | NextResponse<unknown>'.
+  Property 'userId' does not exist on type 'NextResponse<unknown>'.
+app/api/admin/projects/[id]/archive/route.ts(288,36): error TS2339: Property 'userId' does not exist on type 'OfficerSession | NextResponse<unknown>'.
+  Property 'userId' does not exist on type 'NextResponse<unknown>'.
+app/api/admin/projects/[id]/archive/route.ts(331,21): error TS2339: Property 'userId' does not exist on type 'OfficerSession | NextResponse<unknown>'.
+  Property 'userId' does not exist on type 'NextResponse<unknown>'.
+app/api/admin/projects/[id]/archive/route.ts(332,21): error TS2339: Property 'roleId' does not exist on type 'OfficerSession | NextResponse<unknown>'.
+  Property 'roleId' does not exist on type 'NextResponse<unknown>'.
+app/api/admin/projects/[id]/archive/route.ts(356,35): error TS2339: Property 'userId' does not exist on type 'OfficerSession | NextResponse<unknown>'.
+  Property 'userId' does not exist on type 'NextResponse<unknown>'.
+app/api/admin/projects/[id]/archive/route.ts(360,34): error TS2339: Property 'userId' does not exist on type 'OfficerSession | NextResponse<unknown>'.
+  Property 'userId' does not exist on type 'NextResponse<unknown>'.
+app/api/admin/projects/[id]/archive/route.ts(378,21): error TS2339: Property 'userId' does not exist on type 'OfficerSession | NextResponse<unknown>'.
+  Property 'userId' does not exist on type 'NextResponse<unknown>'.
+app/api/admin/projects/[id]/archive/route.ts(391,34): error TS2339: Property 'roleId' does not exist on type 'OfficerSession | NextResponse<unknown>'.
+  Property 'roleId' does not exist on type 'NextResponse<unknown>'.
+app/api/admin/projects/[id]/route.ts(172,32): error TS2339: Property 'userId' does not exist on type 'OfficerSession | NextResponse<unknown>'.
+  Property 'userId' does not exist on type 'NextResponse<unknown>'.
+app/api/admin/projects/[id]/route.ts(200,23): error TS2339: Property 'userId' does not exist on type 'OfficerSession | NextResponse<unknown>'.
+  Property 'userId' does not exist on type 'NextResponse<unknown>'.
+app/api/admin/projects/route.ts(125,19): error TS2339: Property 'userId' does not exist on type 'OfficerSession | NextResponse<unknown>'.
+  Property 'userId' does not exist on type 'NextResponse<unknown>'.
+app/api/admin/projects/route.ts(125,38): error TS2339: Property 'userId' does not exist on type 'OfficerSession | NextResponse<unknown>'.
+  Property 'userId' does not exist on type 'NextResponse<unknown>'.
+app/api/admin/projects/route.ts(180,23): error TS2339: Property 'userId' does not exist on type 'OfficerSession | NextResponse<unknown>'.
+  Property 'userId' does not exist on type 'NextResponse<unknown>'.
+app/api/verify/indicators/[indicatorId]/gallery/route.ts(53,56): error TS2339: Property 'secId' does not exist on type 'OfficerSession | NextResponse<unknown>'.
+  Property 'secId' does not exist on type 'NextResponse<unknown>'.
+app/api/verify/indicators/[indicatorId]/gallery/route.ts(92,56): error TS2339: Property 'secId' does not exist on type 'OfficerSession | NextResponse<unknown>'.
+  Property 'secId' does not exist on type 'NextResponse<unknown>'.
+app/api/verify/indicators/[indicatorId]/gallery/route.ts(99,54): error TS2339: Property 'userId' does not exist on type 'OfficerSession | NextResponse<unknown>'.
+  Property 'userId' does not exist on type 'NextResponse<unknown>'.
+app/api/verify/indicators/[indicatorId]/gallery/route.ts(99,70): error TS2339: Property 'secId' does not exist on type 'OfficerSession | NextResponse<unknown>'.
+  Property 'secId' does not exist on type 'NextResponse<unknown>'.
+app/api/verify/indicators/[indicatorId]/gallery/route.ts(101,52): error TS2339: Property 'userId' does not exist on type 'OfficerSession | NextResponse<unknown>'.
+  Property 'userId' does not exist on type 'NextResponse<unknown>'.
+app/api/verify/indicators/[indicatorId]/gallery/route.ts(101,68): error TS2339: Property 'secId' does not exist on type 'OfficerSession | NextResponse<unknown>'.
+  Property 'secId' does not exist on type 'NextResponse<unknown>'.
+app/api/verify/indicators/[indicatorId]/gallery/route.ts(362,56): error TS2339: Property 'secId' does not exist on type 'OfficerSession | NextResponse<unknown>'.
+  Property 'secId' does not exist on type 'NextResponse<unknown>'.
+app/api/verify/indicators/[indicatorId]/gallery/route.ts(393,23): error TS2339: Property 'userId' does not exist on type 'OfficerSession | NextResponse<unknown>'.
+  Property 'userId' does not exist on type 'NextResponse<unknown>'.
+app/api/verify/indicators/[indicatorId]/gallery/route.ts(398,22): error TS2339: Property 'secId' does not exist on type 'OfficerSession | NextResponse<unknown>'.
+  Property 'secId' does not exist on type 'NextResponse<unknown>'.
+app/api/verify/indicators/[indicatorId]/history/route.ts(30,56): error TS2339: Property 'secId' does not exist on type 'OfficerSession | NextResponse<unknown>'.
+  Property 'secId' does not exist on type 'NextResponse<unknown>'.
+app/api/verify/indicators/[indicatorId]/verify/route.ts(43,56): error TS2339: Property 'secId' does not exist on type 'OfficerSession | NextResponse<unknown>'.
+  Property 'secId' does not exist on type 'NextResponse<unknown>'.
+app/api/verify/indicators/[indicatorId]/verify/route.ts(118,33): error TS2339: Property 'userId' does not exist on type 'OfficerSession | NextResponse<unknown>'.
+  Property 'userId' does not exist on type 'NextResponse<unknown>'.
+app/api/verify/indicators/[indicatorId]/verify/route.ts(136,25): error TS2339: Property 'userId' does not exist on type 'OfficerSession | NextResponse<unknown>'.
+  Property 'userId' does not exist on type 'NextResponse<unknown>'.
+app/api/verify/indicators/[indicatorId]/verify/route.ts(141,24): error TS2339: Property 'secId' does not exist on type 'OfficerSession | NextResponse<unknown>'.
+  Property 'secId' does not exist on type 'NextResponse<unknown>'.
+app/api/verify/indicators/[indicatorId]/verify/route.ts(150,23): error TS2339: Property 'userId' does not exist on type 'OfficerSession | NextResponse<unknown>'.
+  Property 'userId' does not exist on type 'NextResponse<unknown>'.
+app/api/verify/indicators/[indicatorId]/verify/route.ts(155,22): error TS2339: Property 'secId' does not exist on type 'OfficerSession | NextResponse<unknown>'.
+  Property 'secId' does not exist on type 'NextResponse<unknown>'.
+app/api/verify/projects/[projectId]/complete/route.ts(39,15): error TS2339: Property 'secId' does not exist on type 'OfficerSession | NextResponse<unknown>'.
+  Property 'secId' does not exist on type 'NextResponse<unknown>'.
+app/api/verify/projects/[projectId]/complete/route.ts(39,32): error TS2339: Property 'secId' does not exist on type 'OfficerSession | NextResponse<unknown>'.
+  Property 'secId' does not exist on type 'NextResponse<unknown>'.
+app/api/verify/projects/[projectId]/complete/route.ts(45,35): error TS2339: Property 'secId' does not exist on type 'OfficerSession | NextResponse<unknown>'.
+  Property 'secId' does not exist on type 'NextResponse<unknown>'.
+app/api/verify/projects/[projectId]/complete/route.ts(103,36): error TS2339: Property 'userId' does not exist on type 'OfficerSession | NextResponse<unknown>'.
+  Property 'userId' does not exist on type 'NextResponse<unknown>'.
+app/api/verify/projects/[projectId]/complete/route.ts(109,23): error TS2339: Property 'userId' does not exist on type 'OfficerSession | NextResponse<unknown>'.
+  Property 'userId' does not exist on type 'NextResponse<unknown>'.
+app/api/verify/projects/[projectId]/complete/route.ts(114,22): error TS2339: Property 'secId' does not exist on type 'OfficerSession | NextResponse<unknown>'.
+  Property 'secId' does not exist on type 'NextResponse<unknown>'.
+app/api/verify/projects/[projectId]/indicators/route.ts(27,59): error TS2339: Property 'secId' does not exist on type 'OfficerSession | NextResponse<unknown>'.
+  Property 'secId' does not exist on type 'NextResponse<unknown>'.
+app/api/verify/projects/route.ts(21,17): error TS2339: Property 'secId' does not exist on type 'OfficerSession | NextResponse<unknown>'.
+  Property 'secId' does not exist on type 'NextResponse<unknown>'.
+app/api/verify/projects/route.ts(21,34): error TS2339: Property 'secId' does not exist on type 'OfficerSession | NextResponse<unknown>'.
+  Property 'secId' does not exist on type 'NextResponse<unknown>'.
+app/api/verify/projects/route.ts(25,34): error TS2339: Property 'secId' does not exist on type 'OfficerSession | NextResponse<unknown>'.
+  Property 'secId' does not exist on type 'NextResponse<unknown>'.
+app/api/verify/projects/route.ts(33,53): error TS2339: Property 'secId' does not exist on type 'OfficerSession | NextResponse<unknown>'.
+  Property 'secId' does not exist on type 'NextResponse<unknown>'.
+app/api/verify/projects/route.ts(36,24): error TS2339: Property 'secId' does not exist on type 'OfficerSession | NextResponse<unknown>'.
+  Property 'secId' does not exist on type 'NextResponse<unknown>'.
+lib/auth/session.ts(50,7): error TS2322: Type 'string | undefined' is not assignable to type 'string | string[]'.
+  Type 'undefined' is not assignable to type 'string | string[]'.
+lib/auth/session.ts(61,7): error TS2322: Type 'string | undefined' is not assignable to type 'string | string[]'.
+  Type 'undefined' is not assignable to type 'string | string[]'.

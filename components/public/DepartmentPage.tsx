@@ -20,6 +20,7 @@ import {
   Video,
 } from 'lucide-react';
 import { PublicNav } from './PublicNav';
+import { VerifiedDataBadge } from './VerifiedDataBadge';
 
 type Status = 'completed' | 'in-progress' | 'not-started';
 
@@ -199,11 +200,10 @@ export function DepartmentPage({
                     role="tab"
                     aria-selected={filter === f}
                     onClick={() => setFilter(f)}
-                    className={`cursor-pointer rounded-full px-3 py-1.5 font-medium transition-colors duration-150 ${
-                      filter === f
+                    className={`cursor-pointer rounded-full px-3 py-1.5 font-medium transition-colors duration-150 ${filter === f
                         ? 'bg-hdp-green text-white shadow'
                         : 'text-muted-foreground hover:text-hdp-green'
-                    }`}
+                      }`}
                   >
                     <span className="font-malayalam">
                       {FILTER_LABELS_MAL[f]}
@@ -301,6 +301,7 @@ function ProjectCard({
               {project.imageCount}
             </span>
             <span className="font-malayalam">ചിത്രങ്ങൾ</span>
+            <VerifiedDataBadge />
           </Chip>
         )}
         {project.videoCount > 0 && (
@@ -310,7 +311,13 @@ function ProjectCard({
               {project.videoCount}
             </span>
             <span className="font-malayalam">വീഡിയോകൾ</span>
+            <VerifiedDataBadge />
           </Chip>
+        )}
+        {project.imageCount === 0 && project.videoCount === 0 && (
+          <span className="font-malayalam rounded-full bg-muted/60 px-2 py-0.5 text-[10px] text-muted-foreground">
+            Verified data not yet available
+          </span>
         )}
       </div>
 
@@ -351,16 +358,24 @@ function ProjectCard({
             </span>
           )}
         </div>
-        <Bar
-          labelMal="ഭൗതിക പുരോഗതി"
-          pct={project.physicalPct}
-          color="bg-kerala-blue"
-        />
-        <Bar
-          labelMal="സാമ്പത്തിക പുരോഗതി"
-          pct={project.financialPct}
-          color="bg-hdp-success"
-        />
+        {project.verified ? (
+          <>
+            <Bar
+              labelMal="ഭൗതിക പുരോഗതി"
+              pct={project.physicalPct}
+              color="bg-kerala-blue"
+            />
+            <Bar
+              labelMal="സാമ്പത്തിക പുരോഗതി"
+              pct={project.financialPct}
+              color="bg-hdp-success"
+            />
+          </>
+        ) : (
+          <p className="font-malayalam rounded-lg border border-dashed border-border bg-white/70 px-3 py-2 text-xs text-muted-foreground">
+            Verified data not yet available
+          </p>
+        )}
       </div>
 
       {/* CTA */}
@@ -418,6 +433,7 @@ function Bar({
     <div className="space-y-1">
       <div className="flex items-center justify-between text-[11px]">
         <span className="font-malayalam text-muted-foreground">{labelMal}</span>
+        <VerifiedDataBadge />
         <span className="font-mono font-semibold text-foreground">
           {clamped}%
         </span>
@@ -469,7 +485,7 @@ function Breadcrumbs({ nameMal }: { nameMal: string }) {
       className="font-malayalam inline-flex items-center gap-1.5 rounded-full bg-white/10 px-3 py-1 text-[11px] text-white/80 backdrop-blur"
     >
       <Link href="/" className="hover:text-white">
-        മുഖപ്പ്
+        ഹോം
       </Link>
       <ChevronRight className="h-3 w-3 opacity-50" />
       <Link href="/public/departments" className="hover:text-white">

@@ -1,21 +1,24 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { sql } from 'drizzle-orm';
-import { mkdir, unlink, writeFile } from 'node:fs/promises';
-import path from 'node:path';
-import { randomUUID } from 'node:crypto';
-import { isSession, requireOfficerSession } from '@/lib/auth/session';
-import { db } from '@/lib/db/client';
-import { listGallery, officerOwnsIndicator } from '@/lib/db/queries/officer';
-import { writeAudit } from '@/lib/audit/writeAudit';
-import { AUDIT_ACTIONS } from '@/lib/db/schema/audit';
+import { NextRequest, NextResponse } from "next/server";
+import { sql } from "drizzle-orm";
+import { mkdir, unlink, writeFile } from "node:fs/promises";
+import path from "node:path";
+import { randomUUID } from "node:crypto";
+import { isSession, requireOfficerSession } from "@/lib/auth/session";
+import { db } from "@/lib/db/client";
+import { listGallery, officerOwnsIndicator } from "@/lib/db/queries/officer";
+import { writeAudit } from "@/lib/audit/writeAudit";
+import { AUDIT_ACTIONS } from "@/lib/db/schema/audit";
 
-export const runtime = 'nodejs';
+export const runtime = "nodejs";
 
-const UPLOAD_DIR = process.env.UPLOAD_DIR ?? './uploads';
+const UPLOAD_ROOT = path.resolve(
+  process.cwd(),
+  process.env.UPLOAD_DIR ?? "./uploads",
+);
 const MAX_SIZE_BYTES = (Number(process.env.MAX_UPLOAD_MB) || 5) * 1024 * 1024;
 
-const IMG_EXTS = new Set(['jpg', 'jpeg', 'png']);
-const DOC_EXTS = new Set(['pdf']);
+const IMG_EXTS = new Set(["jpg", "jpeg", "png"]);
+const DOC_EXTS = new Set(["pdf"]);
 
 // ---------------------------------------------------------------------------
 // GET — list gallery items for an indicator
@@ -31,17 +34,16 @@ export async function GET(
   const { indicatorId } = await params;
   const id = Number(indicatorId);
   if (!Number.isFinite(id)) {
-    return NextResponse.json({ error: 'Invalid indicatorId' }, { status: 400 });
+    return NextResponse.json({ error: "Invalid indicatorId" }, { status: 400 });
   }
 
   const owns = await officerOwnsIndicator(id, session.secId);
   if (!owns) {
-    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  const typeParam = req.nextUrl.searchParams.get('type');
-  const galleryType =
-    typeParam === '1' ? 1 : typeParam === '2' ? 2 : undefined;
+  const typeParam = req.nextUrl.searchParams.get("type");
+  const galleryType = typeParam === "1" ? 1 : typeParam === "2" ? 2 : undefined;
 
   const rows = await listGallery(id, galleryType);
   return NextResponse.json({
@@ -71,17 +73,17 @@ export async function POST(
   const { indicatorId } = await params;
   const id = Number(indicatorId);
   if (!Number.isFinite(id)) {
-    return NextResponse.json({ error: 'Invalid indicatorId' }, { status: 400 });
+    return NextResponse.json({ error: "Invalid indicatorId" }, { status: 400 });
   }
 
   const owns = await officerOwnsIndicator(id, session.secId);
   if (!owns) {
-    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  const contentType = req.headers.get('content-type') ?? '';
+  const contentType = req.headers.get("content-type") ?? "";
 
-  if (contentType.startsWith('multipart/form-data')) {
+  if (contentType.startsWith("multipart/form-data")) {
     return handleFileUpload(req, id, session.userId, session.secId);
   }
 
@@ -99,14 +101,14 @@ async function handleFileUpload(
   secId: number,
 ) {
   const form = await req.formData();
-  const file = form.get('file');
-  const description = String(form.get('description') ?? '');
+  const file = form.get("file");
+  const description = String(form.get("description") ?? "");
 
   if (!(file instanceof File)) {
-    return NextResponse.json({ error: 'No file provided' }, { status: 400 });
+    return NextResponse.json({ error: "No file provided" }, { status: 400 });
   }
 
-  const ext = (file.name.split('.').pop() ?? '').toLowerCase();
+  const ext = (file.name.split(".").pop() ?? "").toLowerCase();
   const isImage = IMG_EXTS.has(ext);
   const isDoc = DOC_EXTS.has(ext);
   if (!isImage && !isDoc) {
@@ -117,14 +119,14 @@ async function handleFileUpload(
   }
   if (file.size > MAX_SIZE_BYTES) {
     return NextResponse.json(
-      { error: 'File size exceeds 5MB limit.' },
+      { error: "File size exceeds 5MB limit." },
       { status: 413 },
     );
   }
 
   // Save file to disk — UPLOAD_DIR/<year>/<indicatorId>/<uuid>.<ext>
   const year = new Date().getFullYear();
-  const dir = path.join(UPLOAD_DIR, String(year), String(indicatorId));
+  const dir = path.join(UPLOAD_ROOT, String(year), String(indicatorId));
   await mkdir(dir, { recursive: true });
   const safeName = `${randomUUID()}.${ext}`;
   const absPath = path.join(dir, safeName);
@@ -132,11 +134,7 @@ async function handleFileUpload(
   await writeFile(absPath, buffer);
 
   // Store relative path so it can be served behind a download/route handler.
-  const relPath = path.posix.join(
-    String(year),
-    String(indicatorId),
-    safeName,
-  );
+  const relPath = path.posix.join(String(year), String(indicatorId), safeName);
 
   try {
     if (isImage) {
@@ -164,17 +162,24 @@ async function handleFileUpload(
       await writeAudit({
         userId,
         action: AUDIT_ACTIONS.MEDIA_UPLOADED,
-        entity: 'gallery',
+        entity: "gallery",
         entityId: row.gallery_id,
         request: req,
         secId,
         meta: {
           indicatorId,
-          kind: 'image',
+          kind: "image",
           filename: file.name,
           size: file.size,
+          requires_reverification: true,
         },
       });
+
+      await db.execute(sql`
+        UPDATE hdp.indicators
+        SET submitted_by = ${userId}, submitted_date = now()
+        WHERE indicator_id = ${indicatorId}
+      `);
 
       return NextResponse.json(
         {
@@ -211,17 +216,24 @@ async function handleFileUpload(
     await writeAudit({
       userId,
       action: AUDIT_ACTIONS.MEDIA_UPLOADED,
-      entity: 'documents',
+      entity: "documents",
       entityId: row.document_id,
       request: req,
       secId,
       meta: {
         indicatorId,
-        kind: 'document',
+        kind: "document",
         filename: file.name,
         size: file.size,
+        requires_reverification: true,
       },
     });
+
+    await db.execute(sql`
+      UPDATE hdp.indicators
+      SET submitted_by = ${userId}, submitted_date = now()
+      WHERE indicator_id = ${indicatorId}
+    `);
 
     return NextResponse.json(
       {
@@ -244,9 +256,9 @@ async function handleFileUpload(
     } catch {
       /* swallow */
     }
-    console.error('Gallery file upload failed', err);
+    console.error("Gallery file upload failed", err);
     return NextResponse.json(
-      { error: 'Failed to save upload' },
+      { error: "Failed to save upload" },
       { status: 500 },
     );
   }
@@ -260,21 +272,28 @@ const YT_PATTERNS = [
   /youtube\.com\/shorts\/([A-Za-z0-9_-]{11})/,
 ];
 const FB_PATTERN =
-  /(?:facebook\.com\/(?:[A-Za-z0-9.\-_]+\/videos\/\d+|watch\/?\?v=\d+|share\/v\/[A-Za-z0-9_-]+)|fb\.watch\/[A-Za-z0-9_-]+)/i;
+  /(?:facebook\.com\/(?:reel\/\d+|[A-Za-z0-9.\-_]+\/videos\/\d+|watch\/?\?v=\d+|share\/v\/[A-Za-z0-9_-]+)|fb\.watch\/[A-Za-z0-9_-]+)/i;
 
 function toEmbed(
   url: string,
-): { platform: 'youtube' | 'facebook'; embedSrc: string } | null {
+): { platform: "youtube" | "facebook"; embedSrc: string } | null {
   for (const p of YT_PATTERNS) {
     const m = url.match(p);
     if (m) {
       return {
-        platform: 'youtube',
+        platform: "youtube",
         embedSrc: `https://www.youtube.com/embed/${m[1]}`,
       };
     }
   }
-  if (FB_PATTERN.test(url)) return { platform: 'facebook', embedSrc: url };
+  if (FB_PATTERN.test(url)) {
+    return {
+      platform: "facebook",
+      embedSrc: `https://www.facebook.com/plugins/video.php?href=${encodeURIComponent(
+        url,
+      )}&show_text=false&width=560`,
+    };
+  }
   return null;
 }
 
@@ -285,14 +304,14 @@ async function handleVideoEmbed(
   secId: number,
 ) {
   const body = await req.json().catch(() => null);
-  const url = typeof body?.url === 'string' ? body.url.trim() : '';
+  const url = typeof body?.url === "string" ? body.url.trim() : "";
   if (!url) {
-    return NextResponse.json({ error: 'url is required' }, { status: 400 });
+    return NextResponse.json({ error: "url is required" }, { status: 400 });
   }
   const parsed = toEmbed(url);
   if (!parsed) {
     return NextResponse.json(
-      { error: 'URL must be a valid YouTube or Facebook video link.' },
+      { error: "URL must be a valid YouTube or Facebook video link." },
       { status: 400 },
     );
   }
@@ -321,12 +340,18 @@ async function handleVideoEmbed(
     await writeAudit({
       userId,
       action: AUDIT_ACTIONS.VIDEO_EMBEDDED,
-      entity: 'gallery',
+      entity: "gallery",
       entityId: row.gallery_id,
       request: req,
       secId,
       meta: { indicatorId, platform: parsed.platform, originalUrl: url },
     });
+
+    await db.execute(sql`
+      UPDATE hdp.indicators
+      SET submitted_by = ${userId}, submitted_date = now()
+      WHERE indicator_id = ${indicatorId}
+    `);
 
     return NextResponse.json(
       {
@@ -346,9 +371,9 @@ async function handleVideoEmbed(
       { status: 201 },
     );
   } catch (err) {
-    console.error('Video embed failed', err);
+    console.error("Video embed failed", err);
     return NextResponse.json(
-      { error: 'Failed to save video' },
+      { error: "Failed to save video" },
       { status: 500 },
     );
   }
@@ -367,17 +392,17 @@ export async function DELETE(
 
   const { indicatorId } = await params;
   const id = Number(indicatorId);
-  const galleryId = Number(req.nextUrl.searchParams.get('galleryId'));
+  const galleryId = Number(req.nextUrl.searchParams.get("galleryId"));
   if (!Number.isFinite(id) || !Number.isFinite(galleryId)) {
     return NextResponse.json(
-      { error: 'Invalid indicatorId or galleryId' },
+      { error: "Invalid indicatorId or galleryId" },
       { status: 400 },
     );
   }
 
   const owns = await officerOwnsIndicator(id, session.secId);
   if (!owns) {
-    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
   try {
@@ -390,7 +415,7 @@ export async function DELETE(
       | { gallery_type: number; image_path: string | null }
       | undefined;
     if (!row) {
-      return NextResponse.json({ error: 'Not found' }, { status: 404 });
+      return NextResponse.json({ error: "Not found" }, { status: 404 });
     }
 
     await db.execute(
@@ -400,7 +425,7 @@ export async function DELETE(
     // Best-effort file cleanup for type 1 (images stored on disk)
     if (row.gallery_type === 1 && row.image_path) {
       try {
-        await unlink(path.join(UPLOAD_DIR, row.image_path));
+        await unlink(path.join(UPLOAD_ROOT, row.image_path));
       } catch {
         /* file already gone — ignore */
       }
@@ -409,16 +434,26 @@ export async function DELETE(
     await writeAudit({
       userId: session.userId,
       action: AUDIT_ACTIONS.MEDIA_DELETED,
-      entity: 'gallery',
+      entity: "gallery",
       entityId: galleryId,
       request: req,
       secId: session.secId,
-      meta: { indicatorId: id, galleryType: row.gallery_type },
+      meta: {
+        indicatorId: id,
+        galleryType: row.gallery_type,
+        requires_reverification: true,
+      },
     });
+
+    await db.execute(sql`
+      UPDATE hdp.indicators
+      SET submitted_by = ${session.userId}, submitted_date = now()
+      WHERE indicator_id = ${id}
+    `);
 
     return NextResponse.json({ ok: true });
   } catch (err) {
-    console.error('Gallery DELETE failed', err);
-    return NextResponse.json({ error: 'Failed to delete' }, { status: 500 });
+    console.error("Gallery DELETE failed", err);
+    return NextResponse.json({ error: "Failed to delete" }, { status: 500 });
   }
 }
