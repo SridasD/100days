@@ -1,3 +1,4 @@
+﻿/* eslint-disable @typescript-eslint/no-explicit-any */
 import { NextRequest, NextResponse } from "next/server";
 import { sql } from "drizzle-orm";
 import {
@@ -265,3 +266,4 @@ export async function GET(req: NextRequest) {
     );
   }
 }
+

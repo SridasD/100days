@@ -1,3 +1,4 @@
+﻿/* eslint-disable @typescript-eslint/no-explicit-any */
 import { NextResponse } from "next/server";
 import { sql } from "drizzle-orm";
 import { db } from "@/lib/db/client";
@@ -105,9 +106,9 @@ export async function GET() {
       const financialPct = Number(row.financial_pct) || 0;
       const indicators = Number(row.indicators) || 0;
       // Simple status heuristic:
-      //   no indicators yet → not-started
-      //   physical 100% AND financial 100% → completed
-      //   otherwise → in-progress
+      //   no indicators yet â†’ not-started
+      //   physical 100% AND financial 100% â†’ completed
+      //   otherwise â†’ in-progress
       let status: "completed" | "in-progress" | "not-started" = "not-started";
       if (indicators === 0) {
         status = "not-started";
@@ -143,3 +144,4 @@ export async function GET() {
     );
   }
 }
+

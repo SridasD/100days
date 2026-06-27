@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { Suspense, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useSearchParams, useRouter, usePathname } from 'next/navigation';
 import { ArrowLeft, Download, FolderArchive, RotateCcw, Search } from 'lucide-react';
@@ -30,7 +30,7 @@ function statusLabel(v: number) {
     return 'Not Started';
 }
 
-export default function ArchivedProjectsPage() {
+function ArchivedProjectsPageContent() {
     const [rows, setRows] = useState<ArchivedProject[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -224,5 +224,21 @@ export default function ArchivedProjectsPage() {
                 </CardContent>
             </Card>
         </main>
+    );
+}
+
+export default function ArchivedProjectsPage() {
+    return (
+        <Suspense
+            fallback={
+                <main className="space-y-6">
+                    <Card>
+                        <CardContent className="py-6 text-sm text-muted-foreground">Loading archived projects...</CardContent>
+                    </Card>
+                </main>
+            }
+        >
+            <ArchivedProjectsPageContent />
+        </Suspense>
     );
 }

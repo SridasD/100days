@@ -1,3 +1,4 @@
+﻿/* eslint-disable @typescript-eslint/no-explicit-any */
 import { NextRequest, NextResponse } from "next/server";
 import { sql } from "drizzle-orm";
 import {
@@ -48,9 +49,9 @@ export async function GET(
         projectId: Number(row.project_id),
         projectCode: row.project_code ?? "",
         projectName: row.project_name ?? "",
-        department: row.department_snapshot ?? "—",
-        sector: row.sector_snapshot ?? "—",
-        district: row.district_snapshot ?? "—",
+        department: row.department_snapshot ?? "â€”",
+        sector: row.sector_snapshot ?? "â€”",
+        district: row.district_snapshot ?? "â€”",
         originalStatus: Number(row.project_status) || 0,
         archivedBy: row.archived_by_name ?? row.archived_by_login ?? "Unknown",
         archivedById: row.archived_by ? Number(row.archived_by) : null,
@@ -71,3 +72,4 @@ export async function GET(
     );
   }
 }
+

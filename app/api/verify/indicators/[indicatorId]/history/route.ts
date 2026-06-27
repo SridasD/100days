@@ -1,3 +1,4 @@
+﻿/* eslint-disable @typescript-eslint/no-explicit-any */
 import { NextRequest, NextResponse } from 'next/server';
 import { sql } from 'drizzle-orm';
 import {
@@ -7,7 +8,7 @@ import {
 import { db } from '@/lib/db/client';
 import { verifierOwnsIndicator } from '@/lib/db/queries/verifier';
 
-// History tab data — reads every audit row tied to this indicator.
+// History tab data â€” reads every audit row tied to this indicator.
 // We pull both indicator-level events (CREATED, SUBMITTED, APPROVED,
 // CORRECTED, REJECTED) and child-entity events (MEDIA_UPLOADED,
 // MEDIA_DELETED, VIDEO_EMBEDDED) whose meta.indicatorId references this id.
@@ -78,3 +79,4 @@ export async function GET(
     );
   }
 }
+

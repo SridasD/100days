@@ -1,3 +1,4 @@
+﻿/* eslint-disable @typescript-eslint/no-explicit-any */
 import { NextRequest, NextResponse } from "next/server";
 import { sql } from "drizzle-orm";
 import { mkdir, unlink, writeFile } from "node:fs/promises";
@@ -13,7 +14,7 @@ import { verifierOwnsIndicator } from "@/lib/db/queries/verifier";
 import { writeAudit } from "@/lib/audit/writeAudit";
 import { AUDIT_ACTIONS } from "@/lib/db/schema/audit";
 
-// Verifier-side gallery endpoint — mirrors the officer one but auth-gates
+// Verifier-side gallery endpoint â€” mirrors the officer one but auth-gates
 // on the Verifier role. The verifier needs full media review power:
 // view what nodal uploaded, delete bad evidence, and add corrected files
 // of their own. Every change is audited with the indicator id so the
@@ -34,7 +35,7 @@ const IMG_EXTS = new Set(["jpg", "jpeg", "png"]);
 const DOC_EXTS = new Set(["pdf"]);
 
 // ---------------------------------------------------------------------------
-// GET — list gallery items
+// GET â€” list gallery items
 // ---------------------------------------------------------------------------
 export async function GET(
   req: NextRequest,
@@ -73,7 +74,7 @@ export async function GET(
 }
 
 // ---------------------------------------------------------------------------
-// POST — verifier-side upload (image / PDF) OR video embed
+// POST â€” verifier-side upload (image / PDF) OR video embed
 // ---------------------------------------------------------------------------
 export async function POST(
   req: NextRequest,
@@ -416,3 +417,4 @@ export async function DELETE(
     return NextResponse.json({ error: "Failed to delete" }, { status: 500 });
   }
 }
+

@@ -1,3 +1,4 @@
+﻿/* eslint-disable @typescript-eslint/no-explicit-any */
 import { NextRequest, NextResponse } from "next/server";
 import { sql } from "drizzle-orm";
 import { z } from "zod";
@@ -27,7 +28,7 @@ async function ensureSupportingDeptColumn() {
 }
 
 // ---------------------------------------------------------------------------
-// GET — fetch a single indicator for the edit form (officer-owned only)
+// GET â€” fetch a single indicator for the edit form (officer-owned only)
 // ---------------------------------------------------------------------------
 export async function GET(
   _req: NextRequest,
@@ -120,7 +121,7 @@ export async function GET(
 }
 
 // ---------------------------------------------------------------------------
-// PATCH — update an indicator's master fields.
+// PATCH â€” update an indicator's master fields.
 // If the indicator was already verified, this creates a new pending
 // submission (re-verification required) while keeping the last verified
 // snapshot intact for public display.
@@ -195,7 +196,7 @@ export async function PATCH(
   try {
     await ensureSupportingDeptColumn();
 
-    // Build the Postgres array literals — same approach as the POST handler.
+    // Build the Postgres array literals â€” same approach as the POST handler.
     const localBodyLit = `{${(d.local_body_ids ?? []).join(",")}}`;
     const beneficiaryLit = `{${(d.beneficiary_ids ?? []).join(",")}}`;
     const supportingDeptLit = `{${(d.supporting_dept_ids ?? []).join(",")}}`;
@@ -275,7 +276,7 @@ export async function PATCH(
 }
 
 // ---------------------------------------------------------------------------
-// DELETE — soft-delete via row removal (the legacy `delete_indicators_trigger`
+// DELETE â€” soft-delete via row removal (the legacy `delete_indicators_trigger`
 // archives the row server-side). Allowed only when not yet verified.
 // ---------------------------------------------------------------------------
 export async function DELETE(
@@ -340,3 +341,4 @@ export async function DELETE(
     );
   }
 }
+

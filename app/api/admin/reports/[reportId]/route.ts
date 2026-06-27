@@ -29,7 +29,7 @@ async function generateSummaryReportCSV() {
           )) as verified_indicators
   `);
 
-  const row = result.rows[0] as any;
+  const row = (result.rows[0] as Record<string, unknown> | undefined) ?? {};
   const headers = [
     "Report Type",
     "Total Projects",
@@ -74,12 +74,15 @@ async function generateDepartmentWiseReportCSV() {
     "Indicators",
     "Verified Indicators",
   ];
-  const rows = result.rows.map((r: any) => [
-    r.secretary_name || "Unknown",
-    r.project_count,
-    r.indicator_count,
-    r.verified_indicators,
-  ]);
+  const rows = result.rows.map((row) => {
+    const r = row as Record<string, unknown>;
+    return [
+      String(r.secretary_name ?? "Unknown"),
+      Number(r.project_count ?? 0),
+      Number(r.indicator_count ?? 0),
+      Number(r.verified_indicators ?? 0),
+    ];
+  });
 
   return [headers, ...rows].map((r) => r.join(",")).join("\n");
 }
@@ -114,14 +117,17 @@ async function generateCompletedProjectsReportCSV() {
     "Verified",
     "Cost",
   ];
-  const rows = result.rows.map((r: any) => [
-    r.project_code || "",
-    r.project_name || "",
-    r.secretary_name || "",
-    r.indicator_count,
-    r.verified_indicators,
-    r.project_cost || "",
-  ]);
+  const rows = result.rows.map((row) => {
+    const r = row as Record<string, unknown>;
+    return [
+      String(r.project_code ?? ""),
+      String(r.project_name ?? ""),
+      String(r.secretary_name ?? ""),
+      Number(r.indicator_count ?? 0),
+      Number(r.verified_indicators ?? 0),
+      String(r.project_cost ?? ""),
+    ];
+  });
 
   return [headers, ...rows].map((r) => r.join(",")).join("\n");
 }
@@ -143,24 +149,27 @@ async function generateDistrictBasedReportCSV() {
   `);
 
   const headers = ["District", "Indicators", "Verified", "Avg Progress %"];
-  const rows = result.rows.map((r: any) => [
-    r.district_name || "",
-    r.indicator_count,
-    r.verified_indicators,
-    (r.avg_progress as number).toFixed(2),
-  ]);
+  const rows = result.rows.map((row) => {
+    const r = row as Record<string, unknown>;
+    return [
+      String(r.district_name ?? ""),
+      Number(r.indicator_count ?? 0),
+      Number(r.verified_indicators ?? 0),
+      Number(r.avg_progress ?? 0).toFixed(2),
+    ];
+  });
 
   return [headers, ...rows].map((r) => r.join(",")).join("\n");
 }
 
 export async function GET(
   req: NextRequest,
-  { params }: { params: { reportId: string } },
+  { params }: { params: Promise<{ reportId: string }> },
 ) {
   const sessionOrResponse = await requireAdminSession();
   if (!isAdminSession(sessionOrResponse)) return sessionOrResponse;
 
-  const reportId = params.reportId;
+  const { reportId } = await params;
   const format = req.nextUrl.searchParams.get("format") ?? "csv";
 
   if (!["csv", "xlsx"].includes(format)) {

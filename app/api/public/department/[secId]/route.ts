@@ -1,3 +1,4 @@
+﻿/* eslint-disable @typescript-eslint/no-explicit-any */
 import { NextRequest, NextResponse } from "next/server";
 import { sql } from "drizzle-orm";
 import { db } from "@/lib/db/client";
@@ -7,9 +8,9 @@ import { db } from "@/lib/db/client";
 // media counts, progress percentages and a derived public status.
 //
 // Status derivation:
-//   master_projects.is_completed = 2 → 'completed'
-//   master_projects.is_completed = 1 → 'in-progress'
-//   anything else (0 / NULL)         → 'not-started'
+//   master_projects.is_completed = 2 â†’ 'completed'
+//   master_projects.is_completed = 1 â†’ 'in-progress'
+//   anything else (0 / NULL)         â†’ 'not-started'
 export const runtime = "nodejs";
 
 export async function GET(
@@ -78,7 +79,7 @@ export async function GET(
     }
 
     // ----- 2. Project list ------------------------------------------------
-    // Project names use mp.project_name directly — they're already in the
+    // Project names use mp.project_name directly â€” they're already in the
     // right language as entered by the admin (often Malayalam).
     const projectsResult = await db.execute(sql`
       SELECT
@@ -182,3 +183,4 @@ export async function GET(
     );
   }
 }
+

@@ -72,7 +72,7 @@ interface ApiIndicator {
   supportingDeptNames: string;
 }
 
-export interface IndicatorRow extends ApiIndicator { }
+export type IndicatorRow = ApiIndicator;
 
 export interface IndicatorTableProjectTargets {
   projectName: string;

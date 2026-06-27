@@ -15,11 +15,10 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { IndicatorTable } from '@/components/tables/IndicatorTable';
+import { isSession, requireSession } from '@/lib/auth/session';
 import { getOfficerProject } from '@/lib/db/queries/officer';
 import { db } from '@/lib/db/client';
 import { sql } from 'drizzle-orm';
-import { headers } from 'next/headers';
-import { getToken } from 'next-auth/jwt';
 
 // Appendix C.2 + C.3 — server component fetches the project banner via
 // Drizzle directly; IndicatorTable then fetches indicators client-side from
@@ -32,25 +31,19 @@ interface PageProps {
 export default async function OfficerProjectIndicatorsPage({
   params,
 }: PageProps) {
-  const hdrs = await headers();
-  const token = await getToken({
-    req: {
-      headers: {
-        cookie: hdrs.get('cookie') ?? '',
-      },
-    } as any,
-    secret: process.env.AUTH_SECRET,
-  });
-  if (!token) redirect('/login');
-  const secId = Number(token.secId ?? 0);
-  let deptId = Number((token as { deptId?: number | string }).deptId ?? 0);
-  const roleId = Number(token.roleId ?? 0);
+  const sessionOrResponse = await requireSession();
+  if (!isSession(sessionOrResponse)) redirect('/login');
+  const session = sessionOrResponse;
+
+  const secId = Number(session.secId ?? 0);
+  let deptId = Number(session.deptId ?? 0);
+  const roleId = Number(session.roleId ?? 0);
   if (roleId !== 2 && roleId !== 6) {
     redirect('/login');
   }
 
   if (roleId === 6 && (!Number.isFinite(deptId) || deptId <= 0)) {
-    const userId = Number((token as { id?: string; sub?: string }).id ?? token.sub ?? 0);
+    const userId = Number(session.userId ?? 0);
     if (Number.isFinite(userId) && userId > 0) {
       const r = await db.execute(sql`
         SELECT dept_id

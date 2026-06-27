@@ -1,10 +1,11 @@
+﻿/* eslint-disable @typescript-eslint/no-explicit-any */
 import { NextResponse } from "next/server";
 import { sql } from "drizzle-orm";
 import { db } from "@/lib/db/client";
 
 // Project counts grouped by nature_of_project. The legacy column convention:
-//   1 = Livelihood (ഉപജീവനമാർഗ്ഗ പദ്ധതികൾ)
-//   2 = Infrastructure (പശ്ചാത്തല വികസന പദ്ധതികൾ)
+//   1 = Livelihood (à´‰à´ªà´œàµ€à´µà´¨à´®à´¾àµ¼à´—àµà´— à´ªà´¦àµà´§à´¤à´¿à´•àµ¾)
+//   2 = Infrastructure (à´ªà´¶àµà´šà´¾à´¤àµà´¤à´² à´µà´¿à´•à´¸à´¨ à´ªà´¦àµà´§à´¤à´¿à´•àµ¾)
 // Anything else (NULL / 0 / 3+) falls into "other" and is currently ignored
 // by the home page but surfaced here for future use.
 export const runtime = "nodejs";
@@ -46,3 +47,4 @@ export async function GET() {
     );
   }
 }
+

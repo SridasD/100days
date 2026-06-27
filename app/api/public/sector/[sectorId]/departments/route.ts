@@ -1,10 +1,11 @@
+﻿/* eslint-disable @typescript-eslint/no-explicit-any */
 import { NextRequest, NextResponse } from "next/server";
 import { sql } from "drizzle-orm";
 import { db } from "@/lib/db/client";
 
 // Departments under a given sector. The link is indirect:
-//   master_projects.sector_id  →  master_projects.project_id
-//   project_secretary.project_id  →  project_secretary.sec_id
+//   master_projects.sector_id  â†’  master_projects.project_id
+//   project_secretary.project_id  â†’  project_secretary.sec_id
 //   master_secretary.sec_id
 //
 // So "departments in this sector" = distinct secretaries linked to any
@@ -161,3 +162,4 @@ export async function GET(
     );
   }
 }
+

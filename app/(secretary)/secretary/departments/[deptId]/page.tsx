@@ -147,7 +147,6 @@ export default function SecretaryDepartmentDetailsPage({
                                                     <TableCell>
                                                         <p>{row.projectName}</p>
                                                         <p className="text-xs text-slate-500">{row.projectCode || "-"}</p>
-                                                        <p className="text-xs text-slate-500">Images: {fmt(row.imagesCount)} · Videos: {fmt(row.videosCount)}</p>
                                                     </TableCell>
                                                     <TableCell>{row.status}</TableCell>
                                                     <TableCell className="text-right">{fmtPct(row.physicalProgress)}</TableCell>

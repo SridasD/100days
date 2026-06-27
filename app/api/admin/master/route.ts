@@ -1,11 +1,11 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { isAdminSession, requireAdminSession } from "@/lib/auth/admin-session";
 import { getAdminMasterData } from "@/lib/db/queries/admin";
 
 export const runtime = "nodejs";
 
 // Drop-down lookups for admin forms (secretaries, sectors, roles, districts).
-export async function GET(_req: NextRequest) {
+export async function GET() {
   const sessionOrResponse = await requireAdminSession();
   if (!isAdminSession(sessionOrResponse)) return sessionOrResponse;
 

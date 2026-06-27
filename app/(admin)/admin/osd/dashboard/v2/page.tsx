@@ -5,7 +5,6 @@ import Link from 'next/link';
 import {
     AlertTriangle,
     ArrowUpRight,
-    BriefcaseBusiness,
     CheckCircle2,
     Clock3,
     FolderOpen,

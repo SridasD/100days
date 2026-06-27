@@ -1,5 +1,6 @@
 'use client';
 
+import { Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { ArrowLeft, AlertTriangle } from 'lucide-react';
@@ -14,7 +15,7 @@ import { IndicatorForm } from '@/components/forms/IndicatorForm';
 // URL: /officer/indicators/new?projectId=<n>
 // Reached from IndicatorTable's empty state and the "Add New Indicator" CTA.
 
-export default function OfficerNewIndicatorPage() {
+function OfficerNewIndicatorPageContent() {
   const params = useSearchParams();
   const raw = params.get('projectId');
   const projectId = Number(raw);
@@ -95,5 +96,23 @@ export default function OfficerNewIndicatorPage() {
 
       <SiteFooter />
     </div>
+  );
+}
+
+export default function OfficerNewIndicatorPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex min-h-screen flex-col bg-background">
+          <main className="container mx-auto flex-1 px-4 py-8">
+            <Card>
+              <CardContent className="py-6 text-sm text-muted-foreground">Loading indicator form...</CardContent>
+            </Card>
+          </main>
+        </div>
+      }
+    >
+      <OfficerNewIndicatorPageContent />
+    </Suspense>
   );
 }

@@ -1,13 +1,14 @@
+﻿/* eslint-disable @typescript-eslint/no-explicit-any */
 import { NextResponse } from "next/server";
 import { sql } from "drizzle-orm";
 import { db } from "@/lib/db/client";
 
 // Public sector listing for the home-page sector grid.
 // Joins each sector to:
-//   - master_projects (sector_id) → projects count
-//   - indicators via projects → indicators count
-// Status is derived: all indicators verified at 100% → completed;
-// any indicator submitted → in-progress; otherwise not-started.
+//   - master_projects (sector_id) â†’ projects count
+//   - indicators via projects â†’ indicators count
+// Status is derived: all indicators verified at 100% â†’ completed;
+// any indicator submitted â†’ in-progress; otherwise not-started.
 //
 // `sector_name_mal` is the Malayalam label if the column exists, falling
 // back to the English `sector_name`. `sector_img_path` is the file name
@@ -83,3 +84,4 @@ export async function GET() {
     );
   }
 }
+

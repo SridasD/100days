@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { Suspense, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useSearchParams, useRouter, usePathname } from 'next/navigation';
 import {
@@ -11,7 +11,6 @@ import {
   CheckCircle2,
   Copy,
   FolderOpen,
-  Folders,
   Loader2,
   ListFilter,
   Rows3,
@@ -85,7 +84,7 @@ interface ArchivePreview {
   };
 }
 
-export default function AdminProjectsPage() {
+function AdminProjectsPageContent() {
   const [projects, setProjects] = useState<AdminProject[] | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -759,6 +758,22 @@ export default function AdminProjectsPage() {
         </DialogContent>
       </Dialog>
     </main>
+  );
+}
+
+export default function AdminProjectsPage() {
+  return (
+    <Suspense
+      fallback={
+        <main className="space-y-8">
+          <Card>
+            <CardContent className="p-6 text-sm text-muted-foreground">Loading projects...</CardContent>
+          </Card>
+        </main>
+      }
+    >
+      <AdminProjectsPageContent />
+    </Suspense>
   );
 }
 

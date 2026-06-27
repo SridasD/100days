@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { redirect } from 'next/navigation';
 import { AlertTriangle, CheckCircle2, Clock, FolderOpen } from 'lucide-react';
 import { KeralaHeader } from '@/components/layout/KeralaHeader';
 import { OfficerUserMenu } from '@/components/layout/OfficerUserMenu';
@@ -10,7 +9,6 @@ import { SiteFooter } from '@/components/layout/SiteFooter';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { useRouter } from 'next/navigation';
 
 interface VerifierProject {
   projectId: number;
@@ -26,7 +24,6 @@ export default function VerifyProjectsPage() {
   const [departmentLabel, setDepartmentLabel] = useState('Verifying');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const router = useRouter();
 
   useEffect(() => {
     const load = async () => {

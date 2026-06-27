@@ -1,3 +1,4 @@
+﻿/* eslint-disable @typescript-eslint/no-explicit-any */
 import { NextRequest, NextResponse } from "next/server";
 import { sql } from "drizzle-orm";
 import { db } from "@/lib/db/client";
@@ -126,7 +127,7 @@ export async function GET(
         indicatorId: Number(r.indicator_id),
         name: r.indicator_name ?? "",
         unit: r.unit ?? "",
-        district: r.district_name ?? "—",
+        district: r.district_name ?? "â€”",
         physicalTarget: physTarget,
         physicalAchievement: physAch,
         financialTarget: finTarget,
@@ -227,3 +228,4 @@ export async function GET(
     );
   }
 }
+

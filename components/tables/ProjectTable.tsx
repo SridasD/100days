@@ -10,7 +10,6 @@ import {
   FolderOpen,
   Hash,
   IndianRupee,
-  Loader2,
   PartyPopper,
   Search,
   Target,

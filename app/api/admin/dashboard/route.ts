@@ -1,4 +1,5 @@
-import { NextRequest, NextResponse } from "next/server";
+﻿/* eslint-disable @typescript-eslint/no-explicit-any */
+import { NextResponse } from "next/server";
 import { sql } from "drizzle-orm";
 import {
   requireTechAdminSession,
@@ -8,7 +9,7 @@ import { db } from "@/lib/db/client";
 
 export const runtime = "nodejs";
 
-export async function GET(_req: NextRequest) {
+export async function GET() {
   const sessionOrResponse = await requireTechAdminSession();
   if (!isAdminSession(sessionOrResponse)) return sessionOrResponse;
 

@@ -174,10 +174,6 @@ export default function VerifyProjectIndicatorsPage({
     }
   };
 
-  const projectName = indicators?.[0]?.name
-    ? undefined // we don't fetch project name here — header shows id only
-    : undefined;
-
   // ----------------------- bulk verify ---------------------------------
   const runBulkVerify = async () => {
     if (!indicators) return;

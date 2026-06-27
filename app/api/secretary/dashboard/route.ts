@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { sql } from "drizzle-orm";
 import { ROLE, isSession, requireSession } from "@/lib/auth/session";
 import { db } from "@/lib/db/client";
@@ -14,7 +14,7 @@ function toNullableString(v: unknown) {
   return typeof v === "string" ? v : null;
 }
 
-export async function GET(_req: NextRequest) {
+export async function GET() {
   const sessionOrResponse = await requireSession();
   if (!isSession(sessionOrResponse)) return sessionOrResponse;
   const session = sessionOrResponse;

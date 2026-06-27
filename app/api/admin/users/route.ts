@@ -29,7 +29,7 @@ const createUserSchema = z.object({
   designation: z.string().max(250).optional(),
 });
 
-export async function GET(_req: NextRequest) {
+export async function GET() {
   const sessionOrResponse = await requireTechAdminSession();
   if (!isAdminSession(sessionOrResponse)) return sessionOrResponse;
 

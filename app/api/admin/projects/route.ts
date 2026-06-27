@@ -12,7 +12,7 @@ export const runtime = "nodejs";
 // ---------------------------------------------------------------------------
 // GET — list all projects
 // ---------------------------------------------------------------------------
-export async function GET(_req: NextRequest) {
+export async function GET() {
   const sessionOrResponse = await requireAdminSession();
   if (!isAdminSession(sessionOrResponse)) return sessionOrResponse;
 

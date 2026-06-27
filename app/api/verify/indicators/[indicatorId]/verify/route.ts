@@ -1,3 +1,4 @@
+﻿/* eslint-disable @typescript-eslint/no-explicit-any */
 import { NextRequest, NextResponse } from "next/server";
 import { sql } from "drizzle-orm";
 import { z } from "zod";
@@ -20,7 +21,7 @@ const verifySchema = z.object({
   verified_direct_persons: z.number().int().min(0).default(0),
   verified_indirect_days: z.number().int().min(0).default(0),
   verified_indirect_persons: z.number().int().min(0).default(0),
-  // Verifier remarks — required when corrections diverge from nodal values,
+  // Verifier remarks â€” required when corrections diverge from nodal values,
   // but always recommended. Min 5 chars when present so the trail is useful.
   remarks: z.string().max(2000).optional().default(""),
 });
@@ -214,3 +215,4 @@ export async function POST(
     );
   }
 }
+

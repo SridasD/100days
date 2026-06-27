@@ -1,9 +1,10 @@
+﻿/* eslint-disable @typescript-eslint/no-explicit-any */
 import { sql } from "drizzle-orm";
 import { db } from "../client";
 
 // ---------------------------------------------------------------------------
 // Verifier-scoped Drizzle queries (role_id = 1).
-// Filtered by sec_id — verification officers see projects/indicators
+// Filtered by sec_id â€” verification officers see projects/indicators
 // assigned to their secretary.
 // ---------------------------------------------------------------------------
 
@@ -38,15 +39,15 @@ const CURRENTLY_VERIFIED = sql`
  * List projects with submitted indicators that the verifier can act on.
  *
  * Scoping rules:
- *  • `sec_id = 0`  → central verifier, sees projects from every department.
- *  • `sec_id > 0`  → only sees projects assigned to that department.
+ *  â€¢ `sec_id = 0`  â†’ central verifier, sees projects from every department.
+ *  â€¢ `sec_id > 0`  â†’ only sees projects assigned to that department.
  *
  * In both cases we only surface projects that actually have at least one
  * indicator with a `submitted_date` (i.e. nodal officer has saved progress),
  * so the queue is meaningful instead of every project under the dept.
  *
  * DISTINCT is required because a project can be linked to multiple
- * secretaries via `project_secretary` — without it a cross-dept project
+ * secretaries via `project_secretary` â€” without it a cross-dept project
  * would appear once per linked sec_id.
  */
 export async function listVerifierProjects(
@@ -66,7 +67,7 @@ export async function listVerifierProjects(
           LEFT JOIN hdp.master_secretary ms ON ps2.sec_id = ms.sec_id
           WHERE ps2.project_id = mp.project_id
         ),
-        '—'
+        'â€”'
       ) AS department,
       COALESCE((
         SELECT COUNT(*)::int FROM hdp.indicators i
@@ -228,7 +229,7 @@ export async function getVerifierIndicator(indicatorId: number, secId: number) {
 }
 
 /**
- * Ownership check — returns true when indicator's project belongs to verifier's sec_id
+ * Ownership check â€” returns true when indicator's project belongs to verifier's sec_id
  */
 export async function verifierOwnsIndicator(
   indicatorId: number,
@@ -251,3 +252,4 @@ export async function verifierOwnsIndicator(
   `);
   return result.rows.length > 0;
 }
+

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Download, FileSpreadsheet } from "lucide-react";
@@ -56,7 +56,7 @@ function fmtDate(value: string | null) {
     return Number.isNaN(d.getTime()) ? "-" : d.toLocaleString("en-IN");
 }
 
-export default function SecretaryProjectsPage() {
+function SecretaryProjectsPageContent() {
     const [data, setData] = useState<Payload | null>(null);
     const [error, setError] = useState<string | null>(null);
     const [statusFilter, setStatusFilter] = useState<ProjectStatusKey>("all");
@@ -349,5 +349,26 @@ export default function SecretaryProjectsPage() {
             </main>
             <SiteFooter />
         </div>
+    );
+}
+
+export default function SecretaryProjectsPage() {
+    return (
+        <Suspense
+            fallback={
+                <div className="flex min-h-screen flex-col bg-[#F3F4F6]">
+                    <KeralaHeader homeHref="/secretary/dashboard" right={<OfficerUserMenu roleLabel="Secretary" />} />
+                    <SecretaryNav />
+                    <main className="container mx-auto flex-1 px-4 py-6">
+                        <Card>
+                            <CardContent className="py-6 text-sm text-slate-600">Loading projects...</CardContent>
+                        </Card>
+                    </main>
+                    <SiteFooter />
+                </div>
+            }
+        >
+            <SecretaryProjectsPageContent />
+        </Suspense>
     );
 }

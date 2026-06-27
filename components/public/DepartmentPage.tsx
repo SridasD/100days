@@ -94,11 +94,12 @@ const FILTER_LABELS_MAL: Record<Filter, string> = {
 };
 
 export function DepartmentPage({
-  secId,
+  secId: _secId,
   nameMal,
   stats,
   projects,
 }: DepartmentPageProps) {
+  void _secId;
   const [query, setQuery] = useState('');
   const [filter, setFilter] = useState<Filter>('all');
 
@@ -201,8 +202,8 @@ export function DepartmentPage({
                     aria-selected={filter === f}
                     onClick={() => setFilter(f)}
                     className={`cursor-pointer rounded-full px-3 py-1.5 font-medium transition-colors duration-150 ${filter === f
-                        ? 'bg-hdp-green text-white shadow'
-                        : 'text-muted-foreground hover:text-hdp-green'
+                      ? 'bg-hdp-green text-white shadow'
+                      : 'text-muted-foreground hover:text-hdp-green'
                       }`}
                   >
                     <span className="font-malayalam">

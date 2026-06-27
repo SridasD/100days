@@ -129,6 +129,7 @@ export function ProgressUpdateForm({
   defaults,
   targets,
 }: Props) {
+  void indicatorId;
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [shakeKey, setShakeKey] = useState(0);
@@ -250,7 +251,7 @@ export function ProgressUpdateForm({
               aria-invalid={!!errors.physical_achievement}
               className={cn(
                 errors.physical_achievement &&
-                  'border-error-red focus-visible:ring-error-red',
+                'border-error-red focus-visible:ring-error-red',
               )}
               {...register('physical_achievement')}
             />
@@ -308,7 +309,7 @@ export function ProgressUpdateForm({
                 className={cn(
                   'pl-9',
                   errors.financial_achievement &&
-                    'border-error-red focus-visible:ring-error-red',
+                  'border-error-red focus-visible:ring-error-red',
                 )}
                 {...register('financial_achievement')}
               />
@@ -339,10 +340,10 @@ export function ProgressUpdateForm({
               className={cn(
                 !isCompleted && 'opacity-60',
                 isCompleted &&
-                  'border-success-green ring-1 ring-success-green/30',
+                'border-success-green ring-1 ring-success-green/30',
                 highlightDate && 'animate-pulse',
                 errors.completed_date &&
-                  'border-error-red focus-visible:ring-error-red',
+                'border-error-red focus-visible:ring-error-red',
               )}
               {...register('completed_date')}
             />
@@ -455,7 +456,7 @@ export function ProgressUpdateForm({
             className={cn(
               'resize-y',
               errors.description &&
-                'border-error-red focus-visible:ring-error-red',
+              'border-error-red focus-visible:ring-error-red',
             )}
             {...register('description')}
           />
