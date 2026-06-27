@@ -60,6 +60,7 @@ export default function VerifyProjectsPage() {
   return (
     <div className="flex min-h-screen flex-col bg-background">
       <KeralaHeader
+        homeHref="/verify/projects"
         right={
           <OfficerUserMenu
             roleLabel={roleLabel}

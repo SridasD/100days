@@ -1,8 +1,8 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { isSession, requireOfficerSession } from '@/lib/auth/session';
-import { getOfficerProject } from '@/lib/db/queries/officer';
+import { NextRequest, NextResponse } from "next/server";
+import { isSession, requireOfficerSession } from "@/lib/auth/session";
+import { getOfficerProject } from "@/lib/db/queries/officer";
 
-export const runtime = 'nodejs';
+export const runtime = "nodejs";
 
 export async function GET(
   _req: NextRequest,
@@ -15,14 +15,18 @@ export async function GET(
   const { projectId } = await params;
   const id = Number(projectId);
   if (!Number.isFinite(id)) {
-    return NextResponse.json({ error: 'Invalid projectId' }, { status: 400 });
+    return NextResponse.json({ error: "Invalid projectId" }, { status: 400 });
   }
 
   try {
-    const row = await getOfficerProject(id, session.secId);
+    const row = await getOfficerProject(id, {
+      roleId: session.roleId,
+      secId: session.secId,
+      deptId: session.deptId,
+    });
     if (!row) {
       return NextResponse.json(
-        { error: 'Project not found or not assigned to your department' },
+        { error: "Project not found or not assigned to your department" },
         { status: 404 },
       );
     }
@@ -47,18 +51,16 @@ export async function GET(
         indicatorsTotal: row.indicators_total,
         indicatorsCompleted: row.indicators_completed,
         // Budget — used by the Add Indicator form
-        totalAllocated: row.total_allocated
-          ? Number(row.total_allocated)
-          : 0,
+        totalAllocated: row.total_allocated ? Number(row.total_allocated) : 0,
         balance:
           (row.project_cost ? Number(row.project_cost) : 0) -
           (row.total_allocated ? Number(row.total_allocated) : 0),
       },
     });
   } catch (err) {
-    console.error('GET /api/officer/projects/[projectId] failed', err);
+    console.error("GET /api/officer/projects/[projectId] failed", err);
     return NextResponse.json(
-      { error: 'Failed to load project' },
+      { error: "Failed to load project" },
       { status: 500 },
     );
   }

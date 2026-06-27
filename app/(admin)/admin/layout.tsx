@@ -137,6 +137,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
     return (
         <div className="flex min-h-screen flex-col bg-muted/30">
             <KeralaHeader
+                homeHref={profile?.roleId === 4 ? '/admin/osd/dashboard' : '/admin/dashboard'}
                 right={<OfficerUserMenu roleLabel={roleLabel} departmentLabel={departmentLabel} />}
             />
 

@@ -217,13 +217,11 @@ export function ProjectForm({ projectId, defaults, redirectTo = '/admin/projects
         if (!res.ok) {
           const body = await res.json().catch(() => ({}));
           const debug = body.debug
-            ? `\nDB: ${body.debug.message ?? ''}${
-                body.debug.detail ? ' · ' + body.debug.detail : ''
-              }${body.debug.column ? ' · column: ' + body.debug.column : ''}${
-                body.debug.constraint
-                  ? ' · constraint: ' + body.debug.constraint
-                  : ''
-              }`
+            ? `\nDB: ${body.debug.message ?? ''}${body.debug.detail ? ' · ' + body.debug.detail : ''
+            }${body.debug.column ? ' · column: ' + body.debug.column : ''}${body.debug.constraint
+              ? ' · constraint: ' + body.debug.constraint
+              : ''
+            }`
             : '';
           throw new Error((body.error ?? `HTTP ${res.status}`) + debug);
         }
@@ -438,7 +436,7 @@ export function ProjectForm({ projectId, defaults, redirectTo = '/admin/projects
                 className={cn(
                   !isCompletedStatus && 'cursor-not-allowed opacity-60',
                   isCompletedStatus &&
-                    'border-success-green/40 ring-1 ring-success-green/20',
+                  'border-success-green/40 ring-1 ring-success-green/20',
                 )}
                 {...register('completion_date')}
               />
@@ -563,8 +561,8 @@ function DepartmentMultiSelect({
   const q = search.trim().toLowerCase();
   const filtered = q
     ? departments.filter((s) =>
-        (s.dept_name ?? '').toLowerCase().includes(q),
-      )
+      (s.dept_name ?? '').toLowerCase().includes(q),
+    )
     : departments;
 
   const selectedSet = new Set(selected);

@@ -16,6 +16,8 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { IndicatorTable } from '@/components/tables/IndicatorTable';
 import { getOfficerProject } from '@/lib/db/queries/officer';
+import { db } from '@/lib/db/client';
+import { sql } from 'drizzle-orm';
 import { headers } from 'next/headers';
 import { getToken } from 'next-auth/jwt';
 
@@ -41,9 +43,27 @@ export default async function OfficerProjectIndicatorsPage({
   });
   if (!token) redirect('/login');
   const secId = Number(token.secId ?? 0);
+  let deptId = Number((token as { deptId?: number | string }).deptId ?? 0);
   const roleId = Number(token.roleId ?? 0);
-  if (!Number.isFinite(secId) || roleId !== 2) {
+  if (roleId !== 2 && roleId !== 6) {
     redirect('/login');
+  }
+
+  if (roleId === 6 && (!Number.isFinite(deptId) || deptId <= 0)) {
+    const userId = Number((token as { id?: string; sub?: string }).id ?? token.sub ?? 0);
+    if (Number.isFinite(userId) && userId > 0) {
+      const r = await db.execute(sql`
+        SELECT dept_id
+        FROM hdp.user_details
+        WHERE user_id = ${userId}
+        LIMIT 1
+      `);
+      deptId =
+        Number(
+          (r.rows[0] as { dept_id: number | string | null } | undefined)
+            ?.dept_id ?? 0,
+        ) || 0;
+    }
   }
 
   const { pid } = await params;
@@ -52,12 +72,16 @@ export default async function OfficerProjectIndicatorsPage({
     redirect('/officer/projects');
   }
 
-  const project = await getOfficerProject(projectIdNum, secId);
+  const project = await getOfficerProject(projectIdNum, {
+    roleId,
+    secId: Number.isFinite(secId) ? secId : 0,
+    deptId: Number.isFinite(deptId) ? deptId : 0,
+  });
   if (!project) {
     redirect('/officer/projects');
   }
 
-  const roleLabel = 'Nodal Officer';
+  const roleLabel = roleId === 6 ? 'Head of Department' : 'Nodal Officer';
   const departmentLabel = project.department ?? '—';
 
   const statusLabel =
@@ -83,6 +107,7 @@ export default async function OfficerProjectIndicatorsPage({
   return (
     <div className="flex min-h-screen flex-col bg-background">
       <KeralaHeader
+        homeHref="/officer/projects"
         right={
           <OfficerUserMenu
             roleLabel={roleLabel}

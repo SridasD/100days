@@ -224,6 +224,7 @@ export default function VerifyProjectIndicatorsPage({
   return (
     <div className="flex min-h-screen flex-col bg-background">
       <KeralaHeader
+        homeHref="/verify/projects"
         right={
           <OfficerUserMenu
             roleLabel="Verification Officer"

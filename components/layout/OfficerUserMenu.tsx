@@ -34,6 +34,8 @@ interface MeResponse {
 const ROLE_NAMES: Record<number, string> = {
   1: 'Verification Officer',
   2: 'Nodal Officer',
+  5: 'Secretary',
+  6: 'Head of Department',
   3: 'Administrator',
 };
 
@@ -47,6 +49,9 @@ function changePasswordHref(roleId: number | undefined): string {
       return '/verify/settings/change-password';
     case 3:
       return '/admin/settings/change-password';
+    case 5:
+      return '/secretary/settings/change-password';
+    case 6:
     case 2:
     default:
       return '/officer/settings/change-password';

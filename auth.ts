@@ -22,6 +22,7 @@ declare module "next-auth" {
       designation: string | null;
       roleId: number;
       secId: number;
+      deptId: number;
     } & DefaultSession["user"];
   }
 
@@ -32,6 +33,7 @@ declare module "next-auth" {
     designation: string | null;
     roleId: number;
     secId: number;
+    deptId: number;
   }
 }
 
@@ -142,6 +144,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           designation: user.designation ?? null,
           roleId: user.roleId ?? 0,
           secId: user.secId ?? 0,
+          deptId: user.deptId ?? 0,
         };
       },
     }),
@@ -155,6 +158,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         token.designation = user.designation;
         token.roleId = user.roleId;
         token.secId = user.secId;
+        token.deptId = user.deptId;
       }
       return token;
     },
@@ -166,6 +170,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         session.user.designation = (token.designation as string | null) ?? null;
         session.user.roleId = token.roleId as number;
         session.user.secId = token.secId as number;
+        session.user.deptId = (token.deptId as number | undefined) ?? 0;
       }
       return session;
     },

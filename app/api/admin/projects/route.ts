@@ -69,7 +69,10 @@ const createProjectSchema = z.object({
   is_completed: z.coerce.number().int().min(0).max(2).default(0),
   completion_date: z.string().optional().nullable(),
   sector_id: z.coerce.number().int().positive(),
-  sec_id: z.coerce.number().int().positive("Administrative department is required"),
+  sec_id: z.coerce
+    .number()
+    .int()
+    .positive("Administrative department is required"),
   dept_ids: z
     .array(z.coerce.number().int().positive())
     .min(1, "At least one implementing department is required"),

@@ -48,4 +48,5 @@ ALTER TABLE "hdp"."user_details"
   ADD COLUMN IF NOT EXISTS "password_reset_expires" timestamp,
   ADD COLUMN IF NOT EXISTS "last_login"             timestamp,
   ADD COLUMN IF NOT EXISTS "failed_login_attempts"  integer DEFAULT 0,
-  ADD COLUMN IF NOT EXISTS "locked_until"           timestamp;
+  ADD COLUMN IF NOT EXISTS "locked_until"           timestamp,
+  ADD COLUMN IF NOT EXISTS "email_address"          varchar(254);

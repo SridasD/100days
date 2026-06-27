@@ -66,10 +66,13 @@ export const authConfig: NextAuthConfig = {
       }
 
       // Role-based redirects (Section 5.4)
-      if (role === 2 && pathname.startsWith("/verify"))
+      if ((role === 2 || role === 6) && pathname.startsWith("/verify"))
         return Response.redirect(new URL("/officer/projects", nextUrl));
       if (role === 1 && pathname.startsWith("/officer"))
         return Response.redirect(new URL("/verify/projects", nextUrl));
+      if (role === 5 && pathname.startsWith("/secretary")) return true;
+      if (role === 5 && (pathname.startsWith("/officer") || pathname.startsWith("/verify") || pathname.startsWith("/admin")))
+        return Response.redirect(new URL("/secretary/dashboard", nextUrl));
       if (
         role === 4 &&
         pathname.startsWith("/admin") &&
@@ -90,6 +93,7 @@ export const authConfig: NextAuthConfig = {
         token.loginName = (user as any).loginName;
         token.roleId = (user as any).roleId;
         token.secId = (user as any).secId;
+        token.deptId = (user as any).deptId;
       }
       return token;
     },
@@ -99,6 +103,7 @@ export const authConfig: NextAuthConfig = {
         (session.user as any).loginName = token.loginName;
         (session.user as any).roleId = token.roleId;
         (session.user as any).secId = token.secId;
+        (session.user as any).deptId = token.deptId;
       }
       return session;
     },

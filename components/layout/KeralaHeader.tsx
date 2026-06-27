@@ -1,9 +1,12 @@
+import Link from 'next/link';
 import type { ReactNode } from 'react';
 import { cn } from '@/lib/utils';
 
 interface Props {
   /** Right-aligned slot — HOME link on /login, user menu on authenticated pages. */
   right?: ReactNode;
+  /** Destination for the logo/title link. Defaults to the public home page. */
+  homeHref?: string;
   /** Make the bar stick to the top of the viewport on scroll. Default: true. */
   sticky?: boolean;
   className?: string;
@@ -14,7 +17,7 @@ interface Props {
  * Dark green band (#2E7D32), emblem on the left, Malayalam title,
  * caller-provided content on the right.
  */
-export function KeralaHeader({ right, sticky = true, className }: Props) {
+export function KeralaHeader({ right, homeHref = '/', sticky = true, className }: Props) {
   return (
     <header
       style={{ backgroundColor: '#2E7D32' }}
@@ -25,8 +28,8 @@ export function KeralaHeader({ right, sticky = true, className }: Props) {
       )}
     >
       <div className="container mx-auto flex items-center justify-between gap-4 px-4 py-3">
-        <a
-          href="/"
+        <Link
+          href={homeHref}
           className="group flex items-center gap-3 rounded-md outline-none focus-visible:ring-2 focus-visible:ring-white"
           aria-label="Kerala Government — 100 Days Programme"
         >
@@ -42,7 +45,7 @@ export function KeralaHeader({ right, sticky = true, className }: Props) {
             <span className="px-2 text-white/60">|</span>
             100 ദിന പദ്ധതികൾ
           </p>
-        </a>
+        </Link>
 
         {right ? <div className="flex items-center gap-2">{right}</div> : null}
       </div>

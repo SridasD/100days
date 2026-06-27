@@ -1,11 +1,8 @@
-import { NextRequest, NextResponse } from 'next/server';
-import {
-  isAdminSession,
-  requireAdminSession,
-} from '@/lib/auth/admin-session';
-import { getAdminMasterData } from '@/lib/db/queries/admin';
+import { NextRequest, NextResponse } from "next/server";
+import { isAdminSession, requireAdminSession } from "@/lib/auth/admin-session";
+import { getAdminMasterData } from "@/lib/db/queries/admin";
 
-export const runtime = 'nodejs';
+export const runtime = "nodejs";
 
 // Drop-down lookups for admin forms (secretaries, sectors, roles, districts).
 export async function GET(_req: NextRequest) {
@@ -22,9 +19,9 @@ export async function GET(_req: NextRequest) {
       districts: data.districts,
     });
   } catch (err) {
-    console.error('GET /api/admin/master failed', err);
+    console.error("GET /api/admin/master failed", err);
     return NextResponse.json(
-      { error: 'Failed to load master data' },
+      { error: "Failed to load master data" },
       { status: 500 },
     );
   }

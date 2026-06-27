@@ -1,13 +1,13 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { sql } from 'drizzle-orm';
-import { z } from 'zod';
-import { isSession, requireOfficerSession } from '@/lib/auth/session';
-import { db } from '@/lib/db/client';
-import { officerOwnsIndicator } from '@/lib/db/queries/officer';
-import { writeAudit } from '@/lib/audit/writeAudit';
-import { AUDIT_ACTIONS } from '@/lib/db/schema/audit';
+import { NextRequest, NextResponse } from "next/server";
+import { sql } from "drizzle-orm";
+import { z } from "zod";
+import { isSession, requireOfficerSession } from "@/lib/auth/session";
+import { db } from "@/lib/db/client";
+import { officerOwnsIndicator } from "@/lib/db/queries/officer";
+import { writeAudit } from "@/lib/audit/writeAudit";
+import { AUDIT_ACTIONS } from "@/lib/db/schema/audit";
 
-export const runtime = 'nodejs';
+export const runtime = "nodejs";
 
 let supportingDeptColumnEnsured: Promise<void> | null = null;
 async function ensureSupportingDeptColumn() {
@@ -40,12 +40,16 @@ export async function GET(
   const { indicatorId } = await params;
   const id = Number(indicatorId);
   if (!Number.isFinite(id)) {
-    return NextResponse.json({ error: 'Invalid indicatorId' }, { status: 400 });
+    return NextResponse.json({ error: "Invalid indicatorId" }, { status: 400 });
   }
 
-  const owns = await officerOwnsIndicator(id, session.secId);
+  const owns = await officerOwnsIndicator(id, {
+    roleId: session.roleId,
+    secId: session.secId,
+    deptId: session.deptId,
+  });
   if (!owns) {
-    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
   try {
@@ -75,18 +79,20 @@ export async function GET(
     `);
     const row = r.rows[0] as any;
     if (!row) {
-      return NextResponse.json({ error: 'Not found' }, { status: 404 });
+      return NextResponse.json({ error: "Not found" }, { status: 404 });
     }
     return NextResponse.json({
       indicator: {
         indicatorId: Number(row.indicator_id),
         projectId: Number(row.project_id),
-        indicatorName: row.indicator_name ?? '',
-        unit: row.unit ?? '',
+        indicatorName: row.indicator_name ?? "",
+        unit: row.unit ?? "",
         districtId: row.district_id != null ? Number(row.district_id) : 0,
         physicalTarget: row.physical_target ? Number(row.physical_target) : 0,
-        financialTarget: row.financial_target ? Number(row.financial_target) : 0,
-        physicalDescription: row.physical_description ?? '',
+        financialTarget: row.financial_target
+          ? Number(row.financial_target)
+          : 0,
+        physicalDescription: row.physical_description ?? "",
         localBodyTypeId:
           row.local_body_type != null ? Number(row.local_body_type) : 0,
         localBodyIds: Array.isArray(row.local_body_id)
@@ -105,9 +111,9 @@ export async function GET(
       },
     });
   } catch (err) {
-    console.error('GET /api/officer/indicators/[id] failed', err);
+    console.error("GET /api/officer/indicators/[id] failed", err);
     return NextResponse.json(
-      { error: 'Failed to load indicator' },
+      { error: "Failed to load indicator" },
       { status: 500 },
     );
   }
@@ -125,7 +131,7 @@ const patchSchema = z.object({
   district_id: z.coerce.number().int().min(0).optional().nullable(),
   physical_target: z.coerce.number().min(0),
   financial_target: z.coerce.number().min(0),
-  physical_description: z.string().max(2000).optional().default(''),
+  physical_description: z.string().max(2000).optional().default(""),
   local_body_type_id: z.coerce.number().int().min(0).optional().nullable(),
   local_body_ids: z.array(z.coerce.number().int().positive()).default([]),
   beneficiary_ids: z.array(z.coerce.number().int().positive()).default([]),
@@ -145,19 +151,23 @@ export async function PATCH(
   const { indicatorId } = await params;
   const id = Number(indicatorId);
   if (!Number.isFinite(id)) {
-    return NextResponse.json({ error: 'Invalid indicatorId' }, { status: 400 });
+    return NextResponse.json({ error: "Invalid indicatorId" }, { status: 400 });
   }
 
-  const owns = await officerOwnsIndicator(id, session.secId);
+  const owns = await officerOwnsIndicator(id, {
+    roleId: session.roleId,
+    secId: session.secId,
+    deptId: session.deptId,
+  });
   if (!owns) {
-    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
   const body = await req.json().catch(() => null);
   const parsed = patchSchema.safeParse(body);
   if (!parsed.success) {
     return NextResponse.json(
-      { error: 'Validation failed', issues: parsed.error.issues },
+      { error: "Validation failed", issues: parsed.error.issues },
       { status: 400 },
     );
   }
@@ -186,9 +196,9 @@ export async function PATCH(
     await ensureSupportingDeptColumn();
 
     // Build the Postgres array literals — same approach as the POST handler.
-    const localBodyLit = `{${(d.local_body_ids ?? []).join(',')}}`;
-    const beneficiaryLit = `{${(d.beneficiary_ids ?? []).join(',')}}`;
-    const supportingDeptLit = `{${(d.supporting_dept_ids ?? []).join(',')}}`;
+    const localBodyLit = `{${(d.local_body_ids ?? []).join(",")}}`;
+    const beneficiaryLit = `{${(d.beneficiary_ids ?? []).join(",")}}`;
+    const supportingDeptLit = `{${(d.supporting_dept_ids ?? []).join(",")}}`;
 
     await db.execute(sql`
       UPDATE hdp.indicators
@@ -213,7 +223,7 @@ export async function PATCH(
     await writeAudit({
       userId: session.userId,
       action: AUDIT_ACTIONS.INDICATOR_CREATED, // closest existing action
-      entity: 'indicators',
+      entity: "indicators",
       entityId: id,
       request: req,
       secId: session.secId,
@@ -242,7 +252,7 @@ export async function PATCH(
 
     return NextResponse.json({ ok: true, indicatorId: id });
   } catch (err) {
-    console.error('PATCH /api/officer/indicators/[id] failed', err);
+    console.error("PATCH /api/officer/indicators/[id] failed", err);
     const pgErr = err as {
       message?: string;
       code?: string;
@@ -251,7 +261,7 @@ export async function PATCH(
     };
     return NextResponse.json(
       {
-        error: 'Failed to update indicator',
+        error: "Failed to update indicator",
         debug: {
           message: pgErr.message,
           code: pgErr.code,
@@ -279,12 +289,16 @@ export async function DELETE(
   const { indicatorId } = await params;
   const id = Number(indicatorId);
   if (!Number.isFinite(id)) {
-    return NextResponse.json({ error: 'Invalid indicatorId' }, { status: 400 });
+    return NextResponse.json({ error: "Invalid indicatorId" }, { status: 400 });
   }
 
-  const owns = await officerOwnsIndicator(id, session.secId);
+  const owns = await officerOwnsIndicator(id, {
+    roleId: session.roleId,
+    secId: session.secId,
+    deptId: session.deptId,
+  });
   if (!owns) {
-    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
   const lock = await db.execute(sql`
@@ -296,19 +310,21 @@ export async function DELETE(
     return NextResponse.json(
       {
         error:
-          'This indicator has already been verified and can no longer be deleted.',
+          "This indicator has already been verified and can no longer be deleted.",
       },
       { status: 409 },
     );
   }
 
   try {
-    await db.execute(sql`DELETE FROM hdp.indicators WHERE indicator_id = ${id}`);
+    await db.execute(
+      sql`DELETE FROM hdp.indicators WHERE indicator_id = ${id}`,
+    );
 
     await writeAudit({
       userId: session.userId,
       action: AUDIT_ACTIONS.INDICATOR_REJECTED, // closest existing for "removed"
-      entity: 'indicators',
+      entity: "indicators",
       entityId: id,
       request: req,
       secId: session.secId,
@@ -317,9 +333,9 @@ export async function DELETE(
 
     return NextResponse.json({ ok: true });
   } catch (err) {
-    console.error('DELETE /api/officer/indicators/[id] failed', err);
+    console.error("DELETE /api/officer/indicators/[id] failed", err);
     return NextResponse.json(
-      { error: 'Failed to delete indicator' },
+      { error: "Failed to delete indicator" },
       { status: 500 },
     );
   }
