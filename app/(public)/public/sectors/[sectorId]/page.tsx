@@ -72,12 +72,6 @@ const SECTOR_META: Record<number, { nameMal: string; icon: typeof Sun }> = {
   12: { nameMal: 'തദ്ദേശസ്വയംഭരണം', icon: Building },
 };
 
-const STATUS_LABEL_MAL: Record<Status, string> = {
-  completed: 'പൂർത്തിയായി',
-  'in-progress': 'പുരോഗതിയിൽ',
-  'not-started': 'ആരംഭിക്കാൻ',
-};
-
 const STATUS_PILL: Record<Status, string> = {
   completed: 'bg-[#E8F5E9] text-[#1B5E20]',
   'in-progress': 'bg-[#FFF8E1] text-[#E65100]',
@@ -199,12 +193,9 @@ export default function PublicSectorPage({
               </div>
               <div className="mt-3 flex justify-center">
                 <span
-                  className={`inline-flex items-center gap-1.5 rounded-full bg-white/95 px-3 py-1 text-[11px] font-semibold ${STATUS_PILL[sector.status]}`}
+                  className={`inline-flex items-center rounded-full bg-white/95 px-3 py-1 text-[11px] font-semibold ${STATUS_PILL[sector.status]}`}
                 >
                   <span className="h-1.5 w-1.5 rounded-full bg-current opacity-80" />
-                  <span className="font-malayalam">
-                    {STATUS_LABEL_MAL[sector.status]}
-                  </span>
                 </span>
               </div>
             </div>

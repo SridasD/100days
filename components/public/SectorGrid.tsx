@@ -58,12 +58,6 @@ const SECTOR_META: Record<number, SectorMeta> = {
   12: { nameMal: 'തദ്ദേശസ്വയംഭരണം', icon: Building },
 };
 
-const STATUS_LABELS_MAL: Record<Status, string> = {
-  completed: 'പൂർത്തിയായി',
-  'in-progress': 'പുരോഗതിയിൽ',
-  'not-started': 'ആരംഭിക്കാൻ',
-};
-
 const STATUS_BADGE_TONE: Record<Status, string> = {
   completed: 'bg-hdp-success/90 text-white',
   'in-progress': 'bg-hdp-warning/90 text-white',
@@ -158,12 +152,9 @@ function SectorCard({ sector }: { sector: ApiSector }) {
       />
 
       <span
-        className={`absolute right-3 top-3 inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[10px] font-semibold backdrop-blur ${STATUS_BADGE_TONE[sector.status]}`}
+        className={`absolute right-3 top-3 inline-flex items-center rounded-full px-2.5 py-1 text-[10px] font-semibold backdrop-blur ${STATUS_BADGE_TONE[sector.status]}`}
       >
         <span className="h-1.5 w-1.5 rounded-full bg-white" />
-        <span className="font-malayalam">
-          {STATUS_LABELS_MAL[sector.status]}
-        </span>
       </span>
 
       <div className="absolute inset-x-0 bottom-0 p-4 text-white">
