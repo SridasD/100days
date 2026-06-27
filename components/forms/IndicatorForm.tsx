@@ -125,7 +125,7 @@ const formSchema = z
 export type IndicatorFormValues = z.infer<typeof formSchema>;
 
 interface Props {
-  projectId: number;
+  projectId: string | number;
   /**
    * When supplied the form runs in EDIT mode:
    *   - GETs the existing indicator and pre-fills every field
@@ -134,7 +134,7 @@ interface Props {
    *
    * When omitted the form runs in CREATE mode (the original behaviour).
    */
-  indicatorId?: number;
+  indicatorId?: string | number;
 }
 
 // ===========================================================================
@@ -142,7 +142,10 @@ interface Props {
 // ===========================================================================
 export function IndicatorForm({ projectId, indicatorId }: Props) {
   const router = useRouter();
-  const isEdit = Number.isFinite(indicatorId) && (indicatorId ?? 0) > 0;
+  const projectRef = String(projectId).trim();
+  const indicatorRef =
+    indicatorId == null ? '' : String(indicatorId).trim();
+  const isEdit = indicatorRef.length > 0;
 
   const [master, setMaster] = useState<MasterData | null>(null);
   const [masterError, setMasterError] = useState<string | null>(null);
@@ -184,7 +187,7 @@ export function IndicatorForm({ projectId, indicatorId }: Props) {
   // ----------------------- edit: prefill from API ------------------------
   useEffect(() => {
     if (!isEdit) return;
-    fetch(`/api/officer/indicators/${indicatorId}`, { cache: 'no-store' })
+    fetch(`/api/officer/indicators/${indicatorRef}`, { cache: 'no-store' })
       .then(async (r) => {
         if (!r.ok) {
           const body = await r.json().catch(() => ({}));
@@ -233,7 +236,7 @@ export function IndicatorForm({ projectId, indicatorId }: Props) {
       .catch((e) =>
         setServerError(e instanceof Error ? e.message : 'Failed to load'),
       );
-  }, [isEdit, indicatorId, reset]);
+  }, [indicatorRef, isEdit, reset]);
 
   // -------------------------- master & budget --------------------------
   useEffect(() => {
@@ -250,8 +253,8 @@ export function IndicatorForm({ projectId, indicatorId }: Props) {
   }, []);
 
   useEffect(() => {
-    if (!projectId) return;
-    fetch(`/api/officer/projects/${projectId}`, { cache: 'no-store' })
+    if (!projectRef) return;
+    fetch(`/api/officer/projects/${projectRef}`, { cache: 'no-store' })
       .then(async (r) => {
         if (!r.ok) {
           const body = await r.json().catch(() => ({}));
@@ -277,7 +280,7 @@ export function IndicatorForm({ projectId, indicatorId }: Props) {
         }),
       )
       .catch((e) => setBudgetError(e.message));
-  }, [projectId]);
+  }, [projectRef]);
 
   // ------------------------- cascade dependents ------------------------
   const districtId = Number(watch('district_id')) || ALL;
@@ -359,8 +362,8 @@ export function IndicatorForm({ projectId, indicatorId }: Props) {
     startTransition(async () => {
       try {
         const url = isEdit
-          ? `/api/officer/indicators/${indicatorId}`
-          : `/api/officer/projects/${projectId}/indicators`;
+          ? `/api/officer/indicators/${indicatorRef}`
+          : `/api/officer/projects/${projectRef}/indicators`;
         const res = await fetch(url, {
           method: isEdit ? 'PATCH' : 'POST',
           headers: { 'content-type': 'application/json' },
@@ -375,7 +378,7 @@ export function IndicatorForm({ projectId, indicatorId }: Props) {
           throw new Error((body.error ?? `HTTP ${res.status}`) + debug);
         }
         router.push(
-          `/officer/projects/${projectId}/indicators?${isEdit ? 'edited' : 'created'
+          `/officer/projects/${projectRef}/indicators?${isEdit ? 'edited' : 'created'
           }=1`,
         );
       } catch (e) {

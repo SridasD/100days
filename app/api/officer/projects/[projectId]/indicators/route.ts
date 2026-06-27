@@ -4,6 +4,7 @@ import { z } from "zod";
 import { isSession, requireOfficerSession } from "@/lib/auth/session";
 import { db } from "@/lib/db/client";
 import { listIndicatorsForProject } from "@/lib/db/queries/officer";
+import { resolveProjectId } from "@/lib/db/public-id";
 import { writeAudit } from "@/lib/audit/writeAudit";
 import { AUDIT_ACTIONS } from "@/lib/db/schema/audit";
 
@@ -93,8 +94,8 @@ export async function GET(
   const session = sessionOrResponse;
 
   const { projectId } = await params;
-  const id = Number(projectId);
-  if (!Number.isFinite(id)) {
+  const id = await resolveProjectId(projectId);
+  if (!id) {
     return NextResponse.json({ error: "Invalid projectId" }, { status: 400 });
   }
 
@@ -134,7 +135,9 @@ export async function GET(
 
         return {
           indicatorId: r.indicator_id,
+          indicatorPublicId: r.public_id,
           projectId: r.project_id,
+          projectPublicId: r.project_public_id,
           name: r.indicator_name ?? "",
           unit: r.unit ?? "",
           districtId: r.district_id,
@@ -212,8 +215,8 @@ export async function POST(
   const session = sessionOrResponse;
 
   const { projectId } = await params;
-  const id = Number(projectId);
-  if (!Number.isFinite(id)) {
+  const id = await resolveProjectId(projectId);
+  if (!id) {
     return NextResponse.json({ error: "Invalid projectId" }, { status: 400 });
   }
 

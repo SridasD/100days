@@ -10,6 +10,7 @@ import { db } from "../client";
 
 export interface VerifierProjectRow {
   project_id: number;
+  public_id: string | null;
   project_code: string | null;
   project_name: string | null;
   project_name_mal: string | null;
@@ -57,6 +58,7 @@ export async function listVerifierProjects(
   const result = await db.execute(sql`
     SELECT DISTINCT ON (mp.project_id)
       mp.project_id,
+      mp.public_id,
       mp.project_code,
       mp.project_name,
       mp.project_name_mal,
@@ -98,6 +100,8 @@ export async function listVerifierProjects(
 }
 
 export interface VerifierIndicatorRow {
+  public_id: string | null;
+  project_public_id: string | null;
   indicator_id: number;
   project_id: number;
   indicator_name: string | null;
@@ -137,6 +141,8 @@ export async function listVerifierIndicators(
   // the verifier's sec_id matches multiple project_secretary entries.
   const result = await db.execute(sql`
     SELECT DISTINCT ON (i.indicator_id)
+      i.public_id,
+      mp.public_id AS project_public_id,
       i.indicator_id,
       i.project_id,
       i.indicator_name,
@@ -164,6 +170,7 @@ export async function listVerifierIndicators(
         WHERE g.indicator_id = i.indicator_id AND g.gallery_type = 2
       ), 0) AS video_count
     FROM hdp.indicators i
+    INNER JOIN hdp.master_projects mp ON i.project_id = mp.project_id
     LEFT JOIN hdp.master_district md ON i.district_id = md.district_id
     LEFT JOIN hdp.user_details ud_submitted ON i.submitted_by = ud_submitted.user_id
     LEFT JOIN hdp.user_details ud_verified ON i.verified_by = ud_verified.user_id
@@ -178,28 +185,26 @@ export async function listVerifierIndicators(
       i.submitted_date DESC
   `);
 
-  return (result.rows as unknown as Array<any>).map(
-    (row) => {
-      const submittedAt = row.submitted_date
-        ? new Date(row.submitted_date).getTime()
-        : 0;
-      const verifiedAt = row.verified_date
-        ? new Date(row.verified_date).getTime()
-        : 0;
+  return (result.rows as unknown as Array<any>).map((row) => {
+    const submittedAt = row.submitted_date
+      ? new Date(row.submitted_date).getTime()
+      : 0;
+    const verifiedAt = row.verified_date
+      ? new Date(row.verified_date).getTime()
+      : 0;
 
-      const status: VerifierIndicatorRow["status"] =
-        row.verified_date == null
-          ? "pending"
-          : submittedAt > verifiedAt
-            ? "reverification_required"
-            : "approved";
+    const status: VerifierIndicatorRow["status"] =
+      row.verified_date == null
+        ? "pending"
+        : submittedAt > verifiedAt
+          ? "reverification_required"
+          : "approved";
 
-      return {
-        ...row,
-        status,
-      } as VerifierIndicatorRow;
-    },
-  );
+    return {
+      ...row,
+      status,
+    } as VerifierIndicatorRow;
+  });
 }
 
 /**
@@ -252,4 +257,3 @@ export async function verifierOwnsIndicator(
   `);
   return result.rows.length > 0;
 }
-

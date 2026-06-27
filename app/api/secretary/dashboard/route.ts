@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { sql } from "drizzle-orm";
 import { ROLE, isSession, requireSession } from "@/lib/auth/session";
 import { db } from "@/lib/db/client";
+import { getDefaulterThresholds } from "@/lib/config/defaulter-thresholds";
 
 export const runtime = "nodejs";
 
@@ -29,18 +30,8 @@ export async function GET() {
     );
   }
 
-  const pendingDays = Math.max(
-    1,
-    Number(process.env.SECRETARY_PENDING_DAYS ?? 15),
-  );
-  const inactivityDays = Math.max(
-    1,
-    Number(process.env.SECRETARY_INACTIVITY_DAYS ?? 15),
-  );
-  const indicatorStaleDays = Math.max(
-    1,
-    Number(process.env.SECRETARY_INDICATOR_STALE_DAYS ?? 30),
-  );
+  const { pendingDays, inactivityDays, indicatorStaleDays } =
+    getDefaulterThresholds();
 
   try {
     const [

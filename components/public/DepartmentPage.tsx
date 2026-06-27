@@ -59,6 +59,7 @@ const STATUS_META: Record<
 
 export interface DepartmentProject {
   projectId: number;
+  projectPublicId?: string;
   /** Project name as shown — usually Malayalam */
   name: string;
   costInLakhs: number;
@@ -74,6 +75,7 @@ export interface DepartmentProject {
 
 export interface DepartmentPageProps {
   secId: number;
+  departmentPublicId?: string;
   nameMal: string;
   stats: {
     projects: number;
@@ -94,12 +96,12 @@ const FILTER_LABELS_MAL: Record<Filter, string> = {
 };
 
 export function DepartmentPage({
-  secId: _secId,
+  secId,
+  departmentPublicId,
   nameMal,
   stats,
   projects,
 }: DepartmentPageProps) {
-  void _secId;
   const [query, setQuery] = useState('');
   const [filter, setFilter] = useState<Filter>('all');
 
@@ -233,7 +235,7 @@ export function DepartmentPage({
           <ul className="grid gap-5 md:grid-cols-2">
             {filtered.map((p, idx) => (
               <li key={p.projectId}>
-                <ProjectCard project={p} index={idx + 1} />
+                <ProjectCard project={p} index={idx + 1} secId={secId} departmentPublicId={departmentPublicId} />
               </li>
             ))}
           </ul>
@@ -249,9 +251,13 @@ export function DepartmentPage({
 function ProjectCard({
   project,
   index,
+  secId,
+  departmentPublicId,
 }: {
   project: DepartmentProject;
   index: number;
+  secId: number;
+  departmentPublicId?: string;
 }) {
   const tone = STATUS_META[project.status];
   return (
@@ -382,7 +388,7 @@ function ProjectCard({
       {/* CTA */}
       <div className="mt-auto px-5 py-4">
         <Link
-          href={`/public/projects/${project.projectId}`}
+          href={`/public/departments/${departmentPublicId ?? secId}/projects/${project.projectPublicId ?? project.projectId}`}
           className="group inline-flex w-full items-center justify-center gap-2 rounded-full bg-hdp-green px-4 py-2.5 text-sm font-semibold text-white transition-all duration-200 hover:bg-hdp-green-active"
         >
           <span className="font-malayalam">ഘടകങ്ങൾ വിശദമായി കാണുക</span>

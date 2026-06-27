@@ -56,6 +56,7 @@ const STATUS_META: Record<
 
 export interface DepartmentProgressCardProps {
   secId: number;
+  departmentPublicId?: string;
   nameMal: string;
   projects: number;
   indicators: number;
@@ -73,6 +74,7 @@ export interface DepartmentProgressCardProps {
 
 export function DepartmentProgressCard({
   secId,
+  departmentPublicId,
   nameMal,
   projects,
   indicators,
@@ -262,7 +264,7 @@ export function DepartmentProgressCard({
         {/* CTA */}
         <div className="md:ml-2">
           <Link
-            href={`/public/department/${secId}`}
+            href={`/public/departments/${departmentPublicId ?? secId}`}
             className="group inline-flex w-full cursor-pointer items-center justify-center gap-2 rounded-full bg-hdp-green px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition-all duration-200 hover:bg-hdp-green-active hover:shadow-md md:w-auto"
           >
             <span className="font-malayalam">വകുപ്പ് വിശദമായി കാണുക</span>
@@ -303,11 +305,10 @@ function StatCell({
 }) {
   return (
     <div
-      className={`rounded-xl border px-3 py-2 ${
-        tone === 'info'
-          ? 'border-kerala-blue/20 bg-kerala-blue/5'
-          : 'border-border bg-white'
-      }`}
+      className={`rounded-xl border px-3 py-2 ${tone === 'info'
+        ? 'border-kerala-blue/20 bg-kerala-blue/5'
+        : 'border-border bg-white'
+        }`}
     >
       <p className="font-malayalam text-[10px] text-muted-foreground">
         {labelMal}

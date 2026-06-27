@@ -38,6 +38,7 @@ export async function GET() {
       },
       projects: rows.map((r) => ({
         projectId: r.project_id,
+        projectPublicId: r.public_id,
         projectCode: r.project_code,
         projectName: r.project_name,
         projectNameMal: r.project_name_mal,

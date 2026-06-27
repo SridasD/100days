@@ -58,11 +58,14 @@ export async function requireSession(
     });
   } else {
     const hdrs = await headers();
+    const forwardedProto =
+      hdrs.get("x-forwarded-proto") ??
+      (process.env.NODE_ENV === "production" ? "https" : "http");
     token = await getToken({
       req: {
         headers: {
           cookie: hdrs.get("cookie") ?? "",
-          "x-forwarded-proto": hdrs.get("x-forwarded-proto") ?? "http",
+          "x-forwarded-proto": forwardedProto,
         },
       } as unknown as Parameters<typeof getToken>[0]["req"],
       secret: process.env.AUTH_SECRET ?? "",
@@ -158,7 +161,9 @@ export async function requireOfficerSession(
   if (
     s.roleId !== ROLE.NODAL_OFFICER &&
     s.roleId !== ROLE.HEAD_OF_DEPARTMENT &&
-    s.roleId !== ROLE.SECRETARY
+    s.roleId !== ROLE.SECRETARY &&
+    s.roleId !== ROLE.ADMIN &&
+    s.roleId !== ROLE.OSD_ADMIN
   ) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }

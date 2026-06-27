@@ -21,6 +21,7 @@ export async function GET() {
     const result = await db.execute(sql`
       SELECT
         ms.sector_id,
+        ms.public_id,
         ms.sector_name,
         ms.sector_img_path,
         COALESCE((
@@ -65,6 +66,7 @@ export async function GET() {
       }
       return {
         sectorId: Number(r.sector_id),
+        sectorPublicId: r.public_id ? String(r.public_id) : String(r.sector_id),
         sectorName: r.sector_name ?? "",
         imagePath: r.sector_img_path
           ? `/images/sector_images/${r.sector_img_path}`
@@ -84,4 +86,3 @@ export async function GET() {
     );
   }
 }
-

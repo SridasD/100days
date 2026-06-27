@@ -1,13 +1,17 @@
 import { redirect } from 'next/navigation';
 
-// Canonical department URL is /public/department/[sec_id] — this short URL
-// was an earlier duplicate route. Redirecting so there's a single source
-// of truth and anyone with an old bookmark still lands on the right page.
+const LEGACY_ALIAS_SUNSET = '2026-12-31';
+
+// Canonical department URL is /public/departments/[departmentPublicId].
+// This short URL remains as a compatibility alias.
 export default async function DepartmentRedirect({
   params,
 }: {
   params: Promise<{ secId: string }>;
 }) {
   const { secId } = await params;
-  redirect(`/public/department/${secId}`);
+  console.info(
+    `[legacy-alias-hit] /department/${secId} -> /public/departments/${secId} (sunset ${LEGACY_ALIAS_SUNSET})`,
+  );
+  redirect(`/public/departments/${secId}`);
 }

@@ -38,6 +38,7 @@ export async function GET() {
     return NextResponse.json({
       users: rows.map((r) => ({
         userId: r.user_id,
+        userPublicId: r.public_id,
         userName: r.user_name,
         loginName: r.login_name,
         mobileNo: r.mobile_no,

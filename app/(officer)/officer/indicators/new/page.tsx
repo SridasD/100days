@@ -17,9 +17,8 @@ import { IndicatorForm } from '@/components/forms/IndicatorForm';
 
 function OfficerNewIndicatorPageContent() {
   const params = useSearchParams();
-  const raw = params.get('projectId');
-  const projectId = Number(raw);
-  const valid = Number.isFinite(projectId) && projectId > 0;
+  const projectId = String(params.get('projectId') ?? '').trim();
+  const valid = projectId.length > 0;
 
   // TODO: derive from session
   const roleLabel = 'Nodal Officer';

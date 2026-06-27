@@ -40,6 +40,11 @@ import { cn } from '@/lib/utils';
 
 type Indicator = VerifierIndicator;
 
+interface VerifyApiIndicator extends Indicator {
+  indicatorPublicId?: string | null;
+  projectPublicId?: string | null;
+}
+
 const inrFormat = new Intl.NumberFormat('en-IN', {
   minimumFractionDigits: 2,
   maximumFractionDigits: 2,
@@ -51,9 +56,9 @@ export default function VerifyProjectIndicatorsPage({
   params: Promise<{ pid: string }>;
 }) {
   const { pid } = use(params);
-  const projectId = Number(pid);
+  const projectRef = pid.trim();
 
-  const [indicators, setIndicators] = useState<Indicator[] | null>(null);
+  const [indicators, setIndicators] = useState<VerifyApiIndicator[] | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState('');
@@ -77,19 +82,24 @@ export default function VerifyProjectIndicatorsPage({
   const [completeError, setCompleteError] = useState<string | null>(null);
   const [completedAt, setCompletedAt] = useState<string | null>(null);
 
-  const load = async (): Promise<Indicator[] | null> => {
+  const load = async (): Promise<VerifyApiIndicator[] | null> => {
     setLoading(true);
     setError(null);
     try {
       const res = await fetch(
-        `/api/verify/projects/${projectId}/indicators`,
+        `/api/verify/projects/${projectRef}/indicators`,
         { cache: 'no-store' },
       );
       if (!res.ok) {
         const body = await res.json().catch(() => ({}));
         throw new Error(body.error ?? `HTTP ${res.status}`);
       }
-      const json = (await res.json()) as { indicators: Indicator[] };
+      const json = (await res.json()) as { indicators: VerifyApiIndicator[] };
+      const canonicalProjectRef = json.indicators[0]?.projectPublicId;
+      if (canonicalProjectRef && canonicalProjectRef !== projectRef) {
+        window.location.replace(`/verify/projects/${canonicalProjectRef}`);
+        return null;
+      }
       setIndicators(json.indicators);
       return json.indicators;
     } catch (e) {
@@ -101,9 +111,17 @@ export default function VerifyProjectIndicatorsPage({
   };
 
   useEffect(() => {
-    if (Number.isFinite(projectId)) void load();
+    if (projectRef) void load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [projectId]);
+  }, [projectRef]);
+
+  useEffect(() => {
+    if (!indicators || indicators.length === 0) return;
+    const canonicalProjectRef = indicators[0].projectPublicId;
+    if (canonicalProjectRef && canonicalProjectRef !== projectRef) {
+      window.location.replace(`/verify/projects/${canonicalProjectRef}`);
+    }
+  }, [indicators, projectRef]);
 
   useEffect(() => {
     if (!toast) return;
@@ -150,7 +168,7 @@ export default function VerifyProjectIndicatorsPage({
     setCompleteError(null);
     try {
       const res = await fetch(
-        `/api/verify/projects/${projectId}/complete`,
+        `/api/verify/projects/${projectRef}/complete`,
         {
           method: 'POST',
           headers: { 'content-type': 'application/json' },
@@ -190,7 +208,7 @@ export default function VerifyProjectIndicatorsPage({
     for (const ind of pending) {
       try {
         const res = await fetch(
-          `/api/verify/indicators/${ind.indicatorId}/verify`,
+          `/api/verify/indicators/${ind.indicatorPublicId ?? ind.indicatorId}/verify`,
           {
             method: 'POST',
             headers: { 'content-type': 'application/json' },
@@ -245,7 +263,7 @@ export default function VerifyProjectIndicatorsPage({
                 Verify indicators
               </h1>
               <p className="text-xs text-muted-foreground">
-                Project #{projectId} · Review nodal officer submissions and
+                Project #{projectRef} · Review nodal officer submissions and
                 approve.
               </p>
             </div>
@@ -383,7 +401,7 @@ export default function VerifyProjectIndicatorsPage({
           <div className="space-y-3">
             {filtered.map((ind) => (
               <IndicatorRow
-                key={ind.indicatorId}
+                key={ind.indicatorPublicId ?? ind.indicatorId}
                 ind={ind}
                 onVerify={() => setVerifying(ind)}
               />

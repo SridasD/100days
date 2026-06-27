@@ -2,6 +2,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { sql } from "drizzle-orm";
 import { db } from "@/lib/db/client";
+import { resolveSectorId } from "@/lib/db/public-id";
 
 // Departments under a given sector. The link is indirect:
 //   master_projects.sector_id  â†’  master_projects.project_id
@@ -19,8 +20,8 @@ export async function GET(
   { params }: { params: Promise<{ sectorId: string }> },
 ) {
   const { sectorId } = await params;
-  const id = Number(sectorId);
-  if (!Number.isFinite(id) || id <= 0) {
+  const id = await resolveSectorId(sectorId);
+  if (!id) {
     return NextResponse.json({ error: "Invalid sectorId" }, { status: 400 });
   }
 
@@ -162,4 +163,3 @@ export async function GET(
     );
   }
 }
-

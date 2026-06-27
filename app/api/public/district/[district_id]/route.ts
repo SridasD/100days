@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { sql } from "drizzle-orm";
 import { db } from "@/lib/db/client";
+import { resolveDistrictId } from "@/lib/db/public-id";
 
 export const runtime = "nodejs";
 
@@ -9,8 +10,8 @@ export async function GET(
   { params }: { params: Promise<{ district_id: string }> },
 ) {
   const { district_id } = await params;
-  const districtId = Number(district_id);
-  if (!Number.isFinite(districtId)) {
+  const districtId = await resolveDistrictId(district_id);
+  if (!districtId) {
     return NextResponse.json({ error: "Invalid district ID" }, { status: 400 });
   }
 

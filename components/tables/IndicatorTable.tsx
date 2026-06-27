@@ -17,6 +17,7 @@ import {
   Plus,
   Ruler,
   Search,
+  Trash2,
   TriangleAlert,
   Video,
   X,
@@ -44,7 +45,9 @@ import { cn } from '@/lib/utils';
 // ---------------------------------------------------------------------------
 interface ApiIndicator {
   indicatorId: number;
+  indicatorPublicId: string | null;
   projectId: number;
+  projectPublicId: string | null;
   name: string;
   unit: string;
   district: string;
@@ -83,7 +86,7 @@ export interface IndicatorTableProjectTargets {
 }
 
 interface Props {
-  projectId: number;
+  projectId: string;
   projectTargets: IndicatorTableProjectTargets;
 }
 
@@ -173,10 +176,14 @@ function IndicatorCard({
   serialNo,
   i,
   onOpenSheet,
+  canDelete,
+  onDelete,
 }: {
   serialNo: number;
   i: IndicatorRow;
   onOpenSheet: (indicator: IndicatorRow, tab: ActionTab) => void;
+  canDelete: boolean;
+  onDelete: (indicator: IndicatorRow) => void;
 }) {
   return (
     <Card className="group overflow-hidden border-l-4 border-l-[#2E7D32] shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg hover:border-l-[#4CAF50]">
@@ -241,7 +248,7 @@ function IndicatorCard({
 
           <Button asChild variant="outline" size="sm" className="cursor-pointer">
             <Link
-              href={`/officer/indicators/${i.indicatorId}/edit`}
+              href={`/officer/indicators/${i.indicatorPublicId ?? i.indicatorId}/edit`}
               aria-label={`Edit ${i.name}`}
             >
               <Pencil className="h-3.5 w-3.5" aria-hidden />
@@ -301,6 +308,18 @@ function IndicatorCard({
         </div>
 
         <div className="flex flex-wrap items-center justify-end gap-2 pt-1">
+          {canDelete && (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => onDelete(i)}
+              className="cursor-pointer border-error-red/40 text-error-red transition-colors duration-200 hover:bg-error-red hover:text-white"
+            >
+              <Trash2 className="h-4 w-4" aria-hidden />
+              Delete
+            </Button>
+          )}
           <Button
             type="button"
             variant="outline"
@@ -387,7 +406,7 @@ function ErrorState({
   );
 }
 
-function EmptyState({ projectId }: { projectId: number }) {
+function EmptyState({ projectId }: { projectId: string }) {
   return (
     <Card className="border-dashed">
       <CardContent className="flex flex-col items-center justify-center gap-3 py-16 text-center">
@@ -450,6 +469,7 @@ export function IndicatorTable({ projectId, projectTargets }: Props) {
   const [data, setData] = useState<IndicatorRow[] | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [canDeleteIndicator, setCanDeleteIndicator] = useState(false);
 
   const [rawQuery, setRawQuery] = useState('');
   const query = useDebouncedValue(rawQuery, 300);
@@ -490,6 +510,26 @@ export function IndicatorTable({ projectId, projectTargets }: Props) {
   useEffect(() => {
     void load();
   }, [load]);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch('/api/me', { cache: 'no-store' })
+      .then(async (res) => {
+        if (!res.ok) return null;
+        return (await res.json()) as { roleId?: number };
+      })
+      .then((profile) => {
+        if (cancelled || !profile) return;
+        setCanDeleteIndicator(profile.roleId === 3 || profile.roleId === 4);
+      })
+      .catch(() => {
+        if (!cancelled) setCanDeleteIndicator(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const params = useSearchParams();
   const router = useRouter();
@@ -581,6 +621,35 @@ export function IndicatorTable({ projectId, projectTargets }: Props) {
     flashToast('Progress saved');
   };
 
+  const handleDeleteIndicator = async (indicator: IndicatorRow) => {
+    if (!canDeleteIndicator) return;
+
+    const confirmed = window.confirm(
+      `Delete indicator "${indicator.name}"?\n\nThis action permanently removes the indicator and related media/documents from active records.`,
+    );
+    if (!confirmed) return;
+
+    try {
+      const res = await fetch(`/api/officer/indicators/${indicator.indicatorPublicId ?? indicator.indicatorId}`, {
+        method: 'DELETE',
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(body.error ?? `HTTP ${res.status}`);
+      }
+
+      setData((prev) =>
+        prev ? prev.filter((row) => row.indicatorId !== indicator.indicatorId) : prev,
+      );
+      flashToast('Indicator deleted');
+      if (activeIndicator?.indicatorId === indicator.indicatorId) {
+        setSheetOpen(false);
+      }
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to delete indicator');
+    }
+  };
+
   // Sheet calls this when gallery counts change (after add/delete)
   const applyMediaCounts = (counts: {
     imageCount: number;
@@ -657,6 +726,8 @@ export function IndicatorTable({ projectId, projectTargets }: Props) {
             serialNo={startIdx + idx + 1}
             i={ind}
             onOpenSheet={openSheet}
+            canDelete={canDeleteIndicator}
+            onDelete={handleDeleteIndicator}
           />
         ))}
       </div>

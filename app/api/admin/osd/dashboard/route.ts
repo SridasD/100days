@@ -82,6 +82,7 @@ export async function GET(req: NextRequest) {
       db.execute(sql`
                 SELECT
                   md.district_id,
+                  md.public_id AS district_public_id,
                   COALESCE(md.district_name, 'Unknown') AS district_name,
                   COUNT(DISTINCT mp.project_id)::int AS total_projects,
                   COALESCE(ROUND(AVG(COALESCE(i.verified_percentage, i.percentage, 0))::numeric, 1), 0) AS physical_achievement,
@@ -96,7 +97,7 @@ export async function GET(req: NextRequest) {
                   )
                 LEFT JOIN hdp.master_projects mp ON mp.project_id = i.project_id
                   AND COALESCE((to_jsonb(mp)->>'is_archived')::boolean, false) = false
-                GROUP BY md.district_id, COALESCE(md.district_name, 'Unknown')
+                GROUP BY md.district_id, md.public_id, COALESCE(md.district_name, 'Unknown')
                 ORDER BY physical_achievement DESC, total_projects DESC, district_name ASC
             `),
       db.execute(sql`
@@ -266,4 +267,3 @@ export async function GET(req: NextRequest) {
     );
   }
 }
-

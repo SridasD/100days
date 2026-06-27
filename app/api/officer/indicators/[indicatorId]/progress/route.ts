@@ -3,6 +3,7 @@ import { sql } from "drizzle-orm";
 import { z } from "zod";
 import { isSession, requireOfficerSession } from "@/lib/auth/session";
 import { db } from "@/lib/db/client";
+import { resolveIndicatorId } from "@/lib/db/public-id";
 import { officerOwnsIndicator } from "@/lib/db/queries/officer";
 import { writeAudit } from "@/lib/audit/writeAudit";
 import { AUDIT_ACTIONS } from "@/lib/db/schema/audit";
@@ -33,8 +34,8 @@ export async function PUT(
   const session = sessionOrResponse;
 
   const { indicatorId } = await params;
-  const id = Number(indicatorId);
-  if (!Number.isFinite(id)) {
+  const id = await resolveIndicatorId(indicatorId);
+  if (!id) {
     return NextResponse.json({ error: "Invalid indicatorId" }, { status: 400 });
   }
 

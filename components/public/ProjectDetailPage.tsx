@@ -78,6 +78,7 @@ export interface PublicProjectVideo {
 
 export interface PublicProject {
   projectId: number;
+  projectPublicId?: string;
   projectCode: string | null;
   name: string;
   description: string;
@@ -86,6 +87,7 @@ export interface PublicProject {
   completionDate: string | null;
   departments: string;
   primarySecId: number | null;
+  primarySecPublicId?: string | null;
   primaryDeptName: string;
   overallPhysicalPct: number;
   overallFinancialPct: number;
@@ -138,6 +140,7 @@ export function ProjectDetailPage({ project }: { project: PublicProject }) {
           <div>
             <Breadcrumbs
               primarySecId={project.primarySecId}
+              primarySecPublicId={project.primarySecPublicId}
               deptName={project.primaryDeptName}
               projectName={project.name}
             />
@@ -247,7 +250,7 @@ export function ProjectDetailPage({ project }: { project: PublicProject }) {
 
           {project.primarySecId && (
             <Link
-              href={`/public/department/${project.primarySecId}`}
+              href={`/public/departments/${project.primarySecPublicId ?? project.primarySecId}`}
               className="inline-flex items-center gap-1.5 text-xs font-medium text-hdp-green hover:underline"
             >
               <ArrowLeft className="h-3.5 w-3.5" />
@@ -930,10 +933,12 @@ function extractYouTubeId(url: string): string | null {
 // ===========================================================================
 function Breadcrumbs({
   primarySecId,
+  primarySecPublicId,
   deptName,
   projectName,
 }: {
   primarySecId: number | null;
+  primarySecPublicId?: string | null;
   deptName: string;
   projectName: string;
 }) {
@@ -949,7 +954,7 @@ function Breadcrumbs({
       {primarySecId ? (
         <>
           <Link
-            href={`/public/department/${primarySecId}`}
+            href={`/public/departments/${primarySecPublicId ?? primarySecId}`}
             className="hover:text-white"
           >
             {deptName || 'വകുപ്പ്'}

@@ -6,9 +6,10 @@
  * the visual language stays consistent.
  *
  * Route: /public/sectors/[sectorId]
- * Data:  GET /api/public/sector/[sectorId]/departments
+ * Data:  GET /api/public/sectors/[sectorPublicId]/departments
  */
 import { use, useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import {
   AlertTriangle,
@@ -47,6 +48,7 @@ interface ApiDepartment {
 
 interface ApiSector {
   sectorId: number;
+  sectorPublicId?: string;
   sectorName: string;
   imagePath: string | null;
   projects: number;
@@ -82,56 +84,80 @@ export default function PublicSectorPage({
   params: Promise<{ sectorId: string }>;
 }) {
   const { sectorId } = use(params);
-  const id = Number(sectorId);
+  const router = useRouter();
+  const sectorRef = sectorId.trim();
+  const numericSectorId = Number(sectorRef);
 
   const [sector, setSector] = useState<ApiSector | null>(null);
   const [departments, setDepartments] = useState<ApiDepartment[] | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!Number.isFinite(id) || id <= 0) {
+    if (!sectorRef) {
       setError('Invalid sector id');
       return;
     }
     let cancelled = false;
 
-    // Fetch sectors + this sector's departments in parallel. Sectors comes
-    // back as a list so we pluck the matching one for headline data.
-    Promise.allSettled([
-      fetch('/api/public/sectors', { cache: 'no-store' }).then((r) =>
-        r.ok ? r.json() : Promise.reject(new Error(`HTTP ${r.status}`)),
-      ),
-      fetch(`/api/public/sector/${id}/departments`, { cache: 'no-store' }).then(
-        (r) =>
-          r.ok ? r.json() : Promise.reject(new Error(`HTTP ${r.status}`)),
-      ),
-    ]).then(([sectorsR, depsR]) => {
-      if (cancelled) return;
-      if (sectorsR.status === 'fulfilled') {
-        const list = (sectorsR.value as { sectors: ApiSector[] }).sectors ?? [];
-        const found = list.find((s) => s.sectorId === id) ?? null;
-        setSector(found);
+    const fetchJson = async <T,>(path: string): Promise<T> => {
+      const response = await fetch(path, { cache: 'no-store' });
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
       }
-      if (depsR.status === 'fulfilled') {
-        setDepartments(
-          (depsR.value as { departments: ApiDepartment[] }).departments ?? [],
-        );
-      } else {
-        setError(
-          (depsR.reason instanceof Error
-            ? depsR.reason.message
-            : 'Failed to load'),
-        );
-        setDepartments([]);
+      return response.json() as Promise<T>;
+    };
+
+    const load = async () => {
+      setError(null);
+      try {
+        const [sectorJson, departmentsJson] = await Promise.all([
+          fetchJson<{ sector?: ApiSector }>(`/api/public/sectors/${sectorRef}`),
+          fetchJson<{ departments: ApiDepartment[] }>(
+            `/api/public/sectors/${sectorRef}/departments`,
+          ),
+        ]);
+
+        if (cancelled) return;
+        setSector(sectorJson.sector ?? null);
+        setDepartments(departmentsJson.departments ?? []);
+      } catch {
+        try {
+          const [sectorJson, departmentsJson] = await Promise.all([
+            fetchJson<{ sector?: ApiSector }>(`/api/public/sector/${sectorRef}`),
+            fetchJson<{ departments: ApiDepartment[] }>(
+              `/api/public/sector/${sectorRef}/departments`,
+            ),
+          ]);
+
+          if (cancelled) return;
+          setSector(sectorJson.sector ?? null);
+          setDepartments(departmentsJson.departments ?? []);
+        } catch (fallbackError) {
+          if (cancelled) return;
+          setError(
+            fallbackError instanceof Error ? fallbackError.message : 'Failed to load',
+          );
+          setDepartments([]);
+        }
       }
-    });
+    };
+
+    void load();
 
     return () => {
       cancelled = true;
     };
-  }, [id]);
+  }, [sectorRef]);
 
-  const meta = SECTOR_META[id];
+  useEffect(() => {
+    if (sector?.sectorPublicId && sector.sectorPublicId !== sectorRef) {
+      router.replace(`/public/sectors/${sector.sectorPublicId}`);
+    }
+  }, [router, sector?.sectorPublicId, sectorRef]);
+
+  const meta = Number.isFinite(numericSectorId)
+    ? SECTOR_META[numericSectorId]
+    : undefined;
   const Icon = meta?.icon ?? Building2;
   const nameMal = meta?.nameMal ?? sector?.sectorName ?? 'മേഖല';
 

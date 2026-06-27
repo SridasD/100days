@@ -9,6 +9,7 @@ import {
   requireVerifierSession,
 } from "@/lib/auth/verifier-session";
 import { db } from "@/lib/db/client";
+import { resolveIndicatorId } from "@/lib/db/public-id";
 import { listGallery } from "@/lib/db/queries/officer";
 import { verifierOwnsIndicator } from "@/lib/db/queries/verifier";
 import { writeAudit } from "@/lib/audit/writeAudit";
@@ -46,8 +47,8 @@ export async function GET(
   const session = sessionOrResponse;
 
   const { indicatorId } = await params;
-  const id = Number(indicatorId);
-  if (!Number.isFinite(id)) {
+  const id = await resolveIndicatorId(indicatorId);
+  if (!id) {
     return NextResponse.json({ error: "Invalid indicatorId" }, { status: 400 });
   }
 
@@ -85,8 +86,8 @@ export async function POST(
   const session = sessionOrResponse;
 
   const { indicatorId } = await params;
-  const id = Number(indicatorId);
-  if (!Number.isFinite(id)) {
+  const id = await resolveIndicatorId(indicatorId);
+  if (!id) {
     return NextResponse.json({ error: "Invalid indicatorId" }, { status: 400 });
   }
 
@@ -358,9 +359,9 @@ export async function DELETE(
   const session = sessionOrResponse;
 
   const { indicatorId } = await params;
-  const id = Number(indicatorId);
+  const id = await resolveIndicatorId(indicatorId);
   const galleryId = Number(req.nextUrl.searchParams.get("galleryId"));
-  if (!Number.isFinite(id) || !Number.isFinite(galleryId)) {
+  if (!id || !Number.isFinite(galleryId)) {
     return NextResponse.json(
       { error: "Invalid indicatorId or galleryId" },
       { status: 400 },
@@ -417,4 +418,3 @@ export async function DELETE(
     return NextResponse.json({ error: "Failed to delete" }, { status: 500 });
   }
 }
-

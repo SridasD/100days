@@ -95,6 +95,7 @@ async function generateCompletedProjectsReportCSV() {
     SELECT
       mp.project_code,
       mp.project_name,
+      COALESCE(msf.source_of_funding_name, '') AS source_of_funding,
       ms.secretary_name,
       COUNT(i.indicator_id) as indicator_count,
       COALESCE(SUM(CASE WHEN i.verified_date IS NOT NULL THEN 1 ELSE 0 END), 0) as verified_indicators,
@@ -102,16 +103,25 @@ async function generateCompletedProjectsReportCSV() {
     FROM hdp.master_projects mp
     LEFT JOIN hdp.project_secretary ps ON mp.project_id = ps.project_id
     LEFT JOIN hdp.master_secretary ms ON ps.sec_id = ms.sec_id
+    LEFT JOIN hdp.master_source_of_funding msf
+      ON msf.source_of_funding_id = mp.source_of_funding_id
     LEFT JOIN hdp.indicators i ON mp.project_id = i.project_id
     WHERE mp.is_completed = 1
         AND COALESCE(mp.is_archived, false) = false
-    GROUP BY mp.project_id, mp.project_code, mp.project_name, ms.secretary_name, mp.project_cost
+    GROUP BY
+      mp.project_id,
+      mp.project_code,
+      mp.project_name,
+      msf.source_of_funding_name,
+      ms.secretary_name,
+      mp.project_cost
     ORDER BY mp.project_name
   `);
 
   const headers = [
     "Code",
     "Project Name",
+    "Source Of Funding",
     "Secretary",
     "Indicators",
     "Verified",
@@ -122,6 +132,7 @@ async function generateCompletedProjectsReportCSV() {
     return [
       String(r.project_code ?? ""),
       String(r.project_name ?? ""),
+      String(r.source_of_funding ?? ""),
       String(r.secretary_name ?? ""),
       Number(r.indicator_count ?? 0),
       Number(r.verified_indicators ?? 0),

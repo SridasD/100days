@@ -37,6 +37,7 @@ export type ProjectStatus = 'in-progress' | 'completed' | 'not-started';
 
 interface ApiProject {
   projectId: number;
+  projectPublicId: string | null;
   projectCode: string | null;
   projectName: string | null;
   projectCost: number;
@@ -54,6 +55,7 @@ interface ApiProject {
 
 export interface OfficerProjectRow {
   projectId: number;
+  projectPublicId: string;
   projectCode: string;
   projectName: string;
   projectCost: number;
@@ -377,7 +379,7 @@ function ProjectCard({ p }: { p: OfficerProjectRow }) {
             className="cursor-pointer border-[#2E7D32] font-semibold text-[#2E7D32] transition-colors duration-200 hover:bg-[#2E7D32] hover:text-white"
           >
             <Link
-              href={`/officer/projects/${p.projectId}/indicators`}
+              href={`/officer/projects/${p.projectPublicId}/indicators`}
               aria-label={`View indicators for ${p.projectName}`}
             >
               View Indicators
@@ -516,6 +518,7 @@ export function ProjectTable() {
           : cost - allocated;
         return {
           projectId: p.projectId,
+          projectPublicId: p.projectPublicId ?? String(p.projectId),
           projectCode: p.projectCode ?? '',
           projectName: p.projectName ?? '',
           projectCost: cost,

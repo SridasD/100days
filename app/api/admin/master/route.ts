@@ -15,6 +15,7 @@ export async function GET() {
       secretaries: data.secretaries,
       departments: data.departments,
       sectors: data.sectors,
+      fundingSources: data.fundingSources,
       roles: data.roles,
       districts: data.districts,
     });

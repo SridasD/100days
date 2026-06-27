@@ -2,6 +2,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { sql } from "drizzle-orm";
 import { db } from "@/lib/db/client";
+import { resolveSecretaryId } from "@/lib/db/public-id";
 
 // Public department detail. Returns the department label, headline stats,
 // and the full list of projects under that sec_id with their indicator /
@@ -18,8 +19,8 @@ export async function GET(
   { params }: { params: Promise<{ secId: string }> },
 ) {
   const { secId } = await params;
-  const id = Number(secId);
-  if (!Number.isFinite(id) || id <= 0) {
+  const id = await resolveSecretaryId(secId);
+  if (!id) {
     return NextResponse.json({ error: "Invalid secId" }, { status: 400 });
   }
 
@@ -31,6 +32,7 @@ export async function GET(
     const head = await db.execute(sql`
       SELECT
         ms.sec_id,
+        ms.public_id,
         ms.secretary_name,
         COALESCE(NULLIF(TRIM(ms.secretary_name_mal), ''), ms.secretary_name)
           AS secretary_name_mal,
@@ -84,6 +86,7 @@ export async function GET(
     const projectsResult = await db.execute(sql`
       SELECT
         mp.project_id,
+        mp.public_id,
         mp.project_code,
         mp.project_name AS project_name,
         COALESCE(mp.project_cost, 0)::numeric AS project_cost,
@@ -148,6 +151,9 @@ export async function GET(
       else if (isCompleted === 1) status = "in-progress";
       return {
         projectId: Number(r.project_id),
+        projectPublicId: r.public_id
+          ? String(r.public_id)
+          : String(r.project_id),
         projectCode: r.project_code ?? null,
         name: r.project_name ?? "",
         costInLakhs: Number(r.project_cost) || 0,
@@ -165,6 +171,9 @@ export async function GET(
     return NextResponse.json({
       department: {
         secId: Number(headRow.sec_id),
+        departmentPublicId: headRow.public_id
+          ? String(headRow.public_id)
+          : String(headRow.sec_id),
         nameMal: headRow.secretary_name_mal ?? headRow.secretary_name ?? "",
         stats: {
           projects: Number(headRow.projects) || 0,
@@ -183,4 +192,3 @@ export async function GET(
     );
   }
 }
-

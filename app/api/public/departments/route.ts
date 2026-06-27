@@ -14,6 +14,7 @@ export async function GET() {
     const r = await db.execute(sql`
       SELECT
         ms.sec_id,
+        ms.public_id,
         ms.secretary_name,
         COALESCE(NULLIF(TRIM(ms.secretary_name_mal), ''), ms.secretary_name)
           AS secretary_name_mal,
@@ -119,6 +120,9 @@ export async function GET() {
       }
       return {
         secId: Number(row.sec_id),
+        departmentPublicId: row.public_id
+          ? String(row.public_id)
+          : String(row.sec_id),
         nameMal:
           (typeof row.secretary_name_mal === "string" &&
             row.secretary_name_mal) ||
@@ -144,4 +148,3 @@ export async function GET() {
     );
   }
 }
-

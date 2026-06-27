@@ -6,6 +6,7 @@ import {
   requireVerifierSession,
 } from "@/lib/auth/verifier-session";
 import { db } from "@/lib/db/client";
+import { resolveProjectId } from "@/lib/db/public-id";
 import { writeAudit } from "@/lib/audit/writeAudit";
 import { AUDIT_ACTIONS } from "@/lib/db/schema/audit";
 
@@ -30,8 +31,8 @@ export async function POST(
   const session = sessionOrResponse;
 
   const { projectId } = await params;
-  const id = Number(projectId);
-  if (!Number.isFinite(id)) {
+  const id = await resolveProjectId(projectId);
+  if (!id) {
     return NextResponse.json({ error: "Invalid projectId" }, { status: 400 });
   }
 

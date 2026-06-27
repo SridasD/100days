@@ -2,9 +2,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import { sql } from "drizzle-orm";
 import { z } from "zod";
-import { isSession, requireOfficerSession } from "@/lib/auth/session";
+import {
+  ROLE,
+  isSession,
+  requireOfficerSession,
+  requireSession,
+} from "@/lib/auth/session";
 import { db } from "@/lib/db/client";
 import { officerOwnsIndicator } from "@/lib/db/queries/officer";
+import { resolveIndicatorId } from "@/lib/db/public-id";
 import { writeAudit } from "@/lib/audit/writeAudit";
 import { AUDIT_ACTIONS } from "@/lib/db/schema/audit";
 
@@ -39,8 +45,8 @@ export async function GET(
   const session = sessionOrResponse;
 
   const { indicatorId } = await params;
-  const id = Number(indicatorId);
-  if (!Number.isFinite(id)) {
+  const id = await resolveIndicatorId(indicatorId);
+  if (!id) {
     return NextResponse.json({ error: "Invalid indicatorId" }, { status: 400 });
   }
 
@@ -60,6 +66,7 @@ export async function GET(
       SELECT
         i.indicator_id,
         i.project_id,
+        mp.public_id AS project_public_id,
         i.indicator_name,
         i.unit,
         i.district_id,
@@ -75,6 +82,7 @@ export async function GET(
         i.submitted_date,
         i.verified_date
       FROM hdp.indicators i
+      INNER JOIN hdp.master_projects mp ON i.project_id = mp.project_id
       WHERE i.indicator_id = ${id}
       LIMIT 1
     `);
@@ -86,6 +94,9 @@ export async function GET(
       indicator: {
         indicatorId: Number(row.indicator_id),
         projectId: Number(row.project_id),
+        projectPublicId: row.project_public_id
+          ? String(row.project_public_id)
+          : String(row.project_id),
         indicatorName: row.indicator_name ?? "",
         unit: row.unit ?? "",
         districtId: row.district_id != null ? Number(row.district_id) : 0,
@@ -150,8 +161,8 @@ export async function PATCH(
   const session = sessionOrResponse;
 
   const { indicatorId } = await params;
-  const id = Number(indicatorId);
-  if (!Number.isFinite(id)) {
+  const id = await resolveIndicatorId(indicatorId);
+  if (!id) {
     return NextResponse.json({ error: "Invalid indicatorId" }, { status: 400 });
   }
 
@@ -283,44 +294,43 @@ export async function DELETE(
   req: NextRequest,
   { params }: { params: Promise<{ indicatorId: string }> },
 ) {
-  const sessionOrResponse = await requireOfficerSession();
+  const sessionOrResponse = await requireSession(req);
   if (!isSession(sessionOrResponse)) return sessionOrResponse;
   const session = sessionOrResponse;
 
-  const { indicatorId } = await params;
-  const id = Number(indicatorId);
-  if (!Number.isFinite(id)) {
-    return NextResponse.json({ error: "Invalid indicatorId" }, { status: 400 });
-  }
-
-  const owns = await officerOwnsIndicator(id, {
-    roleId: session.roleId,
-    secId: session.secId,
-    deptId: session.deptId,
-  });
-  if (!owns) {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-  }
-
-  const lock = await db.execute(sql`
-    SELECT verified_date FROM hdp.indicators
-    WHERE indicator_id = ${id} LIMIT 1
-  `);
-  const lockRow = lock.rows[0] as { verified_date: string | null } | undefined;
-  if (lockRow?.verified_date) {
+  const canDeleteByRole =
+    session.roleId === ROLE.ADMIN || session.roleId === ROLE.OSD_ADMIN;
+  if (!canDeleteByRole) {
     return NextResponse.json(
       {
         error:
-          "This indicator has already been verified and can no longer be deleted.",
+          "Only Tech Administrator and OSD admin are authorized to delete indicators.",
       },
-      { status: 409 },
+      { status: 403 },
     );
   }
 
+  const { indicatorId } = await params;
+  const id = await resolveIndicatorId(indicatorId);
+  if (!id) {
+    return NextResponse.json({ error: "Invalid indicatorId" }, { status: 400 });
+  }
+
+  const rowResult = await db.execute(sql`
+    SELECT indicator_id, indicator_name
+    FROM hdp.indicators
+    WHERE indicator_id = ${id}
+    LIMIT 1
+  `);
+  const row = rowResult.rows[0] as
+    | { indicator_id: number | string; indicator_name: string | null }
+    | undefined;
+  if (!row) {
+    return NextResponse.json({ error: "Indicator not found" }, { status: 404 });
+  }
+
   try {
-    await db.execute(
-      sql`DELETE FROM hdp.indicators WHERE indicator_id = ${id}`,
-    );
+    await db.execute(sql`SELECT hdp.delete_indicator_safe(${id})`);
 
     await writeAudit({
       userId: session.userId,
@@ -329,7 +339,10 @@ export async function DELETE(
       entityId: id,
       request: req,
       secId: session.secId,
-      meta: { deletedBy: session.userId },
+      meta: {
+        deletedBy: session.userId,
+        indicatorName: row.indicator_name ?? null,
+      },
     });
 
     return NextResponse.json({ ok: true });
@@ -341,4 +354,3 @@ export async function DELETE(
     );
   }
 }
-

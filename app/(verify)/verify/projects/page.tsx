@@ -12,6 +12,7 @@ import { Card, CardContent } from '@/components/ui/card';
 
 interface VerifierProject {
   projectId: number;
+  projectPublicId: string | null;
   projectName: string;
   department: string;
   indicatorsPending: number;
@@ -159,7 +160,7 @@ export default function VerifyProjectsPage() {
                       size="sm"
                       className="cursor-pointer"
                     >
-                      <Link href={`/verify/projects/${p.projectId}`}>
+                      <Link href={`/verify/projects/${p.projectPublicId ?? p.projectId}`}>
                         Review Indicators
                       </Link>
                     </Button>

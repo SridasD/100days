@@ -47,18 +47,27 @@ const RING_CIRCUMFERENCE = 2 * Math.PI * RING_R; // ≈ 565.49
 /* ─────────────────────────────────────────────────────────────
  * IST helpers
  * ──────────────────────────────────────────────────────────── */
-/** Return a Date object representing the current instant, but with its
- *  UTC fields shifted so calling getUTC* on it yields IST values. */
-function nowIST(): Date {
-  const now = new Date();
-  return new Date(now.getTime() + (IST_OFFSET_MIN + now.getTimezoneOffset()) * 60_000);
-}
-
 /** Midnight IST at the start of the given YYYY-MM-DD date. */
 function istMidnight(dateISO: string): Date {
   // Build the IST midnight as a UTC instant: 00:00 IST = 18:30 UTC the
   // previous day. Easier to construct it as "YYYY-MM-DDT00:00:00+05:30".
   return new Date(`${dateISO}T00:00:00+05:30`);
+}
+
+/** Current IST wall-clock parts represented via UTC getters. */
+function nowISTParts() {
+  const shifted = new Date(Date.now() + IST_OFFSET_MIN * 60_000);
+  return {
+    year: shifted.getUTCFullYear(),
+    month: shifted.getUTCMonth(),
+    day: shifted.getUTCDate(),
+  };
+}
+
+/** Next midnight in IST as a real instant. */
+function nextIstMidnight(now: Date): Date {
+  const { year, month, day } = nowISTParts();
+  return new Date(Date.UTC(year, month, day + 1, 0, -IST_OFFSET_MIN, 0, 0));
 }
 
 /* ─────────────────────────────────────────────────────────────
@@ -107,26 +116,24 @@ export function LiveCountdown() {
     setHydrated(true);
 
     const compute = () => {
-      const ist = nowIST();
+      const now = new Date();
       const startMidnight = istMidnight(PHASE_START);
       const endMidnight = istMidnight(PHASE_END);
 
-      const started = ist.getTime() >= startMidnight.getTime();
-      const ended = ist.getTime() >= endMidnight.getTime() + 24 * 3600_000;
+      const started = now.getTime() >= startMidnight.getTime();
+      const ended = now.getTime() >= endMidnight.getTime() + 24 * 3600_000;
 
       // Days completed = whole IST days since PHASE_START. Clamped 0..100.
-      const msSinceStart = ist.getTime() - startMidnight.getTime();
+      const msSinceStart = now.getTime() - startMidnight.getTime();
       const rawDays = Math.floor(msSinceStart / (24 * 3600_000));
       const days = Math.max(0, Math.min(TOTAL_DAYS, rawDays));
       setDaysCompleted(days);
       setPhaseStarted(started);
       setPhaseEnded(ended);
 
-      // Time to the next IST midnight, in milliseconds. We use the IST-
-      // shifted Date so getUTC* fields read as IST.
-      const nextMidnight = new Date(ist);
-      nextMidnight.setUTCHours(24, 0, 0, 0);
-      const diff = Math.max(0, nextMidnight.getTime() - ist.getTime());
+      // Time to the next IST midnight, in milliseconds, using explicit
+      // IST boundary instants so the result is correct in every timezone.
+      const diff = Math.max(0, nextIstMidnight(now).getTime() - now.getTime());
       const h = Math.floor(diff / 3_600_000);
       const m = Math.floor((diff % 3_600_000) / 60_000);
       const s = Math.floor((diff % 60_000) / 1000);

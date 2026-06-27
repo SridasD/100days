@@ -53,6 +53,7 @@ export async function GET() {
         const allocated = r.total_allocated ? Number(r.total_allocated) : 0;
         return {
           projectId: r.project_id,
+          projectPublicId: r.public_id,
           projectCode: r.project_code,
           projectName: r.project_name,
           projectNameMal: r.project_name_mal,

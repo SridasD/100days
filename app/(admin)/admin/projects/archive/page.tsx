@@ -13,6 +13,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 interface ArchivedProject {
     archiveId: number;
     projectId: number;
+    projectPublicId: string | null;
     projectCode: string;
     projectName: string;
     department: string;
@@ -93,7 +94,7 @@ function ArchivedProjectsPageContent() {
         setRestoringId(project.projectId);
         setError(null);
         try {
-            const res = await fetch(`/api/admin/projects/archive/${project.projectId}/restore`, {
+            const res = await fetch(`/api/admin/projects/archive/${project.projectPublicId ?? project.projectId}/restore`, {
                 method: 'POST',
             });
             const b = await res.json().catch(() => ({}));
@@ -196,7 +197,7 @@ function ArchivedProjectsPageContent() {
                                             <TableCell>
                                                 <div className="flex items-center gap-2">
                                                     <Button asChild variant="outline" size="sm">
-                                                        <Link href={`/admin/projects/archive/${r.projectId}`}>View Details</Link>
+                                                        <Link href={`/admin/projects/archive/${r.projectPublicId ?? r.projectId}`}>View Details</Link>
                                                     </Button>
                                                     <Button
                                                         variant="outline"
@@ -208,7 +209,7 @@ function ArchivedProjectsPageContent() {
                                                         {restoringId === r.projectId ? 'Restoring...' : 'Restore'}
                                                     </Button>
                                                     <Button asChild variant="outline" size="sm">
-                                                        <Link href={`/api/admin/projects/archive/${r.projectId}/export`}>
+                                                        <Link href={`/api/admin/projects/archive/${r.projectPublicId ?? r.projectId}/export`}>
                                                             <Download className="h-3.5 w-3.5" />
                                                             Export
                                                         </Link>

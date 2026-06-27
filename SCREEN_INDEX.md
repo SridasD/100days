@@ -4,17 +4,21 @@ This index catalogs all current UI screens (`app/**/page.tsx`) by route group, e
 
 ## 1. Public Screens
 
-| Route                                              | Screen                           | Primary Audience | Source File                                                             |
-| -------------------------------------------------- | -------------------------------- | ---------------- | ----------------------------------------------------------------------- |
-| `/`                                                | Public Home                      | Public           | `app/(public)/page.tsx`                                                 |
-| `/department/[secId]`                              | Department Summary (legacy path) | Public           | `app/(public)/department/[secId]/page.tsx`                              |
-| `/public/completed`                                | Completed Projects               | Public           | `app/(public)/public/completed/page.tsx`                                |
-| `/public/department/[sec_id]`                      | Department Summary               | Public           | `app/(public)/public/department/[sec_id]/page.tsx`                      |
-| `/public/department/[sec_id]/project/[project_id]` | Department Project Detail        | Public           | `app/(public)/public/department/[sec_id]/project/[project_id]/page.tsx` |
-| `/public/district/[district_id]`                   | District Detail (OSD-protected)  | OSD Admin        | `app/(public)/public/district/[district_id]/page.tsx`                   |
-| `/public/gallery/[project_id]`                     | Project Media Gallery            | Public           | `app/(public)/public/gallery/[project_id]/page.tsx`                     |
-| `/public/projects/[id]`                            | Public Project Detail            | Public           | `app/(public)/public/projects/[id]/page.tsx`                            |
-| `/public/sectors/[sectorId]`                       | Sector Detail                    | Public           | `app/(public)/public/sectors/[sectorId]/page.tsx`                       |
+| Route                                                                 | Screen                                   | Primary Audience | Source File                                                                                |
+| --------------------------------------------------------------------- | ---------------------------------------- | ---------------- | ------------------------------------------------------------------------------------------ |
+| `/`                                                                   | Public Home                              | Public           | `app/(public)/page.tsx`                                                                    |
+| `/department/[secId]`                                                 | Department Summary (legacy path)         | Public           | `app/(public)/department/[secId]/page.tsx`                                                 |
+| `/public/completed`                                                   | Completed Projects                       | Public           | `app/(public)/public/completed/page.tsx`                                                   |
+| `/public/departments/[departmentPublicId]`                            | Department Summary                       | Public           | `app/(public)/public/departments/[departmentPublicId]/page.tsx`                            |
+| `/public/department/[sec_id]`                                         | Department Summary (legacy alias)        | Public           | `app/(public)/public/department/[sec_id]/page.tsx`                                         |
+| `/public/departments/[departmentPublicId]/projects/[projectPublicId]` | Department Project Detail                | Public           | `app/(public)/public/departments/[departmentPublicId]/projects/[projectPublicId]/page.tsx` |
+| `/public/department/[sec_id]/project/[project_id]`                    | Department Project Detail (legacy alias) | Public           | `app/(public)/public/department/[sec_id]/project/[project_id]/page.tsx`                    |
+| `/public/districts/[districtPublicId]`                                | District Detail (OSD-protected)          | OSD Admin        | `app/(public)/public/districts/[districtPublicId]/page.tsx`                                |
+| `/public/district/[district_id]`                                      | District Detail (legacy alias)           | OSD Admin        | `app/(public)/public/district/[district_id]/page.tsx`                                      |
+| `/public/gallery/projects/[projectPublicId]`                          | Project Media Gallery                    | Public           | `app/(public)/public/gallery/projects/[projectPublicId]/page.tsx`                          |
+| `/public/gallery/[project_id]`                                        | Project Media Gallery (legacy alias)     | Public           | `app/(public)/public/gallery/[project_id]/page.tsx`                                        |
+| `/public/projects/[projectPublicId]`                                  | Public Project Detail                    | Public           | `app/(public)/public/projects/[id]/page.tsx`                                               |
+| `/public/sectors/[sectorPublicId]`                                    | Sector Detail                            | Public           | `app/(public)/public/sectors/[sectorId]/page.tsx`                                          |
 
 ## 2. Authentication Screens
 
@@ -64,7 +68,7 @@ This index catalogs all current UI screens (`app/**/page.tsx`) by route group, e
 | `/projects/[projectId]/indicators/[indicatorId]/upload`     | Indicator Upload (legacy path)   | Officer (2/6)    | `app/(officer)/projects/[projectId]/indicators/[indicatorId]/upload/page.tsx`     |
 | `/projects/[projectId]/indicators/[indicatorId]/video`      | Indicator Video (legacy path)    | Officer (2/6)    | `app/(officer)/projects/[projectId]/indicators/[indicatorId]/video/page.tsx`      |
 | `/officer/projects`                                         | Officer Projects                 | Officer (2/6)    | `app/(officer)/officer/projects/page.tsx`                                         |
-| `/officer/projects/[pid]/indicators`                        | Officer Project Indicators       | Officer (2/6)    | `app/(officer)/officer/projects/[pid]/indicators/page.tsx`                        |
+| `/officer/projects/[projectPublicId]/indicators`            | Officer Project Indicators       | Officer (2/6)    | `app/(officer)/officer/projects/[pid]/indicators/page.tsx`                        |
 | `/officer/projects/[pid]/indicators/[indicatorId]/progress` | Officer Indicator Progress       | Officer (2/6)    | `app/(officer)/officer/projects/[pid]/indicators/[indicatorId]/progress/page.tsx` |
 | `/officer/projects/[pid]/indicators/[indicatorId]/upload`   | Officer Indicator Upload         | Officer (2/6)    | `app/(officer)/officer/projects/[pid]/indicators/[indicatorId]/upload/page.tsx`   |
 | `/officer/projects/[pid]/indicators/[indicatorId]/video`    | Officer Indicator Video          | Officer (2/6)    | `app/(officer)/officer/projects/[pid]/indicators/[indicatorId]/video/page.tsx`    |
@@ -77,14 +81,14 @@ This index catalogs all current UI screens (`app/**/page.tsx`) by route group, e
 
 ## 6. Verification Screens
 
-| Route                              | Screen                         | Primary Audience         | Source File                                             |
-| ---------------------------------- | ------------------------------ | ------------------------ | ------------------------------------------------------- |
-| `/verify/projects`                 | Verification Projects          | Verification Officer (1) | `app/(verify)/verify/projects/page.tsx`                 |
-| `/verify/projects/[pid]`           | Verification Project Detail    | Verification Officer (1) | `app/(verify)/verify/projects/[pid]/page.tsx`           |
-| `/verify/indicators/[id]`          | Verify Indicator               | Verification Officer (1) | `app/(verify)/verify/indicators/[id]/page.tsx`          |
-| `/verify/indicators/[id]/upload`   | Verify Indicator Upload Review | Verification Officer (1) | `app/(verify)/verify/indicators/[id]/upload/page.tsx`   |
-| `/verify/indicators/[id]/video`    | Verify Indicator Video Review  | Verification Officer (1) | `app/(verify)/verify/indicators/[id]/video/page.tsx`    |
-| `/verify/settings/change-password` | Verify Change Password         | Verification Officer (1) | `app/(verify)/verify/settings/change-password/page.tsx` |
+| Route                                | Screen                         | Primary Audience         | Source File                                             |
+| ------------------------------------ | ------------------------------ | ------------------------ | ------------------------------------------------------- |
+| `/verify/projects`                   | Verification Projects          | Verification Officer (1) | `app/(verify)/verify/projects/page.tsx`                 |
+| `/verify/projects/[projectPublicId]` | Verification Project Detail    | Verification Officer (1) | `app/(verify)/verify/projects/[pid]/page.tsx`           |
+| `/verify/indicators/[id]`            | Verify Indicator               | Verification Officer (1) | `app/(verify)/verify/indicators/[id]/page.tsx`          |
+| `/verify/indicators/[id]/upload`     | Verify Indicator Upload Review | Verification Officer (1) | `app/(verify)/verify/indicators/[id]/upload/page.tsx`   |
+| `/verify/indicators/[id]/video`      | Verify Indicator Video Review  | Verification Officer (1) | `app/(verify)/verify/indicators/[id]/video/page.tsx`    |
+| `/verify/settings/change-password`   | Verify Change Password         | Verification Officer (1) | `app/(verify)/verify/settings/change-password/page.tsx` |
 
 ## 7. Secretary Screens
 
@@ -105,3 +109,4 @@ This index catalogs all current UI screens (`app/**/page.tsx`) by route group, e
 - This file indexes pages currently present in `app/**/page.tsx`.
 - Access decisions are enforced by auth callbacks and session role logic; see `ROLE_MATRIX.md`.
 - Some route families include both legacy and canonical officer paths to maintain compatibility.
+- Canonical URL policy and migration path are defined in `ROUTING_CANONICALIZATION_PLAN.md`.

@@ -17,6 +17,7 @@ import {
 
 interface AdminUser {
   userId: number;
+  userPublicId: string | null;
   userName: string;
   loginName: string;
   mobileNo: string;
@@ -170,7 +171,7 @@ export default function AdminUsersPage() {
                   </TableCell>
                   <TableCell>
                     <Button asChild variant="outline" size="sm">
-                      <Link href={`/admin/users/${user.userId}`}>Edit</Link>
+                      <Link href={`/admin/users/${user.userPublicId ?? user.userId}`}>Edit</Link>
                     </Button>
                   </TableCell>
                 </TableRow>

@@ -7,7 +7,7 @@
  * decorates known sector_ids with a Malayalam label + Lucide icon. Unknown
  * sectors still render with the English name + a generic icon.
  *
- * Clicking a card navigates to /public/sectors/[sectorId] where the
+ * Clicking a card navigates to /public/sectors/[sectorPublicId] where the
  * department list for that sector is rendered.
  */
 import { useEffect, useState } from 'react';
@@ -32,6 +32,7 @@ type Status = 'completed' | 'in-progress' | 'not-started';
 
 interface ApiSector {
   sectorId: number;
+  sectorPublicId: string;
   sectorName: string;
   imagePath: string | null;
   projects: number;
@@ -132,7 +133,7 @@ function SectorCard({ sector }: { sector: ApiSector }) {
 
   return (
     <Link
-      href={`/public/sectors/${sector.sectorId}`}
+      href={`/public/sectors/${sector.sectorPublicId}`}
       className="group relative block h-44 overflow-hidden rounded-2xl shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:shadow-lg"
     >
       <img

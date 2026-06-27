@@ -20,11 +20,12 @@ export const authConfig: NextAuthConfig = {
         /\.(png|jpg|jpeg|gif|webp|svg|ico|css|js|map|txt|xml)$/i.test(pathname);
 
       // OSD-only district detail view and backing API.
-      // These routes are under /public for historical URL compatibility,
-      // but must not be accessible to anonymous/public users.
+      // Keep both legacy singular and canonical plural paths protected.
       if (
         pathname.startsWith("/public/district/") ||
-        pathname.startsWith("/api/public/district/")
+        pathname.startsWith("/public/districts/") ||
+        pathname.startsWith("/api/public/district/") ||
+        pathname.startsWith("/api/public/districts/")
       ) {
         if (!isLoggedIn) {
           if (isApiRoute) {
@@ -71,7 +72,12 @@ export const authConfig: NextAuthConfig = {
       if (role === 1 && pathname.startsWith("/officer"))
         return Response.redirect(new URL("/verify/projects", nextUrl));
       if (role === 5 && pathname.startsWith("/secretary")) return true;
-      if (role === 5 && (pathname.startsWith("/officer") || pathname.startsWith("/verify") || pathname.startsWith("/admin")))
+      if (
+        role === 5 &&
+        (pathname.startsWith("/officer") ||
+          pathname.startsWith("/verify") ||
+          pathname.startsWith("/admin"))
+      )
         return Response.redirect(new URL("/secretary/dashboard", nextUrl));
       if (
         role === 4 &&

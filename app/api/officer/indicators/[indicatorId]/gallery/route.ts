@@ -5,6 +5,7 @@ import path from "node:path";
 import { randomUUID } from "node:crypto";
 import { isSession, requireOfficerSession } from "@/lib/auth/session";
 import { db } from "@/lib/db/client";
+import { resolveIndicatorId } from "@/lib/db/public-id";
 import { listGallery, officerOwnsIndicator } from "@/lib/db/queries/officer";
 import { writeAudit } from "@/lib/audit/writeAudit";
 import { AUDIT_ACTIONS } from "@/lib/db/schema/audit";
@@ -32,8 +33,8 @@ export async function GET(
   const session = sessionOrResponse;
 
   const { indicatorId } = await params;
-  const id = Number(indicatorId);
-  if (!Number.isFinite(id)) {
+  const id = await resolveIndicatorId(indicatorId);
+  if (!id) {
     return NextResponse.json({ error: "Invalid indicatorId" }, { status: 400 });
   }
 
@@ -75,8 +76,8 @@ export async function POST(
   const session = sessionOrResponse;
 
   const { indicatorId } = await params;
-  const id = Number(indicatorId);
-  if (!Number.isFinite(id)) {
+  const id = await resolveIndicatorId(indicatorId);
+  if (!id) {
     return NextResponse.json({ error: "Invalid indicatorId" }, { status: 400 });
   }
 
@@ -399,9 +400,9 @@ export async function DELETE(
   const session = sessionOrResponse;
 
   const { indicatorId } = await params;
-  const id = Number(indicatorId);
+  const id = await resolveIndicatorId(indicatorId);
   const galleryId = Number(req.nextUrl.searchParams.get("galleryId"));
-  if (!Number.isFinite(id) || !Number.isFinite(galleryId)) {
+  if (!id || !Number.isFinite(galleryId)) {
     return NextResponse.json(
       { error: "Invalid indicatorId or galleryId" },
       { status: 400 },

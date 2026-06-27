@@ -61,6 +61,7 @@ type SectorRow = {
 
 type DistrictRow = {
     district_id: number;
+    district_public_id?: string | null;
     district_name: string;
     total_projects: number;
     physical_achievement: number;
@@ -681,7 +682,7 @@ export default function OsdDashboardPage() {
                                         return (
                                             <Link
                                                 key={row.district_id}
-                                                href={`/public/district/${row.district_id}`}
+                                                href={`/public/districts/${row.district_public_id ?? row.district_id}`}
                                                 className={cn('rounded-xl border p-3 shadow-sm transition-transform hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring', toneClass)}
                                             >
                                                 <div className="flex items-start justify-between gap-2">

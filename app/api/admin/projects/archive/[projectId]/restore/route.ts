@@ -5,6 +5,7 @@ import {
   requireTechAdminSession,
 } from "@/lib/auth/admin-session";
 import { db } from "@/lib/db/client";
+import { resolveProjectId } from "@/lib/db/public-id";
 import { ROLE } from "@/lib/auth/session";
 import type { OfficerSession } from "@/lib/auth/session";
 import { AUDIT_ACTIONS } from "@/lib/db/schema/audit";
@@ -34,8 +35,8 @@ export async function POST(
   }
 
   const { projectId } = await params;
-  const id = Number(projectId);
-  if (!Number.isFinite(id)) {
+  const id = await resolveProjectId(projectId);
+  if (!id) {
     return NextResponse.json({ error: "Invalid project id" }, { status: 400 });
   }
 

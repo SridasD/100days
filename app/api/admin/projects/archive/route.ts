@@ -28,6 +28,7 @@ export async function GET(req: NextRequest) {
       SELECT
         ar.archive_id,
         ar.project_id,
+        mp.public_id,
         ar.project_code,
         ar.project_name,
         ar.department_snapshot,
@@ -41,6 +42,7 @@ export async function GET(req: NextRequest) {
         ud.login_name AS archived_by_login,
         ar.impact_payload
       FROM hdp.project_archive_repository ar
+      LEFT JOIN hdp.master_projects mp ON mp.project_id = ar.project_id
       LEFT JOIN hdp.user_details ud ON ud.user_id = ar.archived_by
       WHERE ar.is_restored = false
         AND (
@@ -84,6 +86,7 @@ export async function GET(req: NextRequest) {
       archivedProjects: (rows.rows as Array<any>).map((r) => ({
         archiveId: Number(r.archive_id),
         projectId: Number(r.project_id),
+        projectPublicId: r.public_id ?? null,
         projectCode: r.project_code ?? "",
         projectName: r.project_name ?? "",
         department: r.department_snapshot ?? "â€”",
@@ -114,4 +117,3 @@ export async function GET(req: NextRequest) {
     );
   }
 }
-

@@ -45,12 +45,16 @@ import {
 
 interface AdminProject {
   projectId: number;
+  projectPublicId: string | null;
   projectCode: string | null;
   projectName: string | null;
   projectNameMal: string | null;
   description: string | null;
+  projectOutcome: string | null;
   projectCost: string | null;
   sectorId: number | null;
+  sourceOfFundingId: number | null;
+  sourceOfFundingName: string | null;
   isCompleted: number | null;
   stage: number | null;
   secId: number | null;
@@ -184,6 +188,8 @@ function AdminProjectsPageContent() {
         project.secretaryName ?? '',
         project.departmentNames ?? '',
         project.description ?? '',
+        project.projectOutcome ?? '',
+        project.sourceOfFundingName ?? '',
       ].some((value) => value.toLowerCase().includes(term));
     });
   }, [departmentFilter, projects, query, statusFilter]);
@@ -235,7 +241,7 @@ function AdminProjectsPageContent() {
     setArchiveDialogOpen(true);
 
     try {
-      const res = await fetch(`/api/admin/projects/${project.projectId}/archive`, {
+      const res = await fetch(`/api/admin/projects/${project.projectPublicId ?? project.projectId}/archive`, {
         cache: 'no-store',
       });
       const body = await res.json().catch(() => ({}));
@@ -596,6 +602,11 @@ function AdminProjectsPageContent() {
                                   {project.departmentNames}
                                 </p>
                               ) : null}
+                              {project.sourceOfFundingName ? (
+                                <p className="text-[11px] font-medium text-kerala-blue/80">
+                                  Funding: {project.sourceOfFundingName}
+                                </p>
+                              ) : null}
                               {project.description ? (
                                 <p className="line-clamp-2 max-w-4xl text-xs leading-5 text-muted-foreground">
                                   {project.description}
@@ -619,7 +630,7 @@ function AdminProjectsPageContent() {
                           <TableCell>
                             <div className="flex justify-center gap-2">
                               <Button asChild variant="outline" size="sm">
-                                <Link href={`${projectsBasePath}/${project.projectId}/edit`}>
+                                <Link href={`${projectsBasePath}/${project.projectPublicId ?? project.projectId}/edit`}>
                                   Edit
                                 </Link>
                               </Button>

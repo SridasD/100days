@@ -55,7 +55,9 @@ import { cn } from '@/lib/utils';
 // ===========================================================================
 export interface VerifierIndicator {
   indicatorId: number;
+  indicatorPublicId?: string | null;
   projectId: number;
+  projectPublicId?: string | null;
   name: string;
   district: string;
   submittedByName: string;
@@ -213,7 +215,7 @@ export function VerifierIndicatorSheet({
   // Fetch gallery when sheet opens
   useEffect(() => {
     if (!open || !indicator) return;
-    const id = indicator.indicatorId;
+    const id = indicator.indicatorPublicId ?? indicator.indicatorId;
     setGalleryLoading(true);
     setGalleryError(null);
     fetch(`/api/verify/indicators/${id}/gallery`, { cache: 'no-store' })
@@ -241,7 +243,7 @@ export function VerifierIndicatorSheet({
     setHistoryError(null);
     try {
       const res = await fetch(
-        `/api/verify/indicators/${indicator.indicatorId}/history`,
+        `/api/verify/indicators/${indicator.indicatorPublicId ?? indicator.indicatorId}/history`,
         { cache: 'no-store' },
       );
       if (!res.ok) {
@@ -311,7 +313,7 @@ export function VerifierIndicatorSheet({
     startSave(async () => {
       try {
         const res = await fetch(
-          `/api/verify/indicators/${indicator.indicatorId}/verify`,
+          `/api/verify/indicators/${indicator.indicatorPublicId ?? indicator.indicatorId}/verify`,
           {
             method: 'POST',
             headers: { 'content-type': 'application/json' },
@@ -348,7 +350,7 @@ export function VerifierIndicatorSheet({
   const refreshGallery = useCallback(async () => {
     if (!indicator) return;
     const res = await fetch(
-      `/api/verify/indicators/${indicator.indicatorId}/gallery`,
+      `/api/verify/indicators/${indicator.indicatorPublicId ?? indicator.indicatorId}/gallery`,
       { cache: 'no-store' },
     );
     if (!res.ok) return;
@@ -732,7 +734,7 @@ export function VerifierIndicatorSheet({
               className="flex flex-1 flex-col overflow-hidden data-[state=inactive]:hidden"
             >
               <MediaTab
-                indicatorId={indicator.indicatorId}
+                indicatorId={indicator.indicatorPublicId ?? indicator.indicatorId}
                 images={images}
                 loading={galleryLoading}
                 error={galleryError}
@@ -748,7 +750,7 @@ export function VerifierIndicatorSheet({
               className="flex flex-1 flex-col overflow-hidden data-[state=inactive]:hidden"
             >
               <VideoTab
-                indicatorId={indicator.indicatorId}
+                indicatorId={indicator.indicatorPublicId ?? indicator.indicatorId}
                 videos={videos}
                 loading={galleryLoading}
                 error={galleryError}
@@ -804,7 +806,7 @@ function MediaTab({
   onChange,
   onToast,
 }: {
-  indicatorId: number;
+  indicatorId: string | number;
   images: GalleryItem[];
   loading: boolean;
   error: string | null;
@@ -1153,7 +1155,7 @@ function VideoTab({
   onChange,
   onToast,
 }: {
-  indicatorId: number;
+  indicatorId: string | number;
   videos: GalleryItem[];
   loading: boolean;
   error: string | null;

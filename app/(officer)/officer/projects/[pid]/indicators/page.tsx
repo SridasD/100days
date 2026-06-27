@@ -18,6 +18,7 @@ import { IndicatorTable } from '@/components/tables/IndicatorTable';
 import { isSession, requireSession } from '@/lib/auth/session';
 import { getOfficerProject } from '@/lib/db/queries/officer';
 import { db } from '@/lib/db/client';
+import { resolveProjectId } from '@/lib/db/public-id';
 import { sql } from 'drizzle-orm';
 
 // Appendix C.2 + C.3 — server component fetches the project banner via
@@ -60,8 +61,8 @@ export default async function OfficerProjectIndicatorsPage({
   }
 
   const { pid } = await params;
-  const projectIdNum = Number(pid);
-  if (!Number.isFinite(projectIdNum)) {
+  const projectIdNum = await resolveProjectId(pid);
+  if (!projectIdNum) {
     redirect('/officer/projects');
   }
 
@@ -72,6 +73,10 @@ export default async function OfficerProjectIndicatorsPage({
   });
   if (!project) {
     redirect('/officer/projects');
+  }
+
+  if (project.public_id && pid !== project.public_id) {
+    redirect(`/officer/projects/${project.public_id}/indicators`);
   }
 
   const roleLabel = roleId === 6 ? 'Head of Department' : 'Nodal Officer';
@@ -217,7 +222,7 @@ export default async function OfficerProjectIndicatorsPage({
         </div>
 
         <IndicatorTable
-          projectId={projectIdNum}
+          projectId={project.public_id ?? pid}
           projectTargets={{
             projectName: project.project_name ?? '',
             directDays: project.no_days_employed_direct ?? 0,
