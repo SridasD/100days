@@ -1,5 +1,5 @@
-import { NextRequest, NextResponse } from "next/server";
-import { requireSession, ROLE } from "@/lib/auth/session";
+﻿import { NextRequest, NextResponse } from "next/server";
+import { requireSession, ROLE, type OfficerSession } from "@/lib/auth/session";
 
 export const runtime = "nodejs";
 
@@ -18,6 +18,8 @@ export async function requireVerifierSession(req?: NextRequest) {
   return s;
 }
 
-export function isVerifierSession(v: any): v is any {
+export function isVerifierSession(
+  v: OfficerSession | NextResponse,
+): v is OfficerSession {
   return !(v instanceof NextResponse);
 }

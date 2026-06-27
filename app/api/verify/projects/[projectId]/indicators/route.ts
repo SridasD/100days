@@ -4,6 +4,7 @@ import {
   isVerifierSession,
 } from "@/lib/auth/verifier-session";
 import { listVerifierIndicators } from "@/lib/db/queries/verifier";
+import { resolveProjectId } from "@/lib/db/public-id";
 
 export const runtime = "nodejs";
 
@@ -16,8 +17,8 @@ export async function GET(
   const session = sessionOrResponse;
 
   const { projectId } = await params;
-  const id = Number(projectId);
-  if (!Number.isFinite(id)) {
+  const id = await resolveProjectId(projectId);
+  if (!id) {
     return NextResponse.json({ error: "Invalid projectId" }, { status: 400 });
   }
 
@@ -63,7 +64,9 @@ export async function GET(
             : submittedDesc;
         return {
           indicatorId: r.indicator_id,
+          indicatorPublicId: r.public_id,
           projectId: r.project_id,
+          projectPublicId: r.project_public_id,
           name: r.indicator_name ?? "",
           district: r.district_name ?? "",
           submittedByName: r.submitted_by_name ?? "",

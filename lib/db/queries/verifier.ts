@@ -1,14 +1,16 @@
+﻿/* eslint-disable @typescript-eslint/no-explicit-any */
 import { sql } from "drizzle-orm";
 import { db } from "../client";
 
 // ---------------------------------------------------------------------------
 // Verifier-scoped Drizzle queries (role_id = 1).
-// Filtered by sec_id — verification officers see projects/indicators
+// Filtered by sec_id â€” verification officers see projects/indicators
 // assigned to their secretary.
 // ---------------------------------------------------------------------------
 
 export interface VerifierProjectRow {
   project_id: number;
+  public_id: string | null;
   project_code: string | null;
   project_name: string | null;
   project_name_mal: string | null;
@@ -38,15 +40,15 @@ const CURRENTLY_VERIFIED = sql`
  * List projects with submitted indicators that the verifier can act on.
  *
  * Scoping rules:
- *  • `sec_id = 0`  → central verifier, sees projects from every department.
- *  • `sec_id > 0`  → only sees projects assigned to that department.
+ *  â€¢ `sec_id = 0`  â†’ central verifier, sees projects from every department.
+ *  â€¢ `sec_id > 0`  â†’ only sees projects assigned to that department.
  *
  * In both cases we only surface projects that actually have at least one
  * indicator with a `submitted_date` (i.e. nodal officer has saved progress),
  * so the queue is meaningful instead of every project under the dept.
  *
  * DISTINCT is required because a project can be linked to multiple
- * secretaries via `project_secretary` — without it a cross-dept project
+ * secretaries via `project_secretary` â€” without it a cross-dept project
  * would appear once per linked sec_id.
  */
 export async function listVerifierProjects(
@@ -56,6 +58,7 @@ export async function listVerifierProjects(
   const result = await db.execute(sql`
     SELECT DISTINCT ON (mp.project_id)
       mp.project_id,
+      mp.public_id,
       mp.project_code,
       mp.project_name,
       mp.project_name_mal,
@@ -66,7 +69,7 @@ export async function listVerifierProjects(
           LEFT JOIN hdp.master_secretary ms ON ps2.sec_id = ms.sec_id
           WHERE ps2.project_id = mp.project_id
         ),
-        '—'
+        'â€”'
       ) AS department,
       COALESCE((
         SELECT COUNT(*)::int FROM hdp.indicators i
@@ -97,6 +100,8 @@ export async function listVerifierProjects(
 }
 
 export interface VerifierIndicatorRow {
+  public_id: string | null;
+  project_public_id: string | null;
   indicator_id: number;
   project_id: number;
   indicator_name: string | null;
@@ -136,6 +141,8 @@ export async function listVerifierIndicators(
   // the verifier's sec_id matches multiple project_secretary entries.
   const result = await db.execute(sql`
     SELECT DISTINCT ON (i.indicator_id)
+      i.public_id,
+      mp.public_id AS project_public_id,
       i.indicator_id,
       i.project_id,
       i.indicator_name,
@@ -163,6 +170,7 @@ export async function listVerifierIndicators(
         WHERE g.indicator_id = i.indicator_id AND g.gallery_type = 2
       ), 0) AS video_count
     FROM hdp.indicators i
+    INNER JOIN hdp.master_projects mp ON i.project_id = mp.project_id
     LEFT JOIN hdp.master_district md ON i.district_id = md.district_id
     LEFT JOIN hdp.user_details ud_submitted ON i.submitted_by = ud_submitted.user_id
     LEFT JOIN hdp.user_details ud_verified ON i.verified_by = ud_verified.user_id
@@ -177,28 +185,26 @@ export async function listVerifierIndicators(
       i.submitted_date DESC
   `);
 
-  return (result.rows as unknown as Array<any>).map(
-    (row) => {
-      const submittedAt = row.submitted_date
-        ? new Date(row.submitted_date).getTime()
-        : 0;
-      const verifiedAt = row.verified_date
-        ? new Date(row.verified_date).getTime()
-        : 0;
+  return (result.rows as unknown as Array<any>).map((row) => {
+    const submittedAt = row.submitted_date
+      ? new Date(row.submitted_date).getTime()
+      : 0;
+    const verifiedAt = row.verified_date
+      ? new Date(row.verified_date).getTime()
+      : 0;
 
-      const status: VerifierIndicatorRow["status"] =
-        row.verified_date == null
-          ? "pending"
-          : submittedAt > verifiedAt
-            ? "reverification_required"
-            : "approved";
+    const status: VerifierIndicatorRow["status"] =
+      row.verified_date == null
+        ? "pending"
+        : submittedAt > verifiedAt
+          ? "reverification_required"
+          : "approved";
 
-      return {
-        ...row,
-        status,
-      } as VerifierIndicatorRow;
-    },
-  );
+    return {
+      ...row,
+      status,
+    } as VerifierIndicatorRow;
+  });
 }
 
 /**
@@ -228,7 +234,7 @@ export async function getVerifierIndicator(indicatorId: number, secId: number) {
 }
 
 /**
- * Ownership check — returns true when indicator's project belongs to verifier's sec_id
+ * Ownership check â€” returns true when indicator's project belongs to verifier's sec_id
  */
 export async function verifierOwnsIndicator(
   indicatorId: number,

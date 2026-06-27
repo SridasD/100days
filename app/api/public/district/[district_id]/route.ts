@@ -1,15 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
 import { sql } from "drizzle-orm";
 import { db } from "@/lib/db/client";
+import { resolveDistrictId } from "@/lib/db/public-id";
 
 export const runtime = "nodejs";
 
 export async function GET(
   _req: NextRequest,
-  { params }: { params: { district_id: string } },
+  { params }: { params: Promise<{ district_id: string }> },
 ) {
-  const districtId = Number(params.district_id);
-  if (!Number.isFinite(districtId)) {
+  const { district_id } = await params;
+  const districtId = await resolveDistrictId(district_id);
+  if (!districtId) {
     return NextResponse.json({ error: "Invalid district ID" }, { status: 400 });
   }
 
@@ -19,7 +21,10 @@ export async function GET(
       SELECT district_name FROM hdp.master_district
       WHERE district_id = ${districtId} LIMIT 1
     `);
-    const districtName = (districtResult.rows[0] as any)?.district_name;
+    const districtRow = districtResult.rows[0] as
+      | { district_name: string | null }
+      | undefined;
+    const districtName = districtRow?.district_name;
     if (!districtName) {
       return NextResponse.json(
         { error: "District not found" },
@@ -49,17 +54,20 @@ export async function GET(
 
     return NextResponse.json({
       districtName,
-      indicators: indicatorsResult.rows.map((r: any) => ({
-        indicatorId: Number(r.indicator_id),
-        projectName: r.project_name,
-        indicatorName: r.indicator_name,
-        physicalTarget: Number(r.physical_target) || 0,
-        physicalAchievement: Number(r.physical_achievement) || 0,
-        percentage: Number(r.percentage) || 0,
-        verifiedPercentage: Number(r.verified_percentage) || 0,
-        verifiedDate: r.verified_date,
-        submittedDate: r.submitted_date,
-      })),
+      indicators: indicatorsResult.rows.map((row) => {
+        const r = row as Record<string, unknown>;
+        return {
+          indicatorId: Number(r.indicator_id),
+          projectName: String(r.project_name ?? ""),
+          indicatorName: String(r.indicator_name ?? ""),
+          physicalTarget: Number(r.physical_target) || 0,
+          physicalAchievement: Number(r.physical_achievement) || 0,
+          percentage: Number(r.percentage) || 0,
+          verifiedPercentage: Number(r.verified_percentage) || 0,
+          verifiedDate: r.verified_date ?? null,
+          submittedDate: r.submitted_date ?? null,
+        };
+      }),
     });
   } catch (err) {
     console.error("GET /api/public/district/[id] failed", err);

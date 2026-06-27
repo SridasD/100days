@@ -29,7 +29,7 @@ async function generateSummaryReportCSV() {
           )) as verified_indicators
   `);
 
-  const row = result.rows[0] as any;
+  const row = (result.rows[0] as Record<string, unknown> | undefined) ?? {};
   const headers = [
     "Report Type",
     "Total Projects",
@@ -74,12 +74,15 @@ async function generateDepartmentWiseReportCSV() {
     "Indicators",
     "Verified Indicators",
   ];
-  const rows = result.rows.map((r: any) => [
-    r.secretary_name || "Unknown",
-    r.project_count,
-    r.indicator_count,
-    r.verified_indicators,
-  ]);
+  const rows = result.rows.map((row) => {
+    const r = row as Record<string, unknown>;
+    return [
+      String(r.secretary_name ?? "Unknown"),
+      Number(r.project_count ?? 0),
+      Number(r.indicator_count ?? 0),
+      Number(r.verified_indicators ?? 0),
+    ];
+  });
 
   return [headers, ...rows].map((r) => r.join(",")).join("\n");
 }
@@ -92,6 +95,7 @@ async function generateCompletedProjectsReportCSV() {
     SELECT
       mp.project_code,
       mp.project_name,
+      COALESCE(msf.source_of_funding_name, '') AS source_of_funding,
       ms.secretary_name,
       COUNT(i.indicator_id) as indicator_count,
       COALESCE(SUM(CASE WHEN i.verified_date IS NOT NULL THEN 1 ELSE 0 END), 0) as verified_indicators,
@@ -99,29 +103,42 @@ async function generateCompletedProjectsReportCSV() {
     FROM hdp.master_projects mp
     LEFT JOIN hdp.project_secretary ps ON mp.project_id = ps.project_id
     LEFT JOIN hdp.master_secretary ms ON ps.sec_id = ms.sec_id
+    LEFT JOIN hdp.master_source_of_funding msf
+      ON msf.source_of_funding_id = mp.source_of_funding_id
     LEFT JOIN hdp.indicators i ON mp.project_id = i.project_id
     WHERE mp.is_completed = 1
         AND COALESCE(mp.is_archived, false) = false
-    GROUP BY mp.project_id, mp.project_code, mp.project_name, ms.secretary_name, mp.project_cost
+    GROUP BY
+      mp.project_id,
+      mp.project_code,
+      mp.project_name,
+      msf.source_of_funding_name,
+      ms.secretary_name,
+      mp.project_cost
     ORDER BY mp.project_name
   `);
 
   const headers = [
     "Code",
     "Project Name",
+    "Source Of Funding",
     "Secretary",
     "Indicators",
     "Verified",
     "Cost",
   ];
-  const rows = result.rows.map((r: any) => [
-    r.project_code || "",
-    r.project_name || "",
-    r.secretary_name || "",
-    r.indicator_count,
-    r.verified_indicators,
-    r.project_cost || "",
-  ]);
+  const rows = result.rows.map((row) => {
+    const r = row as Record<string, unknown>;
+    return [
+      String(r.project_code ?? ""),
+      String(r.project_name ?? ""),
+      String(r.source_of_funding ?? ""),
+      String(r.secretary_name ?? ""),
+      Number(r.indicator_count ?? 0),
+      Number(r.verified_indicators ?? 0),
+      String(r.project_cost ?? ""),
+    ];
+  });
 
   return [headers, ...rows].map((r) => r.join(",")).join("\n");
 }
@@ -143,24 +160,27 @@ async function generateDistrictBasedReportCSV() {
   `);
 
   const headers = ["District", "Indicators", "Verified", "Avg Progress %"];
-  const rows = result.rows.map((r: any) => [
-    r.district_name || "",
-    r.indicator_count,
-    r.verified_indicators,
-    (r.avg_progress as number).toFixed(2),
-  ]);
+  const rows = result.rows.map((row) => {
+    const r = row as Record<string, unknown>;
+    return [
+      String(r.district_name ?? ""),
+      Number(r.indicator_count ?? 0),
+      Number(r.verified_indicators ?? 0),
+      Number(r.avg_progress ?? 0).toFixed(2),
+    ];
+  });
 
   return [headers, ...rows].map((r) => r.join(",")).join("\n");
 }
 
 export async function GET(
   req: NextRequest,
-  { params }: { params: { reportId: string } },
+  { params }: { params: Promise<{ reportId: string }> },
 ) {
   const sessionOrResponse = await requireAdminSession();
   if (!isAdminSession(sessionOrResponse)) return sessionOrResponse;
 
-  const reportId = params.reportId;
+  const { reportId } = await params;
   const format = req.nextUrl.searchParams.get("format") ?? "csv";
 
   if (!["csv", "xlsx"].includes(format)) {

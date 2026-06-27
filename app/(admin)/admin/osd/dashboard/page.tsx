@@ -237,7 +237,7 @@ export default function OsdDashboardPage() {
         }));
 
         try {
-            const res = await fetch(`/api/public/department/${secId}`, {
+            const res = await fetch(`/api/public/departments/${secId}`, {
                 cache: 'no-store',
             });
             const body = (await res.json().catch(() => ({}))) as Partial<DepartmentDetailResponse> & { error?: string };

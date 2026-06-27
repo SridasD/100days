@@ -224,12 +224,26 @@ Major groups:
 
 - `/api/public/dashboard`
 - `/api/public/departments`
-- `/api/public/department/[secId]`
-- `/api/public/sector/[sectorId]/departments`
+- `/api/public/departments/[departmentPublicId]` (canonical; aliases to legacy handler)
+- `/api/public/department/[secId]` (legacy)
+- `/api/public/sectors/[sectorPublicId]` (canonical alias route)
+- `/api/public/sector/[sectorId]/departments` (legacy)
+- `/api/public/sectors/[sectorPublicId]/departments` (canonical alias route)
+- `/api/public/sector/[sectorId]` (legacy)
 - `/api/public/sectors`
-- `/api/public/project/[projectId]`
-- `/api/public/district/[district_id]`
+- `/api/public/projects/[projectPublicId]` (canonical; aliases to legacy handler)
+- `/api/public/project/[projectId]` (legacy)
+- `/api/public/district/[district_id]` (legacy)
+- `/api/public/districts/[districtPublicId]` (canonical alias route)
 - `/api/public/nature-summary`
+
+### Public route deprecation window
+
+- Legacy public page aliases remain active during transition and redirect to canonical plural routes.
+- Sunset target for legacy page aliases: `2026-12-31`.
+- Legacy alias hits are logged server-side with `[legacy-alias-hit]` for rollout monitoring.
+- Canonical pages and endpoints should be used for all new links and integrations.
+- Canonical public API alias routes emit redirect telemetry headers: `Deprecation`, `Sunset`, `Link`, `X-Alias-Redirect`, `X-Alias-Source`, `X-Legacy-Handler`.
 
 ---
 

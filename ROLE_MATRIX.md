@@ -24,7 +24,7 @@ Legend:
 | Route Family                                    | Public         | 1 Verify                         | 2 Officer                         | 3 Admin                          | 4 OSD                                                           | 5 Secretary                          | 6 Officer Variant                 |
 | ----------------------------------------------- | -------------- | -------------------------------- | --------------------------------- | -------------------------------- | --------------------------------------------------------------- | ------------------------------------ | --------------------------------- |
 | `/` and `/public/*`                             | Allowed        | Allowed                          | Allowed                           | Allowed                          | Allowed                                                         | Allowed                              | Allowed                           |
-| `/public/district/*`                            | Blocked        | Blocked                          | Blocked                           | Blocked                          | Allowed                                                         | Blocked                              | Blocked                           |
+| `/public/districts/*`                           | Blocked        | Blocked                          | Blocked                           | Blocked                          | Allowed                                                         | Blocked                              | Blocked                           |
 | `/login`, `/forgot-password`, `/reset-password` | Allowed        | Allowed                          | Allowed                           | Allowed                          | Allowed                                                         | Allowed                              | Allowed                           |
 | `/change-password` (auth route group)           | Requires login | Requires login                   | Requires login                    | Requires login                   | Requires login                                                  | Requires login                       | Requires login                    |
 | `/officer/*`                                    | Blocked        | Redirected to `/verify/projects` | Allowed                           | Allowed (if route exists)        | Allowed (if route exists)                                       | Redirected to `/secretary/dashboard` | Allowed                           |
@@ -59,7 +59,8 @@ Session role payload and token mapping are also handled in `auth.config.ts` and 
 ## 5. Operational Notes
 
 - Role 6 is explicitly treated as Officer for verify route redirection.
-- `/public/district/*` is an OSD-only protected exception even though it sits under public URL space.
+- `/public/districts/*` is the canonical OSD-only protected exception under public URL space.
+- Legacy `/public/district/*` is retained as a redirect alias for backward compatibility.
 - OSD Admin can enter selected admin project routes while most other `/admin/*` pages redirect to OSD dashboard.
 - Secretary role is isolated to `/secretary/*` and redirected away from officer, verify, and admin areas.
 

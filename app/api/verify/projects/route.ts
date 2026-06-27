@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { sql } from "drizzle-orm";
 import {
   requireVerifierSession,
@@ -9,7 +9,7 @@ import { listVerifierProjects } from "@/lib/db/queries/verifier";
 
 export const runtime = "nodejs";
 
-export async function GET(_req: NextRequest) {
+export async function GET() {
   const sessionOrResponse = await requireVerifierSession();
   if (!isVerifierSession(sessionOrResponse)) return sessionOrResponse;
   const session = sessionOrResponse;
@@ -38,6 +38,7 @@ export async function GET(_req: NextRequest) {
       },
       projects: rows.map((r) => ({
         projectId: r.project_id,
+        projectPublicId: r.public_id,
         projectCode: r.project_code,
         projectName: r.project_name,
         projectNameMal: r.project_name_mal,

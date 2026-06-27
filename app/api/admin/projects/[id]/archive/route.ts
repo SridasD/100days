@@ -3,6 +3,7 @@ import { sql } from "drizzle-orm";
 import { z } from "zod";
 import { isAdminSession, requireAdminSession } from "@/lib/auth/admin-session";
 import { db } from "@/lib/db/client";
+import { resolveProjectId } from "@/lib/db/public-id";
 import { ROLE } from "@/lib/auth/session";
 import { AUDIT_ACTIONS } from "@/lib/db/schema/audit";
 
@@ -153,8 +154,8 @@ export async function GET(
   if (!isAdminSession(sessionOrResponse)) return sessionOrResponse;
 
   const { id } = await params;
-  const projectId = Number(id);
-  if (!Number.isFinite(projectId)) {
+  const projectId = await resolveProjectId(id);
+  if (!projectId) {
     return NextResponse.json({ error: "Invalid id" }, { status: 400 });
   }
 
@@ -187,8 +188,8 @@ export async function POST(
   }
 
   const { id } = await params;
-  const projectId = Number(id);
-  if (!Number.isFinite(projectId)) {
+  const projectId = await resolveProjectId(id);
+  if (!projectId) {
     return NextResponse.json({ error: "Invalid id" }, { status: 400 });
   }
 

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { useParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 import { ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -10,6 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 interface ArchiveDetail {
     archiveId: number;
     projectId: number;
+    projectPublicId: string;
     projectCode: string;
     projectName: string;
     department: string;
@@ -25,14 +26,15 @@ interface ArchiveDetail {
 
 export default function ArchivedProjectDetailPage() {
     const params = useParams<{ projectId: string }>();
-    const id = Number(params.projectId);
+    const router = useRouter();
+    const projectRef = String(params.projectId ?? '').trim();
 
     const [data, setData] = useState<ArchiveDetail | null>(null);
     const [error, setError] = useState<string | null>(null);
 
     useEffect(() => {
-        if (!Number.isFinite(id)) return;
-        fetch(`/api/admin/projects/archive/${id}`, { cache: 'no-store' })
+        if (!projectRef) return;
+        fetch(`/api/admin/projects/archive/${projectRef}`, { cache: 'no-store' })
             .then(async (r) => {
                 if (!r.ok) {
                     const b = await r.json().catch(() => ({}));
@@ -42,7 +44,13 @@ export default function ArchivedProjectDetailPage() {
             })
             .then((j) => setData(j.archive))
             .catch((e) => setError(e instanceof Error ? e.message : 'Failed to load archive detail'));
-    }, [id]);
+    }, [projectRef]);
+
+    useEffect(() => {
+        if (data?.projectPublicId && data.projectPublicId !== projectRef) {
+            router.replace(`/admin/projects/archive/${data.projectPublicId}`);
+        }
+    }, [data?.projectPublicId, projectRef, router]);
 
     return (
         <main className="space-y-6">
@@ -110,7 +118,7 @@ export default function ArchivedProjectDetailPage() {
                         </CardHeader>
                         <CardContent>
                             <Button asChild variant="outline">
-                                <Link href={`/api/admin/projects/archive/${data.projectId}/export`}>Export Details (CSV)</Link>
+                                <Link href={`/api/admin/projects/archive/${data.projectPublicId ?? data.projectId}/export`}>Export Details (CSV)</Link>
                             </Button>
                         </CardContent>
                     </Card>

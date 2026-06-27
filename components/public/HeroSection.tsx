@@ -19,7 +19,8 @@ export interface HeroSectionProps {
   miniStats?: Array<{ label: string; value: number; pct: number }>;
 }
 
-export function HeroSection(_props: HeroSectionProps) {
+export function HeroSection(_unusedProps: HeroSectionProps) {
+  void _unusedProps;
   // The phase start/end + countdown / time calculations now live inside
   // <LiveCountdown />, which reads them from env vars (NEXT_PUBLIC_HDP_PHASE_*).
   // Mini-stats are no longer rendered here either; the widget speaks for

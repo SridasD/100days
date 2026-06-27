@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { Suspense, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useSearchParams, useRouter, usePathname } from 'next/navigation';
 import { ArrowLeft, Download, FolderArchive, RotateCcw, Search } from 'lucide-react';
@@ -13,6 +13,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 interface ArchivedProject {
     archiveId: number;
     projectId: number;
+    projectPublicId: string | null;
     projectCode: string;
     projectName: string;
     department: string;
@@ -30,7 +31,7 @@ function statusLabel(v: number) {
     return 'Not Started';
 }
 
-export default function ArchivedProjectsPage() {
+function ArchivedProjectsPageContent() {
     const [rows, setRows] = useState<ArchivedProject[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -93,7 +94,7 @@ export default function ArchivedProjectsPage() {
         setRestoringId(project.projectId);
         setError(null);
         try {
-            const res = await fetch(`/api/admin/projects/archive/${project.projectId}/restore`, {
+            const res = await fetch(`/api/admin/projects/archive/${project.projectPublicId ?? project.projectId}/restore`, {
                 method: 'POST',
             });
             const b = await res.json().catch(() => ({}));
@@ -196,7 +197,7 @@ export default function ArchivedProjectsPage() {
                                             <TableCell>
                                                 <div className="flex items-center gap-2">
                                                     <Button asChild variant="outline" size="sm">
-                                                        <Link href={`/admin/projects/archive/${r.projectId}`}>View Details</Link>
+                                                        <Link href={`/admin/projects/archive/${r.projectPublicId ?? r.projectId}`}>View Details</Link>
                                                     </Button>
                                                     <Button
                                                         variant="outline"
@@ -208,7 +209,7 @@ export default function ArchivedProjectsPage() {
                                                         {restoringId === r.projectId ? 'Restoring...' : 'Restore'}
                                                     </Button>
                                                     <Button asChild variant="outline" size="sm">
-                                                        <Link href={`/api/admin/projects/archive/${r.projectId}/export`}>
+                                                        <Link href={`/api/admin/projects/archive/${r.projectPublicId ?? r.projectId}/export`}>
                                                             <Download className="h-3.5 w-3.5" />
                                                             Export
                                                         </Link>
@@ -224,5 +225,21 @@ export default function ArchivedProjectsPage() {
                 </CardContent>
             </Card>
         </main>
+    );
+}
+
+export default function ArchivedProjectsPage() {
+    return (
+        <Suspense
+            fallback={
+                <main className="space-y-6">
+                    <Card>
+                        <CardContent className="py-6 text-sm text-muted-foreground">Loading archived projects...</CardContent>
+                    </Card>
+                </main>
+            }
+        >
+            <ArchivedProjectsPageContent />
+        </Suspense>
     );
 }

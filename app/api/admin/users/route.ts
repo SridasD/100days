@@ -29,7 +29,7 @@ const createUserSchema = z.object({
   designation: z.string().max(250).optional(),
 });
 
-export async function GET(_req: NextRequest) {
+export async function GET() {
   const sessionOrResponse = await requireTechAdminSession();
   if (!isAdminSession(sessionOrResponse)) return sessionOrResponse;
 
@@ -38,6 +38,7 @@ export async function GET(_req: NextRequest) {
     return NextResponse.json({
       users: rows.map((r) => ({
         userId: r.user_id,
+        userPublicId: r.public_id,
         userName: r.user_name,
         loginName: r.login_name,
         mobileNo: r.mobile_no,

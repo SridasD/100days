@@ -1,3 +1,4 @@
+﻿/* eslint-disable @typescript-eslint/no-explicit-any */
 import { NextRequest, NextResponse } from "next/server";
 import { sql } from "drizzle-orm";
 import {
@@ -5,6 +6,7 @@ import {
   requireTechAdminSession,
 } from "@/lib/auth/admin-session";
 import { db } from "@/lib/db/client";
+import { resolveProjectId } from "@/lib/db/public-id";
 
 export const runtime = "nodejs";
 
@@ -16,8 +18,8 @@ export async function GET(
   if (!isAdminSession(sessionOrResponse)) return sessionOrResponse;
 
   const { projectId } = await params;
-  const id = Number(projectId);
-  if (!Number.isFinite(id)) {
+  const id = await resolveProjectId(projectId);
+  if (!id) {
     return NextResponse.json({ error: "Invalid project id" }, { status: 400 });
   }
 
@@ -46,11 +48,12 @@ export async function GET(
       archive: {
         archiveId: Number(row.archive_id),
         projectId: Number(row.project_id),
+        projectPublicId: row.public_id ?? String(id),
         projectCode: row.project_code ?? "",
         projectName: row.project_name ?? "",
-        department: row.department_snapshot ?? "—",
-        sector: row.sector_snapshot ?? "—",
-        district: row.district_snapshot ?? "—",
+        department: row.department_snapshot ?? "â€”",
+        sector: row.sector_snapshot ?? "â€”",
+        district: row.district_snapshot ?? "â€”",
         originalStatus: Number(row.project_status) || 0,
         archivedBy: row.archived_by_name ?? row.archived_by_login ?? "Unknown",
         archivedById: row.archived_by ? Number(row.archived_by) : null,

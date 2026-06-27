@@ -78,14 +78,15 @@ export type UserEditValues = z.infer<typeof editSchema>;
 // ---------------------------------------------------------------------------
 interface Props {
   /** When set, the form is in edit mode. */
-  userId?: number;
+  userId?: string | number;
   defaults?: Partial<UserCreateValues>;
   redirectTo?: string;
 }
 
 export function UserForm({ userId, defaults, redirectTo = '/admin/users' }: Props) {
   const router = useRouter();
-  const isEdit = !!userId;
+  const userRef = userId == null ? '' : String(userId).trim();
+  const isEdit = userRef.length > 0;
   const schema = isEdit ? editSchema : createSchema;
 
   const [master, setMaster] = useState<MasterData | null>(null);
@@ -133,10 +134,10 @@ export function UserForm({ userId, defaults, redirectTo = '/admin/users' }: Prop
       try {
         let url: string;
         let method: string;
-        let payload: Record<string, unknown> = { ...values };
+        const payload: Record<string, unknown> = { ...values };
 
         if (isEdit) {
-          url = `/api/admin/users/${userId}`;
+          url = `/api/admin/users/${userRef}`;
           method = 'PATCH';
           // login_name is immutable on edit
           delete payload.login_name;
@@ -157,13 +158,11 @@ export function UserForm({ userId, defaults, redirectTo = '/admin/users' }: Prop
         if (!res.ok) {
           const body = await res.json().catch(() => ({}));
           const debug = body.debug
-            ? `\nDB: ${body.debug.message ?? ''}${
-                body.debug.detail ? ' · ' + body.debug.detail : ''
-              }${body.debug.column ? ' · column: ' + body.debug.column : ''}${
-                body.debug.constraint
-                  ? ' · constraint: ' + body.debug.constraint
-                  : ''
-              }`
+            ? `\nDB: ${body.debug.message ?? ''}${body.debug.detail ? ' · ' + body.debug.detail : ''
+            }${body.debug.column ? ' · column: ' + body.debug.column : ''}${body.debug.constraint
+              ? ' · constraint: ' + body.debug.constraint
+              : ''
+            }`
             : '';
           throw new Error((body.error ?? `HTTP ${res.status}`) + debug);
         }
@@ -229,7 +228,7 @@ export function UserForm({ userId, defaults, redirectTo = '/admin/users' }: Prop
               />
               {isEdit && (
                 <p className="text-[11px] text-muted-foreground">
-                  Login name can't be changed after creation.
+                  Login name cannot be changed after creation.
                 </p>
               )}
             </Field>

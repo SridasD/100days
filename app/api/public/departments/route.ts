@@ -1,3 +1,4 @@
+﻿/* eslint-disable @typescript-eslint/no-explicit-any */
 import { NextResponse } from "next/server";
 import { sql } from "drizzle-orm";
 import { db } from "@/lib/db/client";
@@ -13,6 +14,7 @@ export async function GET() {
     const r = await db.execute(sql`
       SELECT
         ms.sec_id,
+        ms.public_id,
         ms.secretary_name,
         COALESCE(NULLIF(TRIM(ms.secretary_name_mal), ''), ms.secretary_name)
           AS secretary_name_mal,
@@ -105,9 +107,9 @@ export async function GET() {
       const financialPct = Number(row.financial_pct) || 0;
       const indicators = Number(row.indicators) || 0;
       // Simple status heuristic:
-      //   no indicators yet → not-started
-      //   physical 100% AND financial 100% → completed
-      //   otherwise → in-progress
+      //   no indicators yet â†’ not-started
+      //   physical 100% AND financial 100% â†’ completed
+      //   otherwise â†’ in-progress
       let status: "completed" | "in-progress" | "not-started" = "not-started";
       if (indicators === 0) {
         status = "not-started";
@@ -118,6 +120,9 @@ export async function GET() {
       }
       return {
         secId: Number(row.sec_id),
+        departmentPublicId: row.public_id
+          ? String(row.public_id)
+          : String(row.sec_id),
         nameMal:
           (typeof row.secretary_name_mal === "string" &&
             row.secretary_name_mal) ||

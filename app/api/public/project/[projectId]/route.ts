@@ -1,6 +1,8 @@
+﻿/* eslint-disable @typescript-eslint/no-explicit-any */
 import { NextRequest, NextResponse } from "next/server";
 import { sql } from "drizzle-orm";
 import { db } from "@/lib/db/client";
+import { resolveProjectId } from "@/lib/db/public-id";
 
 // Public project detail. Returns:
 //   - project headline (name, code, cost, status, departments)
@@ -16,8 +18,8 @@ export async function GET(
   { params }: { params: Promise<{ projectId: string }> },
 ) {
   const { projectId } = await params;
-  const id = Number(projectId);
-  if (!Number.isFinite(id) || id <= 0) {
+  const id = await resolveProjectId(projectId);
+  if (!id) {
     return NextResponse.json({ error: "Invalid projectId" }, { status: 400 });
   }
 
@@ -26,6 +28,7 @@ export async function GET(
     const head = await db.execute(sql`
       SELECT
         mp.project_id,
+        mp.public_id,
         mp.project_code,
         mp.project_name,
         COALESCE(mp.project_cost, 0)::numeric AS project_cost,
@@ -42,6 +45,12 @@ export async function GET(
           LEFT JOIN hdp.master_secretary ms ON ps.sec_id = ms.sec_id
           WHERE ps.project_id = mp.project_id
         ), '') AS departments,
+        (
+          SELECT ms.public_id FROM hdp.project_secretary ps
+          LEFT JOIN hdp.master_secretary ms ON ps.sec_id = ms.sec_id
+          WHERE ps.project_id = mp.project_id
+          ORDER BY ps.sec_id ASC LIMIT 1
+        ) AS primary_sec_public_id,
         (
           SELECT ps.sec_id FROM hdp.project_secretary ps
           WHERE ps.project_id = mp.project_id
@@ -126,7 +135,7 @@ export async function GET(
         indicatorId: Number(r.indicator_id),
         name: r.indicator_name ?? "",
         unit: r.unit ?? "",
-        district: r.district_name ?? "—",
+        district: r.district_name ?? "â€”",
         physicalTarget: physTarget,
         physicalAchievement: physAch,
         financialTarget: finTarget,
@@ -201,6 +210,9 @@ export async function GET(
     return NextResponse.json({
       project: {
         projectId: Number(headRow.project_id),
+        projectPublicId: headRow.public_id
+          ? String(headRow.public_id)
+          : String(headRow.project_id),
         projectCode: headRow.project_code ?? null,
         name: headRow.project_name ?? "",
         description: headRow.description ?? "",
@@ -211,6 +223,11 @@ export async function GET(
         primarySecId: headRow.primary_sec_id
           ? Number(headRow.primary_sec_id)
           : null,
+        primarySecPublicId: headRow.primary_sec_public_id
+          ? String(headRow.primary_sec_public_id)
+          : headRow.primary_sec_id
+            ? String(headRow.primary_sec_id)
+            : null,
         primaryDeptName: headRow.primary_dept_name ?? "",
         overallPhysicalPct: overallPhysical,
         overallFinancialPct: overallFinancial,

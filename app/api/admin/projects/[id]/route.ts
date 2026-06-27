@@ -4,6 +4,7 @@ import { z } from "zod";
 import { isAdminSession, requireAdminSession } from "@/lib/auth/admin-session";
 import { db } from "@/lib/db/client";
 import { getProject } from "@/lib/db/queries/admin";
+import { resolveProjectId } from "@/lib/db/public-id";
 import { writeAudit } from "@/lib/audit/writeAudit";
 import { AUDIT_ACTIONS } from "@/lib/db/schema/audit";
 
@@ -20,8 +21,8 @@ export async function GET(
   if (!isAdminSession(sessionOrResponse)) return sessionOrResponse;
 
   const { id } = await params;
-  const projectId = Number(id);
-  if (!Number.isFinite(projectId)) {
+  const projectId = await resolveProjectId(id);
+  if (!projectId) {
     return NextResponse.json({ error: "Invalid id" }, { status: 400 });
   }
 
@@ -73,14 +74,20 @@ export async function GET(
     return NextResponse.json({
       project: {
         projectId: Number(row.project_id),
+        projectPublicId: row.public_id
+          ? String(row.public_id)
+          : String(projectId),
         projectCode: row.project_code ?? null,
         projectName: row.project_name ?? "",
         projectNameMal: row.project_name_mal ?? "",
         description: row.description ?? "",
+        projectOutcome: row.project_outcome ?? "",
         isNew:
           row.is_new === true || row.is_new === 1 || row.is_new === "1" ? 1 : 0,
         projectCost: row.project_cost ? Number(row.project_cost) : 0,
         sectorId: row.sector_id ?? null,
+        sourceOfFundingId: row.source_of_funding_id ?? null,
+        sourceOfFundingName: row.source_of_funding_name ?? null,
         natureOfProject: row.nature_of_project ?? null,
         priority: row.priority ?? null,
         projectExecutionType: row.project_execution_type ?? null,
@@ -139,6 +146,12 @@ const updateSchema = z.object({
     .optional()
     .nullable(),
   priority: z.coerce.number().int().min(1).max(3).optional().nullable(),
+  source_of_funding_id: z.coerce
+    .number()
+    .int()
+    .positive()
+    .optional()
+    .nullable(),
   project_execution_type: z.coerce
     .number()
     .int()
@@ -160,6 +173,7 @@ const updateSchema = z.object({
   no_persons_employed_direct: z.coerce.number().int().min(0).default(0),
   no_days_employed_indirect: z.coerce.number().int().min(0).default(0),
   no_persons_employed_indirect: z.coerce.number().int().min(0).default(0),
+  project_outcome: z.string().optional().nullable(),
   other_benefits: z.string().optional().nullable(),
   govt_policy_linkage: z.string().optional().nullable(),
   manifesto_linkage: z.string().optional().nullable(),
@@ -177,8 +191,8 @@ export async function PATCH(
   const session = sessionOrResponse;
 
   const { id } = await params;
-  const projectId = Number(id);
-  if (!Number.isFinite(projectId)) {
+  const projectId = await resolveProjectId(id);
+  if (!projectId) {
     return NextResponse.json({ error: "Invalid id" }, { status: 400 });
   }
 
@@ -203,6 +217,7 @@ export async function PATCH(
         project_cost = ${d.project_cost ?? null},
         nature_of_project = ${d.nature_of_project ?? null},
         priority = ${d.priority ?? null},
+        source_of_funding_id = ${d.source_of_funding_id ?? null},
         project_execution_type = ${d.project_execution_type ?? null},
         is_completed = ${d.is_completed},
         completion_date = ${completionDate},
@@ -211,6 +226,7 @@ export async function PATCH(
         no_persons_employed_direct = ${d.no_persons_employed_direct},
         no_days_employed_indirect = ${d.no_days_employed_indirect},
         no_persons_employed_indirect = ${d.no_persons_employed_indirect},
+        project_outcome = ${d.project_outcome ?? null},
         other_benefits = ${d.other_benefits ?? null},
         govt_policy_linkage = ${d.govt_policy_linkage ?? null},
         manifesto_linkage = ${d.manifesto_linkage ?? null},
@@ -263,6 +279,8 @@ export async function PATCH(
         project_name: d.project_name,
         sec_id: d.sec_id,
         dept_ids: uniqueDeptIds,
+        source_of_funding_id: d.source_of_funding_id ?? null,
+        project_outcome: d.project_outcome ?? null,
       },
     });
 
@@ -302,8 +320,8 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> },
 ) {
   const { id } = await params;
-  const projectId = Number(id);
-  if (!Number.isFinite(projectId)) {
+  const projectId = await resolveProjectId(id);
+  if (!projectId) {
     return NextResponse.json({ error: "Invalid id" }, { status: 400 });
   }
 

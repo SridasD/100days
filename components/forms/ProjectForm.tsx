@@ -25,6 +25,10 @@ interface MasterData {
     dept_name_mal: string | null;
   }[];
   sectors: { sector_id: number; sector_name: string | null }[];
+  fundingSources: {
+    source_of_funding_id: number;
+    source_of_funding_name: string | null;
+  }[];
 }
 
 // ---------------------------------------------------------------------------
@@ -37,6 +41,7 @@ const formSchema = z.object({
   project_cost: z.coerce.number().min(0).optional(),
   nature_of_project: z.coerce.number().int().min(1).max(2),
   priority: z.coerce.number().int().min(1).max(3),
+  source_of_funding_id: z.coerce.number().int().positive('Select source of funding'),
   project_execution_type: z.coerce.number().int().min(1).max(2),
   is_completed: z.coerce.number().int().min(0).max(2),
   completion_date: z.string().optional(),
@@ -51,6 +56,7 @@ const formSchema = z.object({
   no_persons_employed_direct: z.coerce.number().int().min(0).default(0),
   no_days_employed_indirect: z.coerce.number().int().min(0).default(0),
   no_persons_employed_indirect: z.coerce.number().int().min(0).default(0),
+  project_outcome: z.string().optional(),
   other_benefits: z.string().optional(),
   govt_policy_linkage: z.string().optional(),
   manifesto_linkage: z.string().optional(),
@@ -72,7 +78,7 @@ export type ProjectFormValues = z.infer<typeof formSchema>;
 
 interface Props {
   /** When provided, the form runs in edit mode (PATCH /api/admin/projects/[id]). */
-  projectId?: number;
+  projectId?: string | number;
   defaults?: Partial<ProjectFormValues>;
   /** Where to redirect after a successful save. */
   redirectTo?: string;
@@ -80,7 +86,8 @@ interface Props {
 
 export function ProjectForm({ projectId, defaults, redirectTo = '/admin/projects' }: Props) {
   const router = useRouter();
-  const isEdit = !!projectId;
+  const projectRef = projectId == null ? '' : String(projectId).trim();
+  const isEdit = projectRef.length > 0;
 
   const [master, setMaster] = useState<MasterData | null>(null);
   const [masterError, setMasterError] = useState<string | null>(null);
@@ -107,6 +114,7 @@ export function ProjectForm({ projectId, defaults, redirectTo = '/admin/projects
       project_cost: defaults?.project_cost ?? 0,
       nature_of_project: defaults?.nature_of_project ?? 2,
       priority: defaults?.priority ?? 2,
+      source_of_funding_id: defaults?.source_of_funding_id ?? 0,
       project_execution_type: defaults?.project_execution_type ?? 1,
       is_completed: defaults?.is_completed ?? 0,
       completion_date: defaults?.completion_date ?? '',
@@ -117,6 +125,7 @@ export function ProjectForm({ projectId, defaults, redirectTo = '/admin/projects
       no_persons_employed_direct: defaults?.no_persons_employed_direct ?? 0,
       no_days_employed_indirect: defaults?.no_days_employed_indirect ?? 0,
       no_persons_employed_indirect: defaults?.no_persons_employed_indirect ?? 0,
+      project_outcome: defaults?.project_outcome ?? '',
       other_benefits: defaults?.other_benefits ?? '',
       govt_policy_linkage: defaults?.govt_policy_linkage ?? '',
       manifesto_linkage: defaults?.manifesto_linkage ?? '',
@@ -137,6 +146,7 @@ export function ProjectForm({ projectId, defaults, redirectTo = '/admin/projects
       project_cost: defaults.project_cost ?? 0,
       nature_of_project: defaults.nature_of_project ?? 2,
       priority: defaults.priority ?? 2,
+      source_of_funding_id: defaults.source_of_funding_id ?? 0,
       project_execution_type: defaults.project_execution_type ?? 1,
       is_completed: defaults.is_completed ?? 0,
       completion_date: defaults.completion_date ?? '',
@@ -147,6 +157,7 @@ export function ProjectForm({ projectId, defaults, redirectTo = '/admin/projects
       no_persons_employed_direct: defaults.no_persons_employed_direct ?? 0,
       no_days_employed_indirect: defaults.no_days_employed_indirect ?? 0,
       no_persons_employed_indirect: defaults.no_persons_employed_indirect ?? 0,
+      project_outcome: defaults.project_outcome ?? '',
       other_benefits: defaults.other_benefits ?? '',
       govt_policy_linkage: defaults.govt_policy_linkage ?? '',
       manifesto_linkage: defaults.manifesto_linkage ?? '',
@@ -207,7 +218,7 @@ export function ProjectForm({ projectId, defaults, redirectTo = '/admin/projects
     startTransition(async () => {
       try {
         const url = isEdit
-          ? `/api/admin/projects/${projectId}`
+          ? `/api/admin/projects/${projectRef}`
           : '/api/admin/projects';
         const res = await fetch(url, {
           method: isEdit ? 'PATCH' : 'POST',
@@ -318,7 +329,7 @@ export function ProjectForm({ projectId, defaults, redirectTo = '/admin/projects
             <Textarea rows={3} {...register('description')} />
           </Field>
 
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             <Field label="Project Type" required>
               <select {...register('is_new')} className={selectClass}>
                 <option value={1}>New</option>
@@ -354,6 +365,23 @@ export function ProjectForm({ projectId, defaults, redirectTo = '/admin/projects
                 <option value={1}>സംസ്ഥാനതലം / State</option>
                 <option value={2}>ജില്ലാതലം / District</option>
                 <option value={3}>ഉപജില്ലാതലം / Sub-district</option>
+              </select>
+            </Field>
+            <Field
+              label="Source of Funding"
+              required
+              error={errors.source_of_funding_id?.message}
+            >
+              <select {...register('source_of_funding_id')} className={selectClass}>
+                <option value={0}>— Select —</option>
+                {master?.fundingSources.map((f) => (
+                  <option
+                    key={f.source_of_funding_id}
+                    value={f.source_of_funding_id}
+                  >
+                    {f.source_of_funding_name}
+                  </option>
+                ))}
               </select>
             </Field>
             <Field label="Project execution type" required>
@@ -494,6 +522,13 @@ export function ProjectForm({ projectId, defaults, redirectTo = '/admin/projects
           <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
             Additional information
           </h2>
+          <Field label="Project Outcome">
+            <Textarea
+              rows={3}
+              placeholder="Expected outcome or impact of the project"
+              {...register('project_outcome')}
+            />
+          </Field>
           <Field label="Other benefits"><Textarea rows={2} {...register('other_benefits')} /></Field>
           <Field label="Linkage with Govt. policy"><Textarea rows={2} {...register('govt_policy_linkage')} /></Field>
           <Field label="Linkage with Manifesto"><Textarea rows={2} {...register('manifesto_linkage')} /></Field>

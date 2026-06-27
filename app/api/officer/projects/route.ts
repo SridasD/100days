@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { sql } from "drizzle-orm";
 import { isSession, requireOfficerSession } from "@/lib/auth/session";
 import { db } from "@/lib/db/client";
@@ -6,7 +6,7 @@ import { listOfficerProjects } from "@/lib/db/queries/officer";
 
 export const runtime = "nodejs";
 
-export async function GET(_req: NextRequest) {
+export async function GET() {
   const sessionOrResponse = await requireOfficerSession();
   if (!isSession(sessionOrResponse)) return sessionOrResponse;
   const session = sessionOrResponse;
@@ -53,6 +53,7 @@ export async function GET(_req: NextRequest) {
         const allocated = r.total_allocated ? Number(r.total_allocated) : 0;
         return {
           projectId: r.project_id,
+          projectPublicId: r.public_id,
           projectCode: r.project_code,
           projectName: r.project_name,
           projectNameMal: r.project_name_mal,

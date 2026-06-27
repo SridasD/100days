@@ -9,6 +9,7 @@ import {
 import type { OfficerSession } from "@/lib/auth/session";
 import { db } from "@/lib/db/client";
 import { getUser } from "@/lib/db/queries/admin";
+import { resolveUserId } from "@/lib/db/public-id";
 import { writeAudit } from "@/lib/audit/writeAudit";
 import { AUDIT_ACTIONS } from "@/lib/db/schema/audit";
 
@@ -25,8 +26,8 @@ export async function GET(
   if (!isAdminSession(sessionOrResponse)) return sessionOrResponse;
 
   const { id } = await params;
-  const userId = Number(id);
-  if (!Number.isFinite(userId)) {
+  const userId = await resolveUserId(id);
+  if (!userId) {
     return NextResponse.json({ error: "Invalid id" }, { status: 400 });
   }
 
@@ -41,6 +42,7 @@ export async function GET(
     return NextResponse.json({
       user: {
         userId: Number(row.user_id),
+        userPublicId: row.public_id ? String(row.public_id) : String(userId),
         userName: row.user_name ?? "",
         loginName: row.login_name ?? "",
         mobileNo: row.mobile_no ?? "",
@@ -84,8 +86,8 @@ export async function PATCH(
   const session = sessionOrResponse as OfficerSession;
 
   const { id } = await params;
-  const userId = Number(id);
-  if (!Number.isFinite(userId)) {
+  const userId = await resolveUserId(id);
+  if (!userId) {
     return NextResponse.json({ error: "Invalid id" }, { status: 400 });
   }
 

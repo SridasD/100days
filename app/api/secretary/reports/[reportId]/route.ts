@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { sql } from "drizzle-orm";
 import { ROLE, isSession, requireSession } from "@/lib/auth/session";
 import { db } from "@/lib/db/client";
+import { getDefaulterThresholds } from "@/lib/config/defaulter-thresholds";
 
 export const runtime = "nodejs";
 
@@ -103,6 +104,8 @@ async function reportProjectSummary(secId: number) {
     SELECT
       mp.project_code,
       mp.project_name,
+      COALESCE(msf.source_of_funding_name, '') AS source_of_funding,
+      COALESCE(mp.project_outcome, '') AS project_outcome,
       COALESCE(mp.is_completed, 0) AS is_completed,
       COALESCE(ROUND(AVG(COALESCE(i.verified_percentage, i.percentage, 0))::numeric, 1), 0) AS physical_progress,
       COALESCE(ROUND(AVG(COALESCE(i.verified_financial_achievement, i.financial_achievement, 0))::numeric, 1), 0) AS financial_progress,
@@ -110,6 +113,8 @@ async function reportProjectSummary(secId: number) {
       MAX(COALESCE(i.verified_date, i.submitted_date)) AS last_updated
     FROM hdp.master_projects mp
     INNER JOIN hdp.project_secretary ps ON ps.project_id = mp.project_id
+    LEFT JOIN hdp.master_source_of_funding msf
+      ON msf.source_of_funding_id = mp.source_of_funding_id
     LEFT JOIN hdp.indicators i ON i.project_id = mp.project_id
     WHERE ps.sec_id = ${secId}
       AND COALESCE(mp.is_archived, false) = false
@@ -120,6 +125,8 @@ async function reportProjectSummary(secId: number) {
   const headers = [
     "Code",
     "Project",
+    "Source Of Funding",
+    "Project Outcome",
     "Status",
     "Physical %",
     "Financial %",
@@ -129,6 +136,8 @@ async function reportProjectSummary(secId: number) {
   const rows = (result.rows as Row[]).map((r) => [
     r.project_code,
     r.project_name,
+    r.source_of_funding,
+    r.project_outcome,
     Number(r.is_completed) === 2
       ? "completed"
       : Number(r.is_completed) === 1
@@ -226,18 +235,11 @@ async function reportIndicators(secId: number) {
 }
 
 async function reportDefaulters(secId: number) {
-  const pendingDays = Math.max(
-    1,
-    Number(process.env.SECRETARY_PENDING_DAYS ?? 15),
-  );
-  const inactivityDays = Math.max(
-    1,
-    Number(process.env.SECRETARY_INACTIVITY_DAYS ?? 15),
-  );
-  const staleDays = Math.max(
-    1,
-    Number(process.env.SECRETARY_INDICATOR_STALE_DAYS ?? 30),
-  );
+  const {
+    pendingDays,
+    inactivityDays,
+    indicatorStaleDays: staleDays,
+  } = getDefaulterThresholds();
 
   const result = await db.execute(sql`
     WITH pending_progress AS (

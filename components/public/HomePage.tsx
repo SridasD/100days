@@ -60,6 +60,7 @@ interface NatureSummary {
 
 interface ApiDepartment {
   secId: number;
+  departmentPublicId: string;
   nameMal: string;
   projects: number;
   indicators: number;
@@ -589,24 +590,27 @@ function CTABanner() {
         aria-hidden
         className="absolute -bottom-24 -left-20 h-72 w-72 rounded-full bg-white/10 blur-3xl"
       />
-      <div className="container relative mx-auto flex flex-col items-start justify-between gap-6 px-4 md:flex-row md:items-center">
+      <div className="container relative mx-auto px-4">
         <div>
-          <p className="font-malayalam text-xs font-semibold uppercase tracking-wide text-hdp-gold">
-            തുടർച്ച പുരോഗതി
-          </p>
-          <h2 className="font-malayalam mt-2 max-w-2xl text-2xl font-bold leading-tight md:text-3xl">
-            വികസനത്തിന്റെ നൂറുദിനങ്ങൾ,
-            <br />
-            പുതുയുഗ കേരളത്തിന്റെ പുതിയ ചുവടുകൾ.
-          </h2>
+          <div className="flex items-center gap-3">
+            <div className="flex flex-col items-center justify-center leading-none text-white">
+              <span className="text-[28px] font-black leading-none tracking-tight">
+                100
+              </span>
+              <span className="mt-0.5 text-[10px] font-bold uppercase tracking-[0.18em] text-white/85">
+                Days
+              </span>
+            </div>
+            <div className="leading-tight">
+              <p className="font-malayalam text-sm font-bold text-white">
+                കേരള സർക്കാർ
+              </p>
+              <p className="font-malayalam text-[11px] text-white/80">
+                ജനകീയ വികസനത്തിനായുള്ള നൂറുദിന കർമ്മപദ്ധതി
+              </p>
+            </div>
+          </div>
         </div>
-        <Link
-          href="/public/progress"
-          className="group inline-flex cursor-pointer items-center gap-2 rounded-full border border-white/30 bg-white/10 px-6 py-3 text-sm font-semibold text-white backdrop-blur transition-all duration-200 hover:scale-105 hover:bg-white hover:text-hdp-green"
-        >
-          <span className="font-malayalam">പുരോഗതി കാണുക</span>
-          <ArrowRight className="h-4 w-4 transition-transform duration-200 group-hover:translate-x-0.5" />
-        </Link>
       </div>
     </section>
   );
@@ -618,55 +622,11 @@ function CTABanner() {
 function PublicFooter() {
   return (
     <footer className="border-t bg-white">
-      <div className="container mx-auto grid gap-8 px-4 py-12 md:grid-cols-4">
-        <div>
-          <div className="flex items-center gap-3">
-            <div className="flex flex-col items-center justify-center leading-none text-hdp-green">
-              <span className="text-[28px] font-black leading-none tracking-tight">
-                100
-              </span>
-              <span className="mt-0.5 text-[10px] font-bold uppercase tracking-[0.18em] text-hdp-green/85">
-                Days
-              </span>
-            </div>
-            <div className="leading-tight">
-              <p className="font-malayalam text-sm font-bold text-foreground">
-                കേരള സർക്കാർ
-              </p>
-              <p className="font-malayalam text-[11px] text-muted-foreground">
-                ജനകീയ വികസനത്തിനായുള്ള നൂറുദിന കർമ്മപദ്ധതി
-              </p>
-            </div>
-          </div>
-        </div>
-
-        <FooterCol titleMal="ദ്രുത ബന്ധങ്ങൾ">
-          <FooterLink href="/" labelMal="ഹോം" />
-          <FooterLink href="/public/projects" labelMal="പദ്ധതികൾ" />
-          <FooterLink href="/public/gallery" labelMal="ഗാലറി" />
-        </FooterCol>
-
-        <FooterCol titleMal="വിവരങ്ങൾ">
-          <FooterLink href="/public/progress" labelMal="പദ്ധതി പുരോഗതി" />
-          <FooterLink href="/public/departments" labelMal="വകുപ്പുകൾ" />
-          <FooterLink href="/public/sectors" labelMal="മേഖലകൾ" />
-          <FooterLink href="/login" labelMal="ഔദ്യോഗിക ലോഗിൻ" />
-        </FooterCol>
-
-        <FooterCol titleMal="സാങ്കേതിക പിന്തുണ">
-          <p className="font-malayalam text-xs text-muted-foreground">
-            ഡിജിറ്റൽ യൂണിവേഴ്സിറ്റി കേരള
-          </p>
-          <p className="font-malayalam text-xs text-muted-foreground">
-            സ്റ്റേറ്റ് ഡാറ്റാ സെന്ററിൽ ഹോസ്റ്റ് ചെയ്യുന്നു
-          </p>
-        </FooterCol>
-      </div>
       <div className="border-t">
         <div className="container mx-auto flex flex-col items-center justify-between gap-2 px-4 py-4 text-xs text-muted-foreground md:flex-row">
           <p>
-            © 2026 <span className="font-malayalam">കേരള സർക്കാർ</span>. എല്ലാ
-            അവകാശങ്ങളും നിക്ഷിപ്തം.
+            © 2026 <span className="font-malayalam">കേരള സർക്കാർ</span>.{' '}
+            <span className="font-malayalam">എല്ലാ അവകാശങ്ങളും നിക്ഷിപ്തം.</span>
           </p>
           <p>
             <span className="font-malayalam">
@@ -676,36 +636,6 @@ function PublicFooter() {
         </div>
       </div>
     </footer>
-  );
-}
-
-function FooterCol({
-  titleMal,
-  children,
-}: {
-  titleMal: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <div>
-      <p className="font-malayalam text-sm font-bold text-foreground">
-        {titleMal}
-      </p>
-      <ul className="mt-3 space-y-2">{children}</ul>
-    </div>
-  );
-}
-
-function FooterLink({ href, labelMal }: { href: string; labelMal: string }) {
-  return (
-    <li>
-      <Link
-        href={href}
-        className="font-malayalam text-xs text-muted-foreground transition-colors duration-200 hover:text-hdp-green"
-      >
-        {labelMal}
-      </Link>
-    </li>
   );
 }
 

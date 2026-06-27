@@ -9,6 +9,7 @@ import { db } from "../client";
 
 export interface OfficerProjectRow {
   project_id: number;
+  public_id: string | null;
   project_code: string | null;
   project_name: string | null;
   project_name_mal: string | null;
@@ -44,6 +45,7 @@ export async function listOfficerProjects(
   const result = await db.execute(sql`
     SELECT DISTINCT ON (mp.project_id)
       mp.project_id,
+      mp.public_id,
       mp.project_code,
       mp.project_name,
       mp.project_name_mal,
@@ -77,6 +79,8 @@ export async function listOfficerProjects(
     FROM hdp.master_projects mp
     INNER JOIN hdp.project_secretary ps ON mp.project_id = ps.project_id
     WHERE (
+      (${scope.roleId} IN (3, 4))
+      OR
       (${scope.roleId} IN (2, 5) AND ps.sec_id = ${scope.secId})
       OR
       (${scope.roleId} = 6 AND EXISTS (
@@ -110,6 +114,7 @@ export async function getOfficerProject(
   const result = await db.execute(sql`
     SELECT
       mp.project_id,
+      mp.public_id,
       mp.project_code,
       mp.project_name,
       mp.project_name_mal,
@@ -143,6 +148,8 @@ export async function getOfficerProject(
     LEFT JOIN hdp.master_secretary ms ON ps.sec_id = ms.sec_id
     WHERE mp.project_id = ${projectId}
       AND (
+        (${scope.roleId} IN (3, 4))
+        OR
         (${scope.roleId} IN (2, 5) AND ps.sec_id = ${scope.secId})
         OR
         (${scope.roleId} = 6 AND EXISTS (
@@ -160,6 +167,8 @@ export async function getOfficerProject(
 }
 
 export interface OfficerIndicatorRow {
+  public_id: string | null;
+  project_public_id: string | null;
   indicator_id: number;
   project_id: number;
   indicator_name: string | null;
@@ -196,6 +205,8 @@ export async function listIndicatorsForProject(
 ): Promise<OfficerIndicatorRow[]> {
   const result = await db.execute(sql`
     SELECT
+      i.public_id,
+      mp.public_id AS project_public_id,
       i.indicator_id,
       i.project_id,
       i.indicator_name,
@@ -237,9 +248,12 @@ export async function listIndicatorsForProject(
         JOIN hdp.master_department md ON md.dept_id = dept_ids.dept_id
       ), '') AS supporting_dept_names
     FROM hdp.indicators i
+    INNER JOIN hdp.master_projects mp ON i.project_id = mp.project_id
     LEFT JOIN hdp.master_district md ON i.district_id = md.district_id
     WHERE i.project_id = ${projectId}
       AND (
+        (${scope.roleId} IN (3, 4))
+        OR
         (${scope.roleId} IN (2, 5) AND EXISTS (
           SELECT 1
           FROM hdp.project_secretary ps
@@ -273,6 +287,8 @@ export async function officerOwnsIndicator(
     INNER JOIN hdp.project_secretary ps ON i.project_id = ps.project_id
     WHERE i.indicator_id = ${indicatorId}
       AND (
+        (${scope.roleId} IN (3, 4))
+        OR
         (${scope.roleId} IN (2, 5) AND ps.sec_id = ${scope.secId})
         OR
         (${scope.roleId} = 6 AND EXISTS (

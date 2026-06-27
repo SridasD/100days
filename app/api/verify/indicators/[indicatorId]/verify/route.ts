@@ -1,3 +1,4 @@
+﻿/* eslint-disable @typescript-eslint/no-explicit-any */
 import { NextRequest, NextResponse } from "next/server";
 import { sql } from "drizzle-orm";
 import { z } from "zod";
@@ -6,6 +7,7 @@ import {
   isVerifierSession,
 } from "@/lib/auth/verifier-session";
 import { db } from "@/lib/db/client";
+import { resolveIndicatorId } from "@/lib/db/public-id";
 import { verifierOwnsIndicator } from "@/lib/db/queries/verifier";
 import { writeAudit } from "@/lib/audit/writeAudit";
 import { AUDIT_ACTIONS } from "@/lib/db/schema/audit";
@@ -20,7 +22,7 @@ const verifySchema = z.object({
   verified_direct_persons: z.number().int().min(0).default(0),
   verified_indirect_days: z.number().int().min(0).default(0),
   verified_indirect_persons: z.number().int().min(0).default(0),
-  // Verifier remarks — required when corrections diverge from nodal values,
+  // Verifier remarks â€” required when corrections diverge from nodal values,
   // but always recommended. Min 5 chars when present so the trail is useful.
   remarks: z.string().max(2000).optional().default(""),
 });
@@ -34,8 +36,8 @@ export async function POST(
   const session = sessionOrResponse;
 
   const { indicatorId } = await params;
-  const id = Number(indicatorId);
-  if (!Number.isFinite(id)) {
+  const id = await resolveIndicatorId(indicatorId);
+  if (!id) {
     return NextResponse.json({ error: "Invalid indicatorId" }, { status: 400 });
   }
 

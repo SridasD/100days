@@ -1,7 +1,8 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { sql } from "drizzle-orm";
 import { ROLE, isSession, requireSession } from "@/lib/auth/session";
 import { db } from "@/lib/db/client";
+import { getDefaulterThresholds } from "@/lib/config/defaulter-thresholds";
 
 export const runtime = "nodejs";
 
@@ -14,7 +15,7 @@ function toNullableString(v: unknown) {
   return typeof v === "string" ? v : null;
 }
 
-export async function GET(_req: NextRequest) {
+export async function GET() {
   const sessionOrResponse = await requireSession();
   if (!isSession(sessionOrResponse)) return sessionOrResponse;
   const session = sessionOrResponse;
@@ -29,18 +30,8 @@ export async function GET(_req: NextRequest) {
     );
   }
 
-  const pendingDays = Math.max(
-    1,
-    Number(process.env.SECRETARY_PENDING_DAYS ?? 15),
-  );
-  const inactivityDays = Math.max(
-    1,
-    Number(process.env.SECRETARY_INACTIVITY_DAYS ?? 15),
-  );
-  const indicatorStaleDays = Math.max(
-    1,
-    Number(process.env.SECRETARY_INDICATOR_STALE_DAYS ?? 30),
-  );
+  const { pendingDays, inactivityDays, indicatorStaleDays } =
+    getDefaulterThresholds();
 
   try {
     const [

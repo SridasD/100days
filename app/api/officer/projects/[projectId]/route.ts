@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { isSession, requireOfficerSession } from "@/lib/auth/session";
 import { getOfficerProject } from "@/lib/db/queries/officer";
+import { resolveProjectId } from "@/lib/db/public-id";
 
 export const runtime = "nodejs";
 
@@ -13,8 +14,8 @@ export async function GET(
   const session = sessionOrResponse;
 
   const { projectId } = await params;
-  const id = Number(projectId);
-  if (!Number.isFinite(id)) {
+  const id = await resolveProjectId(projectId);
+  if (!id) {
     return NextResponse.json({ error: "Invalid projectId" }, { status: 400 });
   }
 

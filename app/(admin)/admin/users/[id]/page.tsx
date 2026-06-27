@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { ArrowLeft, AlertTriangle, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -10,6 +10,7 @@ import { UserForm } from '@/components/forms/UserForm';
 
 interface ApiUser {
   userId: number;
+  userPublicId: string;
   userName: string;
   loginName: string;
   mobileNo: string;
@@ -23,14 +24,15 @@ interface ApiUser {
 
 export default function AdminUserEditPage() {
   const params = useParams<{ id: string }>();
-  const id = Number(params.id);
+  const router = useRouter();
+  const userRef = String(params.id ?? '').trim();
 
   const [data, setData] = useState<ApiUser | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!Number.isFinite(id)) return;
-    fetch(`/api/admin/users/${id}`, { cache: 'no-store' })
+    if (!userRef) return;
+    fetch(`/api/admin/users/${userRef}`, { cache: 'no-store' })
       .then(async (r) => {
         if (!r.ok) {
           const body = await r.json().catch(() => ({}));
@@ -40,18 +42,24 @@ export default function AdminUserEditPage() {
       })
       .then((j) => setData(j.user))
       .catch((e) => setError(e instanceof Error ? e.message : 'Load failed'));
-  }, [id]);
+  }, [userRef]);
+
+  useEffect(() => {
+    if (data?.userPublicId && data.userPublicId !== userRef) {
+      router.replace(`/admin/users/${data.userPublicId}`);
+    }
+  }, [data?.userPublicId, router, userRef]);
 
   const defaults = data
     ? {
-        user_name: data.userName,
-        login_name: data.loginName,
-        mobile_no: data.mobileNo,
-        role_id: data.roleId,
-        sec_id: data.secId ?? 0,
-        designation: data.designation,
-        status: data.status,
-      }
+      user_name: data.userName,
+      login_name: data.loginName,
+      mobile_no: data.mobileNo,
+      role_id: data.roleId,
+      sec_id: data.secId ?? 0,
+      designation: data.designation,
+      status: data.status,
+    }
     : undefined;
 
   return (
@@ -89,7 +97,7 @@ export default function AdminUserEditPage() {
         </div>
       )}
 
-      {data && <UserForm userId={id} defaults={defaults} />}
+      {data && <UserForm userId={userRef} defaults={defaults} />}
     </main>
   );
 }

@@ -24,27 +24,28 @@ export default function OfficerEditIndicatorPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = use(params);
-  const indicatorId = Number(id);
+  const indicatorRef = id.trim();
 
-  const [projectId, setProjectId] = useState<number | null>(null);
+  const [projectId, setProjectId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!Number.isFinite(indicatorId) || indicatorId <= 0) {
+    if (!indicatorRef) {
       setError('Invalid indicator id');
       return;
     }
     let cancelled = false;
-    fetch(`/api/officer/indicators/${indicatorId}`, { cache: 'no-store' })
+    fetch(`/api/officer/indicators/${indicatorRef}`, { cache: 'no-store' })
       .then(async (r) => {
         if (!r.ok) {
           const b = await r.json().catch(() => ({}));
           throw new Error(b.error ?? `HTTP ${r.status}`);
         }
-        return r.json() as Promise<{ indicator: { projectId: number } }>;
+        return r.json() as Promise<{ indicator: { projectPublicId: string; projectId: number } }>;
       })
       .then((j) => {
-        if (!cancelled) setProjectId(j.indicator.projectId);
+        if (!cancelled)
+          setProjectId(j.indicator.projectPublicId ?? String(j.indicator.projectId));
       })
       .catch((e) => {
         if (!cancelled)
@@ -53,7 +54,7 @@ export default function OfficerEditIndicatorPage({
     return () => {
       cancelled = true;
     };
-  }, [indicatorId]);
+  }, [indicatorRef]);
 
   return (
     <div className="flex min-h-screen flex-col bg-background">
@@ -97,7 +98,7 @@ export default function OfficerEditIndicatorPage({
         )}
 
         {projectId && (
-          <IndicatorForm projectId={projectId} indicatorId={indicatorId} />
+          <IndicatorForm projectId={projectId} indicatorId={indicatorRef} />
         )}
       </main>
 

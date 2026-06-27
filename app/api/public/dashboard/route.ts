@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import {
   getPublicDashboardStats,
   getPublicDistrictProgress,
@@ -8,7 +8,7 @@ import {
 
 export const runtime = "nodejs";
 
-export async function GET(_req: NextRequest) {
+export async function GET() {
   try {
     const [stats, districts, timeline, topProjects] = await Promise.all([
       getPublicDashboardStats(),

@@ -1,4 +1,5 @@
-'use client';
+﻿'use client';
+/* eslint-disable @typescript-eslint/no-explicit-any */
 
 import {
   useCallback,
@@ -54,15 +55,17 @@ import { cn } from '@/lib/utils';
 // ===========================================================================
 export interface VerifierIndicator {
   indicatorId: number;
+  indicatorPublicId?: string | null;
   projectId: number;
+  projectPublicId?: string | null;
   name: string;
   district: string;
   submittedByName: string;
   physicalTarget: number;
-  /** Canonical display value — verified when present, nodal otherwise */
+  /** Canonical display value â€” verified when present, nodal otherwise */
   physicalAchievement: number;
   financialTarget: number;
-  /** Canonical display value — verified when present, nodal otherwise */
+  /** Canonical display value â€” verified when present, nodal otherwise */
   financialAchievement: number;
   percentage: number;
   verifiedPercentage: number;
@@ -212,7 +215,7 @@ export function VerifierIndicatorSheet({
   // Fetch gallery when sheet opens
   useEffect(() => {
     if (!open || !indicator) return;
-    const id = indicator.indicatorId;
+    const id = indicator.indicatorPublicId ?? indicator.indicatorId;
     setGalleryLoading(true);
     setGalleryError(null);
     fetch(`/api/verify/indicators/${id}/gallery`, { cache: 'no-store' })
@@ -240,7 +243,7 @@ export function VerifierIndicatorSheet({
     setHistoryError(null);
     try {
       const res = await fetch(
-        `/api/verify/indicators/${indicator.indicatorId}/history`,
+        `/api/verify/indicators/${indicator.indicatorPublicId ?? indicator.indicatorId}/history`,
         { cache: 'no-store' },
       );
       if (!res.ok) {
@@ -310,7 +313,7 @@ export function VerifierIndicatorSheet({
     startSave(async () => {
       try {
         const res = await fetch(
-          `/api/verify/indicators/${indicator.indicatorId}/verify`,
+          `/api/verify/indicators/${indicator.indicatorPublicId ?? indicator.indicatorId}/verify`,
           {
             method: 'POST',
             headers: { 'content-type': 'application/json' },
@@ -347,7 +350,7 @@ export function VerifierIndicatorSheet({
   const refreshGallery = useCallback(async () => {
     if (!indicator) return;
     const res = await fetch(
-      `/api/verify/indicators/${indicator.indicatorId}/gallery`,
+      `/api/verify/indicators/${indicator.indicatorPublicId ?? indicator.indicatorId}/gallery`,
       { cache: 'no-store' },
     );
     if (!res.ok) return;
@@ -379,7 +382,7 @@ export function VerifierIndicatorSheet({
                 {indicator.name}
               </SheetTitle>
               <SheetDescription className="truncate text-xs text-white/80">
-                Project #{indicator.projectId} · Verifier review
+                Project #{indicator.projectId} Â· Verifier review
               </SheetDescription>
             </div>
             <SheetClose
@@ -403,14 +406,14 @@ export function VerifierIndicatorSheet({
               <span>
                 Financial:{' '}
                 <span className="font-mono font-semibold text-foreground">
-                  ₹ {inrFormat.format(indicator.financialTarget)} L
+                  â‚¹ {inrFormat.format(indicator.financialTarget)} L
                 </span>
               </span>
               <span className="opacity-40">|</span>
               <span className="flex items-center gap-1">
                 <MapPin className="h-3 w-3" />
                 <span className="font-medium text-foreground">
-                  {indicator.district || '—'}
+                  {indicator.district || 'â€”'}
                 </span>
               </span>
               <span className="opacity-40">|</span>
@@ -487,27 +490,27 @@ export function VerifierIndicatorSheet({
                         / {indicator.physicalTarget}
                       </KV>
                       <KV label="Financial (L)">
-                        ₹{' '}
+                        â‚¹{' '}
                         {inrFormat.format(
                           indicator.submittedFinancialAchievement ??
                           indicator.financialAchievement,
                         )}{' '}
-                        / ₹ {inrFormat.format(indicator.financialTarget)}
+                        / â‚¹ {inrFormat.format(indicator.financialTarget)}
                       </KV>
                       <KV label="% Complete">
                         {Math.round(indicator.percentage)}%
                       </KV>
-                      <KV label="By">{indicator.submittedByName || '—'}</KV>
+                      <KV label="By">{indicator.submittedByName || 'â€”'}</KV>
                       <KV label="On">
                         {indicator.submittedDate
                           ? new Date(indicator.submittedDate).toLocaleString(
                             'en-IN',
                           )
-                          : '—'}
+                          : 'â€”'}
                       </KV>
                       {(indicator.submittedDescription ?? indicator.description) && (
                         <p className="mt-2 line-clamp-3 text-[11px] text-muted-foreground">
-                          “{indicator.submittedDescription ?? indicator.description}”
+                          â€œ{indicator.submittedDescription ?? indicator.description}â€
                         </p>
                       )}
                     </div>
@@ -552,7 +555,7 @@ export function VerifierIndicatorSheet({
                     title="Employment generation (verified)"
                   />
                   <div className="mt-2 grid gap-2 sm:grid-cols-2">
-                    <Field label="Direct — Days">
+                    <Field label="Direct â€” Days">
                       <Input
                         type="number"
                         min={0}
@@ -562,7 +565,7 @@ export function VerifierIndicatorSheet({
                         }
                       />
                     </Field>
-                    <Field label="Direct — Persons">
+                    <Field label="Direct â€” Persons">
                       <Input
                         type="number"
                         min={0}
@@ -572,7 +575,7 @@ export function VerifierIndicatorSheet({
                         }
                       />
                     </Field>
-                    <Field label="Indirect — Days">
+                    <Field label="Indirect â€” Days">
                       <Input
                         type="number"
                         min={0}
@@ -582,7 +585,7 @@ export function VerifierIndicatorSheet({
                         }
                       />
                     </Field>
-                    <Field label="Indirect — Persons">
+                    <Field label="Indirect â€” Persons">
                       <Input
                         type="number"
                         min={0}
@@ -606,7 +609,7 @@ export function VerifierIndicatorSheet({
                     maxLength={2000}
                     value={description}
                     onChange={(e) => setDescription(e.target.value)}
-                    placeholder="Corrected or confirmed description of work done…"
+                    placeholder="Corrected or confirmed description of work doneâ€¦"
                     className="mt-2 resize-y"
                   />
                 </section>
@@ -629,7 +632,7 @@ export function VerifierIndicatorSheet({
                             {c.key}:
                           </span>
                           <span className="line-through">{String(c.from)}</span>
-                          <span className="opacity-60">→</span>
+                          <span className="opacity-60">â†’</span>
                           <span className="font-semibold text-foreground">
                             {String(c.to)}
                           </span>
@@ -658,7 +661,7 @@ export function VerifierIndicatorSheet({
                     aria-invalid={remarksRequired && !remarksOk}
                     placeholder={
                       remarksRequired
-                        ? 'Explain why you corrected the values…'
+                        ? 'Explain why you corrected the valuesâ€¦'
                         : 'Add a note about this verification (optional)'
                     }
                     className={cn(
@@ -712,7 +715,7 @@ export function VerifierIndicatorSheet({
                   {pendingSave ? (
                     <>
                       <Loader2 className="h-4 w-4 animate-spin" />
-                      Saving…
+                      Savingâ€¦
                     </>
                   ) : (
                     <>
@@ -731,7 +734,7 @@ export function VerifierIndicatorSheet({
               className="flex flex-1 flex-col overflow-hidden data-[state=inactive]:hidden"
             >
               <MediaTab
-                indicatorId={indicator.indicatorId}
+                indicatorId={indicator.indicatorPublicId ?? indicator.indicatorId}
                 images={images}
                 loading={galleryLoading}
                 error={galleryError}
@@ -747,7 +750,7 @@ export function VerifierIndicatorSheet({
               className="flex flex-1 flex-col overflow-hidden data-[state=inactive]:hidden"
             >
               <VideoTab
-                indicatorId={indicator.indicatorId}
+                indicatorId={indicator.indicatorPublicId ?? indicator.indicatorId}
                 videos={videos}
                 loading={galleryLoading}
                 error={galleryError}
@@ -803,7 +806,7 @@ function MediaTab({
   onChange,
   onToast,
 }: {
-  indicatorId: number;
+  indicatorId: string | number;
   images: GalleryItem[];
   loading: boolean;
   error: string | null;
@@ -894,7 +897,7 @@ function MediaTab({
     return (
       <div className="flex flex-1 items-center justify-center text-muted-foreground">
         <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-        Loading media…
+        Loading mediaâ€¦
       </div>
     );
   }
@@ -910,7 +913,7 @@ function MediaTab({
     <div className="flex flex-1 flex-col overflow-hidden">
       <div className="flex-1 space-y-5 overflow-y-auto px-6 py-5">
         <p className="rounded-md border border-warning-amber/30 bg-warning-amber/10 p-2 text-[11px] text-warning-amber">
-          You are reviewing as a verifier — uploads here are flagged as
+          You are reviewing as a verifier â€” uploads here are flagged as
           verified evidence; deletes are recorded in the audit trail.
         </p>
 
@@ -929,7 +932,7 @@ function MediaTab({
             <CloudUpload className="h-7 w-7 text-[#2E7D32]" />
             <p className="text-sm font-medium">Drop or click to upload</p>
             <p className="text-[11px] text-muted-foreground">
-              .jpg .jpeg .png .pdf · max 5 MB
+              .jpg .jpeg .png .pdf Â· max 5 MB
             </p>
             <input
               ref={fileInputRef}
@@ -991,7 +994,7 @@ function MediaTab({
               {uploading ? (
                 <>
                   <Loader2 className="h-4 w-4 animate-spin" />
-                  Uploading…
+                  Uploadingâ€¦
                 </>
               ) : (
                 <>
@@ -1152,7 +1155,7 @@ function VideoTab({
   onChange,
   onToast,
 }: {
-  indicatorId: number;
+  indicatorId: string | number;
   videos: GalleryItem[];
   loading: boolean;
   error: string | null;
@@ -1210,7 +1213,7 @@ function VideoTab({
     return (
       <div className="flex flex-1 items-center justify-center text-muted-foreground">
         <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-        Loading videos…
+        Loading videosâ€¦
       </div>
     );
   }
@@ -1234,7 +1237,7 @@ function VideoTab({
             rows={2}
             value={url}
             onChange={(e) => setUrl(e.target.value)}
-            placeholder="https://youtube.com/watch?v=…  or  https://facebook.com/…/videos/…"
+            placeholder="https://youtube.com/watch?v=â€¦  or  https://facebook.com/â€¦/videos/â€¦"
             className="resize-none font-mono text-xs"
           />
           {platform ? (
@@ -1264,7 +1267,7 @@ function VideoTab({
             {pending ? (
               <>
                 <Loader2 className="h-4 w-4 animate-spin" />
-                Embedding…
+                Embeddingâ€¦
               </>
             ) : (
               <>
@@ -1312,7 +1315,7 @@ function VideoTab({
                       )}
                       {isYT ? 'YouTube' : 'Facebook'}
                       {v.isVerified && (
-                        <span className="ml-1 opacity-90">· Verified</span>
+                        <span className="ml-1 opacity-90">Â· Verified</span>
                       )}
                     </Badge>
                     <Button
@@ -1354,7 +1357,7 @@ function HistoryTab({
     return (
       <div className="flex flex-1 items-center justify-center text-muted-foreground">
         <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-        Loading history…
+        Loading historyâ€¦
       </div>
     );
   }
@@ -1460,7 +1463,7 @@ function MetaBlock({ action, meta }: { action: string; meta: any }) {
             <li key={k} className="flex flex-wrap gap-1.5">
               <span className="font-medium">{k}:</span>
               <span className="line-through opacity-70">{String(v.from)}</span>
-              <span className="opacity-60">→</span>
+              <span className="opacity-60">â†’</span>
               <span className="font-semibold">{String(v.to)}</span>
             </li>
           ))}
@@ -1550,3 +1553,4 @@ function KV({
     </div>
   );
 }
+

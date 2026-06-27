@@ -12,7 +12,7 @@ export const runtime = "nodejs";
 // ---------------------------------------------------------------------------
 // GET — list all projects
 // ---------------------------------------------------------------------------
-export async function GET(_req: NextRequest) {
+export async function GET() {
   const sessionOrResponse = await requireAdminSession();
   if (!isAdminSession(sessionOrResponse)) return sessionOrResponse;
 
@@ -21,17 +21,22 @@ export async function GET(_req: NextRequest) {
     return NextResponse.json({
       projects: rows.map((r) => ({
         projectId: r.project_id,
+        projectPublicId: r.public_id,
         projectCode: r.project_code,
         projectName: r.project_name,
         projectNameMal: r.project_name_mal,
         description: r.description,
+        projectOutcome: r.project_outcome,
         projectCost: r.project_cost,
         sectorId: r.sector_id,
+        sourceOfFundingId: r.source_of_funding_id,
+        sourceOfFundingName: r.source_of_funding_name,
         isCompleted: r.is_completed,
         stage: r.stage,
         secId: r.sec_id,
         secretaryName: r.secretary_name,
         indicatorsCount: r.indicators_count,
+        departmentNames: r.department_names,
       })),
     });
   } catch (err) {
@@ -59,6 +64,12 @@ const createProjectSchema = z.object({
     .optional()
     .nullable(),
   priority: z.coerce.number().int().min(1).max(3).optional().nullable(),
+  source_of_funding_id: z.coerce
+    .number()
+    .int()
+    .positive()
+    .optional()
+    .nullable(),
   project_execution_type: z.coerce
     .number()
     .int()
@@ -80,6 +91,7 @@ const createProjectSchema = z.object({
   no_persons_employed_direct: z.coerce.number().int().min(0).default(0),
   no_days_employed_indirect: z.coerce.number().int().min(0).default(0),
   no_persons_employed_indirect: z.coerce.number().int().min(0).default(0),
+  project_outcome: z.string().optional().nullable(),
   other_benefits: z.string().optional().nullable(),
   govt_policy_linkage: z.string().optional().nullable(),
   manifesto_linkage: z.string().optional().nullable(),
@@ -109,10 +121,12 @@ export async function POST(req: NextRequest) {
     const inserted = await db.execute(sql`
       INSERT INTO hdp.master_projects (
         project_id, project_name, description, is_new, project_cost,
-        nature_of_project, priority, project_execution_type, is_completed,
+        nature_of_project, priority, source_of_funding_id,
+        project_execution_type, is_completed,
         completion_date, sector_id, stage,
         no_days_employed_direct, no_persons_employed_direct,
         no_days_employed_indirect, no_persons_employed_indirect,
+        project_outcome,
         other_benefits, govt_policy_linkage, manifesto_linkage,
         extra_one, extra_two, extra_three,
         inserted_by, updated_by
@@ -120,10 +134,12 @@ export async function POST(req: NextRequest) {
         COALESCE((SELECT MAX(project_id) FROM hdp.master_projects), 0) + 1,
         ${d.project_name}, ${d.description}, ${isNewValue}, ${d.project_cost ?? null},
         ${d.nature_of_project ?? null}, ${d.priority ?? null},
+        ${d.source_of_funding_id ?? null},
         ${d.project_execution_type ?? null}, ${d.is_completed},
         ${completionDate}, ${d.sector_id}, 1,
         ${d.no_days_employed_direct}, ${d.no_persons_employed_direct},
         ${d.no_days_employed_indirect}, ${d.no_persons_employed_indirect},
+        ${d.project_outcome ?? null},
         ${d.other_benefits ?? null}, ${d.govt_policy_linkage ?? null},
         ${d.manifesto_linkage ?? null},
         ${d.extra_one ?? null}, ${d.extra_two ?? null}, ${d.extra_three ?? null},
@@ -196,6 +212,8 @@ export async function POST(req: NextRequest) {
         sec_id: d.sec_id,
         dept_ids: uniqueDeptIds,
         sector_id: d.sector_id,
+        source_of_funding_id: d.source_of_funding_id ?? null,
+        project_outcome: d.project_outcome ?? null,
         project_code: projectCode,
       },
     });

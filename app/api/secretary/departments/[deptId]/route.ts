@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { sql } from "drizzle-orm";
 import { ROLE, isSession, requireSession } from "@/lib/auth/session";
 import { db } from "@/lib/db/client";
+import { resolveDepartmentId } from "@/lib/db/public-id";
 
 export const runtime = "nodejs";
 
@@ -23,8 +24,8 @@ export async function GET(
   }
 
   const { deptId } = await params;
-  const id = Number(deptId);
-  if (!Number.isFinite(id) || id <= 0) {
+  const id = await resolveDepartmentId(deptId);
+  if (!id) {
     return NextResponse.json({ error: "Invalid deptId" }, { status: 400 });
   }
 

@@ -1,6 +1,7 @@
 'use client';
 
 import { use, useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { Loader2 } from 'lucide-react';
 import {
   ProjectDetailPage,
@@ -9,7 +10,7 @@ import {
 import { PublicNav } from '@/components/public/PublicNav';
 
 // Public project detail at /public/projects/[id]. Fetches
-// /api/public/project/[projectId] and renders <ProjectDetailPage>.
+// /api/public/projects/[projectPublicId] and renders <ProjectDetailPage>.
 
 export default function PublicProjectPage({
   params,
@@ -17,25 +18,29 @@ export default function PublicProjectPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = use(params);
-  const projectId = Number(id);
+  const router = useRouter();
+  const projectRef = id.trim();
 
   const [project, setProject] = useState<PublicProject | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!Number.isFinite(projectId) || projectId <= 0) {
+    if (!projectRef) {
       setError('Invalid project id');
       return;
     }
     let cancelled = false;
-    fetch(`/api/public/project/${projectId}`, { cache: 'no-store' })
-      .then(async (r) => {
-        if (!r.ok) {
-          const b = await r.json().catch(() => ({}));
-          throw new Error(b.error ?? `HTTP ${r.status}`);
-        }
-        return r.json() as Promise<{ project: PublicProject }>;
-      })
+    const fetchJson = async (path: string) => {
+      const response = await fetch(path, { cache: 'no-store' });
+      if (!response.ok) {
+        const body = await response.json().catch(() => ({}));
+        throw new Error(body.error ?? `HTTP ${response.status}`);
+      }
+      return response.json() as Promise<{ project: PublicProject }>;
+    };
+
+    fetchJson(`/api/public/projects/${projectRef}`)
+      .catch(() => fetchJson(`/api/public/project/${projectRef}`))
       .then((j) => {
         if (!cancelled) setProject(j.project);
       })
@@ -46,7 +51,13 @@ export default function PublicProjectPage({
     return () => {
       cancelled = true;
     };
-  }, [projectId]);
+  }, [projectRef]);
+
+  useEffect(() => {
+    if (project?.projectPublicId && project.projectPublicId !== projectRef) {
+      router.replace(`/public/projects/${project.projectPublicId}`);
+    }
+  }, [project?.projectPublicId, projectRef, router]);
 
   if (error) {
     return (

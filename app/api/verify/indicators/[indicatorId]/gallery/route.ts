@@ -1,3 +1,4 @@
+﻿/* eslint-disable @typescript-eslint/no-explicit-any */
 import { NextRequest, NextResponse } from "next/server";
 import { sql } from "drizzle-orm";
 import { mkdir, unlink, writeFile } from "node:fs/promises";
@@ -8,12 +9,13 @@ import {
   requireVerifierSession,
 } from "@/lib/auth/verifier-session";
 import { db } from "@/lib/db/client";
+import { resolveIndicatorId } from "@/lib/db/public-id";
 import { listGallery } from "@/lib/db/queries/officer";
 import { verifierOwnsIndicator } from "@/lib/db/queries/verifier";
 import { writeAudit } from "@/lib/audit/writeAudit";
 import { AUDIT_ACTIONS } from "@/lib/db/schema/audit";
 
-// Verifier-side gallery endpoint — mirrors the officer one but auth-gates
+// Verifier-side gallery endpoint â€” mirrors the officer one but auth-gates
 // on the Verifier role. The verifier needs full media review power:
 // view what nodal uploaded, delete bad evidence, and add corrected files
 // of their own. Every change is audited with the indicator id so the
@@ -34,7 +36,7 @@ const IMG_EXTS = new Set(["jpg", "jpeg", "png"]);
 const DOC_EXTS = new Set(["pdf"]);
 
 // ---------------------------------------------------------------------------
-// GET — list gallery items
+// GET â€” list gallery items
 // ---------------------------------------------------------------------------
 export async function GET(
   req: NextRequest,
@@ -45,8 +47,8 @@ export async function GET(
   const session = sessionOrResponse;
 
   const { indicatorId } = await params;
-  const id = Number(indicatorId);
-  if (!Number.isFinite(id)) {
+  const id = await resolveIndicatorId(indicatorId);
+  if (!id) {
     return NextResponse.json({ error: "Invalid indicatorId" }, { status: 400 });
   }
 
@@ -73,7 +75,7 @@ export async function GET(
 }
 
 // ---------------------------------------------------------------------------
-// POST — verifier-side upload (image / PDF) OR video embed
+// POST â€” verifier-side upload (image / PDF) OR video embed
 // ---------------------------------------------------------------------------
 export async function POST(
   req: NextRequest,
@@ -84,8 +86,8 @@ export async function POST(
   const session = sessionOrResponse;
 
   const { indicatorId } = await params;
-  const id = Number(indicatorId);
-  if (!Number.isFinite(id)) {
+  const id = await resolveIndicatorId(indicatorId);
+  if (!id) {
     return NextResponse.json({ error: "Invalid indicatorId" }, { status: 400 });
   }
 
@@ -357,9 +359,9 @@ export async function DELETE(
   const session = sessionOrResponse;
 
   const { indicatorId } = await params;
-  const id = Number(indicatorId);
+  const id = await resolveIndicatorId(indicatorId);
   const galleryId = Number(req.nextUrl.searchParams.get("galleryId"));
-  if (!Number.isFinite(id) || !Number.isFinite(galleryId)) {
+  if (!id || !Number.isFinite(galleryId)) {
     return NextResponse.json(
       { error: "Invalid indicatorId or galleryId" },
       { status: 400 },

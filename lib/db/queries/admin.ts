@@ -8,6 +8,7 @@ import { db } from "../client";
 
 export interface AdminUserRow {
   user_id: number;
+  public_id: string | null;
   user_name: string | null;
   login_name: string | null;
   mobile_no: string | null;
@@ -27,6 +28,7 @@ export async function listAllUsers(): Promise<AdminUserRow[]> {
   const result = await db.execute(sql`
     SELECT
       ud.user_id,
+      ud.public_id,
       ud.user_name,
       ud.login_name,
       ud.mobile_no,
@@ -51,6 +53,7 @@ export async function getUser(userId: number) {
   const result = await db.execute(sql`
     SELECT
       ud.user_id,
+      ud.public_id,
       ud.user_name,
       ud.login_name,
       ud.mobile_no,
@@ -69,12 +72,16 @@ export async function getUser(userId: number) {
 
 export interface AdminProjectRow {
   project_id: number;
+  public_id: string | null;
   project_code: string | null;
   project_name: string | null;
   project_name_mal: string | null;
   description: string | null;
+  project_outcome: string | null;
   project_cost: string | null;
   sector_id: number | null;
+  source_of_funding_id: number | null;
+  source_of_funding_name: string | null;
   is_completed: number | null;
   stage: number | null;
   /** Kept for back-compat with the response mapper; first dept's id. */
@@ -96,12 +103,16 @@ export async function listAllProjects(): Promise<AdminProjectRow[]> {
   const result = await db.execute(sql`
     SELECT
       mp.project_id,
+      mp.public_id,
       mp.project_code,
       mp.project_name,
       mp.project_name_mal,
       mp.description,
+      mp.project_outcome,
       mp.project_cost,
       mp.sector_id,
+      mp.source_of_funding_id,
+      msf.source_of_funding_name,
       mp.is_completed,
       mp.stage,
       (
@@ -130,6 +141,8 @@ export async function listAllProjects(): Promise<AdminProjectRow[]> {
         WHERE i.project_id = mp.project_id
       ), 0) AS indicators_count
     FROM hdp.master_projects mp
+    LEFT JOIN hdp.master_source_of_funding msf
+      ON msf.source_of_funding_id = mp.source_of_funding_id
     WHERE COALESCE((to_jsonb(mp)->>'is_archived')::boolean, false) = false
     ORDER BY mp.project_name ASC
   `);
@@ -143,12 +156,16 @@ export async function getProject(projectId: number) {
   const result = await db.execute(sql`
     SELECT
       mp.project_id,
+      mp.public_id,
       mp.project_code,
       mp.project_name,
       mp.project_name_mal,
       mp.description,
+      mp.project_outcome,
       mp.project_cost,
       mp.sector_id,
+      mp.source_of_funding_id,
+      msf.source_of_funding_name,
       mp.nature_of_project,
       mp.priority,
       mp.is_completed,
@@ -161,6 +178,8 @@ export async function getProject(projectId: number) {
       ps.sec_id,
       ms.secretary_name
     FROM hdp.master_projects mp
+    LEFT JOIN hdp.master_source_of_funding msf
+      ON msf.source_of_funding_id = mp.source_of_funding_id
     LEFT JOIN hdp.project_secretary ps ON mp.project_id = ps.project_id
     LEFT JOIN hdp.master_secretary ms ON ps.sec_id = ms.sec_id
     WHERE mp.project_id = ${projectId}
@@ -178,34 +197,40 @@ export async function getAdminMasterData() {
     secretariesResult,
     departmentsResult,
     sectorsResult,
+    fundingSourcesResult,
     rolesResult,
     districtsResult,
-  ] =
-    await Promise.all([
-      db.execute(sql`
+  ] = await Promise.all([
+    db.execute(sql`
       SELECT sec_id, secretary_name FROM hdp.master_secretary
       WHERE is_used = true
       ORDER BY secretary_name ASC
     `),
-      db.execute(sql`
+    db.execute(sql`
       SELECT dept_id, sec_id, dept_name, dept_name_mal
       FROM hdp.master_department
       WHERE is_used = true
       ORDER BY dept_name ASC
     `),
-      db.execute(sql`
+    db.execute(sql`
       SELECT sector_id, sector_name FROM hdp.master_sector
       ORDER BY sector_name ASC
     `),
-      db.execute(sql`
+    db.execute(sql`
+      SELECT source_of_funding_id, source_of_funding_name
+      FROM hdp.master_source_of_funding
+      WHERE is_used = true
+      ORDER BY display_order ASC, source_of_funding_name ASC
+    `),
+    db.execute(sql`
       SELECT role_id, role_description FROM hdp.master_role
       ORDER BY role_id ASC
     `),
-      db.execute(sql`
+    db.execute(sql`
       SELECT district_id, district_name FROM hdp.master_district
       ORDER BY district_name ASC
     `),
-    ]);
+  ]);
 
   return {
     secretaries: secretariesResult.rows as Array<{
@@ -221,6 +246,10 @@ export async function getAdminMasterData() {
     sectors: sectorsResult.rows as Array<{
       sector_id: number;
       sector_name: string | null;
+    }>,
+    fundingSources: fundingSourcesResult.rows as Array<{
+      source_of_funding_id: number;
+      source_of_funding_name: string | null;
     }>,
     roles: rolesResult.rows as Array<{
       role_id: number;

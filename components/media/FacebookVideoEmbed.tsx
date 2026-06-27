@@ -114,7 +114,7 @@ export function FacebookVideoEmbed({
                 {(loadState === 'loading' || loadState === 'ready') && hasPlayableSource && !showFallback && (
                     <iframe
                         key={`${validation.embedUrl}-${retryToken}`}
-                        src={`${validation.embedUrl}${validation.embedUrl.includes('?') ? '&' : '?'}autoplay=1`}
+                        src={`${validation.embedUrl!}${validation.embedUrl!.includes('?') ? '&' : '?'}autoplay=1`}
                         title={title}
                         loading="lazy"
                         className={`absolute inset-0 h-full w-full ${loadState === 'ready' ? 'opacity-100' : 'opacity-0'}`}

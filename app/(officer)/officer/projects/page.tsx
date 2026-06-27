@@ -2,30 +2,22 @@ import { KeralaHeader } from '@/components/layout/KeralaHeader';
 import { OfficerUserMenu } from '@/components/layout/OfficerUserMenu';
 import { SiteFooter } from '@/components/layout/SiteFooter';
 import { ProjectTable } from '@/components/tables/ProjectTable';
+import { isSession, requireSession } from '@/lib/auth/session';
 import { redirect } from 'next/navigation';
-import { headers } from 'next/headers';
-import { getToken } from 'next-auth/jwt';
 
 // Appendix C.1 — Nodal Officer "My Projects".
 // URL: /officer/projects
 // ProjectTable now fetches its data from GET /api/officer/projects.
 
 export default async function OfficerProjectsPage() {
-  const hdrs = await headers();
-  const token = await getToken({
-    req: {
-      headers: {
-        cookie: hdrs.get('cookie') ?? '',
-      },
-    } as any,
-    secret: process.env.AUTH_SECRET,
-  });
-  if (!token) redirect('/login');
+  const sessionOrResponse = await requireSession();
+  if (!isSession(sessionOrResponse)) redirect('/login');
+  const session = sessionOrResponse;
 
-  const roleId = Number(token.roleId ?? 0);
+  const roleId = Number(session.roleId ?? 0);
   if (roleId !== 2 && roleId !== 6) redirect('/login');
 
-  const userName = String(token.userName ?? token.name ?? '');
+  const userName = String(session.userName ?? '');
   const roleLabel = roleId === 6 ? 'Head of Department' : 'Nodal Officer';
   // TODO: fetch real department label from master_secretary using session.secId
   const departmentLabel = userName.includes('Animal') ? 'Animal Husbandry' : '';

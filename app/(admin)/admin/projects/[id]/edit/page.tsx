@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { ArrowLeft, AlertTriangle, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -13,13 +13,16 @@ import {
 
 interface ApiProject {
   projectId: number;
+  projectPublicId: string;
   projectCode: string | null;
   projectNameMal: string;
   projectName: string;
   description: string;
+  projectOutcome: string;
   isNew: number;
   projectCost: number;
   sectorId: number | null;
+  sourceOfFundingId: number | null;
   natureOfProject: number | null;
   priority: number | null;
   projectExecutionType: number | null;
@@ -42,14 +45,15 @@ interface ApiProject {
 
 export default function AdminProjectEditPage() {
   const params = useParams<{ id: string }>();
-  const id = Number(params.id);
+  const router = useRouter();
+  const projectRef = String(params.id ?? '').trim();
 
   const [data, setData] = useState<ApiProject | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!Number.isFinite(id)) return;
-    fetch(`/api/admin/projects/${id}`, { cache: 'no-store' })
+    if (!projectRef) return;
+    fetch(`/api/admin/projects/${projectRef}`, { cache: 'no-store' })
       .then(async (r) => {
         if (!r.ok) {
           const body = await r.json().catch(() => ({}));
@@ -59,7 +63,13 @@ export default function AdminProjectEditPage() {
       })
       .then((j) => setData(j.project))
       .catch((e) => setError(e instanceof Error ? e.message : 'Load failed'));
-  }, [id]);
+  }, [projectRef]);
+
+  useEffect(() => {
+    if (data?.projectPublicId && data.projectPublicId !== projectRef) {
+      router.replace(`/admin/projects/${data.projectPublicId}/edit`);
+    }
+  }, [data?.projectPublicId, projectRef, router]);
 
   const defaults: Partial<ProjectFormValues> | undefined = data
     ? {
@@ -69,6 +79,7 @@ export default function AdminProjectEditPage() {
       project_cost: data.projectCost,
       nature_of_project: data.natureOfProject ?? 2,
       priority: data.priority ?? 2,
+      source_of_funding_id: data.sourceOfFundingId ?? 0,
       project_execution_type: data.projectExecutionType ?? 1,
       is_completed: data.isCompleted,
       completion_date: data.completionDate
@@ -81,6 +92,7 @@ export default function AdminProjectEditPage() {
       no_persons_employed_direct: data.noPersonsEmployedDirect,
       no_days_employed_indirect: data.noDaysEmployedIndirect,
       no_persons_employed_indirect: data.noPersonsEmployedIndirect,
+      project_outcome: data.projectOutcome ?? '',
       other_benefits: data.otherBenefits ?? '',
       govt_policy_linkage: data.govtPolicyLinkage ?? '',
       manifesto_linkage: data.manifestoLinkage ?? '',
@@ -125,7 +137,7 @@ export default function AdminProjectEditPage() {
         </div>
       )}
 
-      {data && <ProjectForm projectId={id} defaults={defaults} />}
+      {data && <ProjectForm projectId={projectRef} defaults={defaults} />}
     </main>
   );
 }

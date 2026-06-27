@@ -1,3 +1,4 @@
+﻿/* eslint-disable @typescript-eslint/no-explicit-any */
 import { sql } from "drizzle-orm";
 import { db } from "../client";
 
@@ -141,7 +142,7 @@ export async function getTopProjects(limit: number = 10) {
   // A project linked to N departments via project_secretary produced N
   // duplicate rows under the old JOIN, breaking React with
   // "two children with the same key" on the homepage. Aggregate the
-  // department names via a correlated STRING_AGG and drop the JOIN — each
+  // department names via a correlated STRING_AGG and drop the JOIN â€” each
   // project_id now appears exactly once.
   const result = await db.execute(sql`
     SELECT
@@ -155,7 +156,7 @@ export async function getTopProjects(limit: number = 10) {
           LEFT JOIN hdp.master_secretary ms ON ps.sec_id = ms.sec_id
           WHERE ps.project_id = mp.project_id
         ),
-        '—'
+        'â€”'
       ) AS secretary_name,
       COALESCE((
         SELECT COUNT(*)::int FROM hdp.indicators i
@@ -186,3 +187,4 @@ export async function getTopProjects(limit: number = 10) {
     averageProgress: parseFloat(r.avg_progress as string) || 0,
   }));
 }
+

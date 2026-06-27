@@ -38,6 +38,8 @@ export const ROLE = {
 export async function requireSession(
   req?: NextRequest,
 ): Promise<OfficerSession | NextResponse> {
+  const authSalt = process.env.AUTH_SALT ?? "authjs.session-token";
+
   let token: {
     id?: string | null;
     sub?: string | null;
@@ -51,18 +53,23 @@ export async function requireSession(
   if (req) {
     token = await getToken({
       req,
-      secret: process.env.AUTH_SECRET,
+      secret: process.env.AUTH_SECRET ?? "",
+      salt: authSalt,
     });
   } else {
     const hdrs = await headers();
+    const forwardedProto =
+      hdrs.get("x-forwarded-proto") ??
+      (process.env.NODE_ENV === "production" ? "https" : "http");
     token = await getToken({
       req: {
         headers: {
           cookie: hdrs.get("cookie") ?? "",
-          "x-forwarded-proto": hdrs.get("x-forwarded-proto") ?? "http",
+          "x-forwarded-proto": forwardedProto,
         },
-      } as any,
-      secret: process.env.AUTH_SECRET,
+      } as unknown as Parameters<typeof getToken>[0]["req"],
+      secret: process.env.AUTH_SECRET ?? "",
+      salt: authSalt,
     });
   }
 
@@ -73,6 +80,7 @@ export async function requireSession(
         name?: string | null;
         roleId: number;
         secId: number;
+        deptId: number;
       }
     | undefined;
 
@@ -153,7 +161,9 @@ export async function requireOfficerSession(
   if (
     s.roleId !== ROLE.NODAL_OFFICER &&
     s.roleId !== ROLE.HEAD_OF_DEPARTMENT &&
-    s.roleId !== ROLE.SECRETARY
+    s.roleId !== ROLE.SECRETARY &&
+    s.roleId !== ROLE.ADMIN &&
+    s.roleId !== ROLE.OSD_ADMIN
   ) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
