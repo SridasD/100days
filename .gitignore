@@ -87,6 +87,7 @@ HDP screens/
 
 # Local share artifacts / deployment handoff copies
 HDP-2026-share.zip
+deploy-zips/
 PRODUCTION_DEPLOYMENT_STEPS.md
 
 # Drizzle local artifacts
