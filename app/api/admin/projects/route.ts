@@ -120,7 +120,7 @@ export async function POST(req: NextRequest) {
   try {
     const inserted = await db.execute(sql`
       INSERT INTO hdp.master_projects (
-        project_id, project_name, description, is_new, project_cost,
+        project_name, description, is_new, project_cost,
         nature_of_project, priority, source_of_funding_id,
         project_execution_type, is_completed,
         completion_date, sector_id, stage,
@@ -131,7 +131,6 @@ export async function POST(req: NextRequest) {
         extra_one, extra_two, extra_three,
         inserted_by, updated_by
       ) VALUES (
-        COALESCE((SELECT MAX(project_id) FROM hdp.master_projects), 0) + 1,
         ${d.project_name}, ${d.description}, ${isNewValue}, ${d.project_cost ?? null},
         ${d.nature_of_project ?? null}, ${d.priority ?? null},
         ${d.source_of_funding_id ?? null},
@@ -145,41 +144,15 @@ export async function POST(req: NextRequest) {
         ${d.extra_one ?? null}, ${d.extra_two ?? null}, ${d.extra_three ?? null},
         ${session.userId}, ${session.userId}
       )
-      RETURNING project_id
+      RETURNING project_id, project_code
     `);
 
     const row = inserted.rows[0] as {
       project_id: number | string;
+      project_code: string | null;
     };
     const projectId = Number(row.project_id);
-
-    // ----- generate project_code in the new HDP-{year}-{NNNN} format ------
-    // The "year" is the calendar year of creation (defensible audit trail).
-    // The sequence is the count of projects whose project_id is <= this row
-    // and that match the same year — guarantees stable, contiguous numbering
-    // even across concurrent inserts because project_id is monotonic.
-    const codeYear = new Date().getFullYear();
-    const codeResult = await db.execute(sql`
-      WITH this_year AS (
-        SELECT COUNT(*)::int AS seq
-        FROM hdp.master_projects mp
-        WHERE mp.project_id <= ${projectId}
-          AND COALESCE(
-            EXTRACT(YEAR FROM mp.completion_date)::int,
-            ${codeYear}
-          ) = ${codeYear}
-      )
-      UPDATE hdp.master_projects
-      SET project_code = 'HDP-' || ${codeYear}::text || '-' || LPAD(
-        (SELECT GREATEST(seq, 1) FROM this_year)::text, 4, '0'
-      )
-      WHERE project_id = ${projectId}
-      RETURNING project_code
-    `);
-    const projectCode =
-      (codeResult.rows[0] as { project_code: string | null } | undefined)
-        ?.project_code ??
-      `HDP-${codeYear}-${String(projectId).padStart(4, "0")}`;
+    const projectCode = row.project_code ?? null;
 
     await db.execute(sql`
       INSERT INTO hdp.project_secretary (project_id, sec_id)
