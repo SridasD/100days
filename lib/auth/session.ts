@@ -38,7 +38,11 @@ export const ROLE = {
 export async function requireSession(
   req?: NextRequest,
 ): Promise<OfficerSession | NextResponse> {
-  const authSalt = process.env.AUTH_SALT ?? "authjs.session-token";
+  const saltCandidates = [
+    process.env.AUTH_SALT,
+    "__Secure-authjs.session-token",
+    "authjs.session-token",
+  ].filter((v, i, arr): v is string => Boolean(v) && arr.indexOf(v) === i);
 
   let token: {
     id?: string | null;
@@ -51,26 +55,32 @@ export async function requireSession(
   } | null = null;
 
   if (req) {
-    token = await getToken({
-      req,
-      secret: process.env.AUTH_SECRET ?? "",
-      salt: authSalt,
-    });
+    for (const salt of saltCandidates) {
+      token = await getToken({
+        req,
+        secret: process.env.AUTH_SECRET ?? "",
+        salt,
+      });
+      if (token) break;
+    }
   } else {
     const hdrs = await headers();
     const forwardedProto =
       hdrs.get("x-forwarded-proto") ??
       (process.env.NODE_ENV === "production" ? "https" : "http");
-    token = await getToken({
-      req: {
-        headers: {
-          cookie: hdrs.get("cookie") ?? "",
-          "x-forwarded-proto": forwardedProto,
-        },
-      } as unknown as Parameters<typeof getToken>[0]["req"],
-      secret: process.env.AUTH_SECRET ?? "",
-      salt: authSalt,
-    });
+    for (const salt of saltCandidates) {
+      token = await getToken({
+        req: {
+          headers: {
+            cookie: hdrs.get("cookie") ?? "",
+            "x-forwarded-proto": forwardedProto,
+          },
+        } as unknown as Parameters<typeof getToken>[0]["req"],
+        secret: process.env.AUTH_SECRET ?? "",
+        salt,
+      });
+      if (token) break;
+    }
   }
 
   let user:

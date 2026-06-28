@@ -510,7 +510,7 @@ export function VerifierIndicatorSheet({
                       </KV>
                       {(indicator.submittedDescription ?? indicator.description) && (
                         <p className="mt-2 line-clamp-3 text-[11px] text-muted-foreground">
-                          "{indicator.submittedDescription ?? indicator.description}"
+                          &quot;{indicator.submittedDescription ?? indicator.description}&quot;
                         </p>
                       )}
                     </div>
