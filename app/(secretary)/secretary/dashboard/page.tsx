@@ -67,6 +67,7 @@ type DashboardPayload = {
         projectId: number;
         projectCode: string | null;
         projectName: string | null;
+        isOwned?: boolean;
         isArchived: boolean;
         isCompleted: number;
         completionDate: string | null;
@@ -77,6 +78,20 @@ type DashboardPayload = {
         financialProgress: number;
         indicators: number;
         pendingVerification: number;
+        lastUpdated: string | null;
+    }>;
+    supportingParticipationIndicators: Array<{
+        indicatorId: number;
+        indicatorName: string;
+        projectId: number;
+        projectName: string;
+        projectCode: string | null;
+        sectorName: string;
+        districtName: string;
+        departmentNames: string;
+        isCompleted: number;
+        physicalProgress: number;
+        financialProgress: number;
         lastUpdated: string | null;
     }>;
     departmentPerformance: Array<{
@@ -250,8 +265,8 @@ export default function SecretaryDashboardPage() {
                 filters.department !== "all" &&
                 !row.departmentNames
                     .split(",")
-                    .map((d) => d.trim())
-                    .includes(filters.department)
+                    .map((d) => d.trim().toLowerCase())
+                    .some((d) => d.includes(filters.department.toLowerCase()))
             ) {
                 return false;
             }
@@ -281,9 +296,17 @@ export default function SecretaryDashboardPage() {
         return scopedProjects.filter((project) => statusFromRow(project) === filters.projectStatus);
     }, [scopedProjects, filters.projectStatus]);
 
+    const ownedProjects = useMemo(
+        () => filteredProjects.filter((project) => project.isOwned !== false),
+        [filteredProjects],
+    );
+
     const departmentPerformance = useMemo(() => {
         const rows = (data?.departmentPerformance ?? []).filter((row) => {
-            if (filters.department !== "all" && row.department !== filters.department) {
+            if (
+                filters.department !== "all" &&
+                !row.department.toLowerCase().includes(filters.department.toLowerCase())
+            ) {
                 return false;
             }
             return true;
@@ -458,6 +481,7 @@ export default function SecretaryDashboardPage() {
                                         value={filters.department}
                                         onChange={(value) => setFilters((prev) => ({ ...prev, department: value }))}
                                         options={["all", ...departmentOptions]}
+                                        searchable
                                     />
                                 </div>
                             </section>
@@ -561,9 +585,9 @@ export default function SecretaryDashboardPage() {
                             <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
                                 <div className="mb-3 flex items-center justify-between gap-3">
                                     <h2 className="text-sm font-semibold uppercase tracking-[0.18em] text-slate-500">
-                                        Filtered Project List
+                                        Owned Project List
                                     </h2>
-                                    <span className="text-xs text-slate-500">{fmtNumber(filteredProjects.length)} projects</span>
+                                    <span className="text-xs text-slate-500">{fmtNumber(ownedProjects.length)} projects</span>
                                 </div>
 
                                 <div className="overflow-x-auto rounded-xl border border-slate-200">
@@ -579,7 +603,7 @@ export default function SecretaryDashboardPage() {
                                             </TableRow>
                                         </TableHeader>
                                         <TableBody>
-                                            {filteredProjects.map((project) => (
+                                            {ownedProjects.map((project) => (
                                                 <TableRow key={project.projectId}>
                                                     <TableCell>
                                                         <Link href={`/secretary/projects?projectId=${project.projectId}`} className="font-medium underline-offset-4 hover:underline">
@@ -595,10 +619,10 @@ export default function SecretaryDashboardPage() {
                                                     <TableCell>{fmtDateTime(project.lastUpdated)}</TableCell>
                                                 </TableRow>
                                             ))}
-                                            {filteredProjects.length === 0 && (
+                                            {ownedProjects.length === 0 && (
                                                 <TableRow>
                                                     <TableCell colSpan={6} className="text-slate-500">
-                                                        No projects match current filters.
+                                                        No owned projects match current filters.
                                                     </TableCell>
                                                 </TableRow>
                                             )}
@@ -762,12 +786,40 @@ function SelectField({
     value,
     onChange,
     options,
+    searchable = false,
 }: {
     label: string;
     value: string;
     onChange: (value: string) => void;
     options: string[];
+    searchable?: boolean;
 }) {
+    const listId = `${label.toLowerCase().replace(/\s+/g, "-")}-options`;
+
+    if (searchable) {
+        return (
+            <label className="space-y-1 text-xs">
+                <span className="font-semibold uppercase tracking-[0.14em] text-slate-500">{label}</span>
+                <input
+                    type="text"
+                    list={listId}
+                    className="h-9 w-full rounded-md border border-slate-300 bg-white px-2 text-sm text-slate-700"
+                    value={value === "all" ? "" : value}
+                    onChange={(e) => onChange(e.target.value.trim() || "all")}
+                    placeholder="Type department name..."
+                />
+                <p className="text-[11px] text-slate-500">Type ahead to filter departments.</p>
+                <datalist id={listId}>
+                    {options
+                        .filter((opt) => opt !== "all")
+                        .map((opt) => (
+                            <option key={opt} value={opt} />
+                        ))}
+                </datalist>
+            </label>
+        );
+    }
+
     return (
         <label className="space-y-1 text-xs">
             <span className="font-semibold uppercase tracking-[0.14em] text-slate-500">{label}</span>

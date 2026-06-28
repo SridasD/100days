@@ -36,6 +36,7 @@ export async function GET(req: NextRequest) {
       db.execute(sql`
         SELECT
           ms.sec_id,
+          ms.public_id,
           COALESCE(ms.secretary_name, 'Unassigned') AS department_name,
           COUNT(DISTINCT mp.project_id)::int AS project_count,
           COUNT(DISTINCT i.indicator_id)::int AS indicator_count,
@@ -66,6 +67,7 @@ export async function GET(req: NextRequest) {
       departments: departmentResult.rows.map((row) => {
         const item = row as {
           sec_id: number;
+          public_id: string | null;
           department_name: string;
           project_count: number;
           indicator_count: number;
@@ -73,6 +75,7 @@ export async function GET(req: NextRequest) {
         };
         return {
           secId: Number(item.sec_id),
+          departmentPublicId: item.public_id ? String(item.public_id) : null,
           departmentName: item.department_name,
           projectCount: Number(item.project_count) || 0,
           indicatorCount: Number(item.indicator_count) || 0,

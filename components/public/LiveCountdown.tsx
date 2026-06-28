@@ -190,9 +190,8 @@ export function LiveCountdown() {
             className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[10px] font-semibold ${badgeColor}`}
           >
             <span
-              className={`h-1.5 w-1.5 rounded-full ${
-                phaseEnded ? 'bg-hdp-success' : 'bg-hdp-warning'
-              }`}
+              className={`h-1.5 w-1.5 rounded-full ${phaseEnded ? 'bg-hdp-success' : 'bg-hdp-warning'
+                }`}
               style={
                 !phaseEnded
                   ? { animation: 'hdp-pulse 1.5s ease-in-out infinite' }

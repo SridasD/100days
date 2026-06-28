@@ -92,7 +92,7 @@ export function SectorGrid() {
   }, []);
 
   return (
-    <section className="bg-hdp-bg py-14">
+    <section id="sector-projects" className="bg-hdp-bg py-14">
       <div className="container mx-auto px-4">
         <SectionHeader
           eyebrowMal="മേഖലാ പുരോഗതി"

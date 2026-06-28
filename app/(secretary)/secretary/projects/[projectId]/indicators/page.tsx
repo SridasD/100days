@@ -6,6 +6,7 @@ import { KeralaHeader } from "@/components/layout/KeralaHeader";
 import { OfficerUserMenu } from "@/components/layout/OfficerUserMenu";
 import { SecretaryNav } from "@/components/layout/SecretaryNav";
 import { SiteFooter } from "@/components/layout/SiteFooter";
+import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
@@ -14,6 +15,7 @@ type Payload = {
         projectId: number;
         projectCode: string;
         projectName: string;
+        isOwned: boolean;
         status: string;
         departmentNames: string;
         sectorName: string;
@@ -24,6 +26,7 @@ type Payload = {
         indicatorName: string;
         physicalProgress: number;
         financialProgress: number;
+        isSupportingParticipation: boolean;
         district: string;
         imagesCount: number;
         videosCount: number;
@@ -86,7 +89,14 @@ export default function SecretaryProjectIndicatorsPage({
                     <>
                         <Card>
                             <CardContent className="py-4">
-                                <h1 className="text-xl font-semibold">{data.project.projectName}</h1>
+                                <div className="flex flex-wrap items-center gap-2">
+                                    <h1 className="text-xl font-semibold">{data.project.projectName}</h1>
+                                    {data.project.isOwned === false && (
+                                        <Badge variant="outline" className="border-[#C8A951] bg-[#FFF8E1] text-[#7A5A00]">
+                                            Supporting Participation
+                                        </Badge>
+                                    )}
+                                </div>
                                 <p className="text-sm text-slate-600">{data.project.projectCode}</p>
                                 <div className="mt-3 grid gap-2 text-sm text-slate-700 sm:grid-cols-2 xl:grid-cols-4">
                                     <p>Status: {data.project.status}</p>
@@ -116,7 +126,16 @@ export default function SecretaryProjectIndicatorsPage({
                                         <TableBody>
                                             {data.indicators.map((row) => (
                                                 <TableRow key={row.indicatorId}>
-                                                    <TableCell>{row.indicatorName}</TableCell>
+                                                    <TableCell>
+                                                        <div className="flex flex-wrap items-center gap-2">
+                                                            <span>{row.indicatorName}</span>
+                                                            {row.isSupportingParticipation && (
+                                                                <Badge variant="outline" className="border-[#C8A951] bg-[#FFF8E1] text-[#7A5A00]">
+                                                                    Supporting Participation
+                                                                </Badge>
+                                                            )}
+                                                        </div>
+                                                    </TableCell>
                                                     <TableCell>{row.district}</TableCell>
                                                     <TableCell className="text-right">{fmt(row.imagesCount)}</TableCell>
                                                     <TableCell className="text-right">{fmt(row.videosCount)}</TableCell>

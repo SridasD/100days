@@ -32,10 +32,33 @@ export async function GET(
   try {
     const [projectResult, indicatorsResult] = await Promise.all([
       db.execute(sql`
+        WITH secretary_departments AS (
+          SELECT md.dept_id
+          FROM hdp.master_department md
+          WHERE md.sec_id = ${session.secId}
+        ),
+        ownership AS (
+          SELECT
+            EXISTS (
+              SELECT 1
+              FROM hdp.project_secretary ps
+              WHERE ps.project_id = ${id}
+                AND ps.sec_id = ${session.secId}
+            ) AS is_owned,
+            EXISTS (
+              SELECT 1
+              FROM hdp.indicators i
+              WHERE i.project_id = ${id}
+                AND COALESCE(i.supporting_dept_ids, '{}'::integer[]) && ARRAY(
+                  SELECT sd.dept_id FROM secretary_departments sd
+                )
+            ) AS has_supported_indicator
+        )
         SELECT
           mp.project_id,
           mp.project_code,
           COALESCE(mp.project_name, 'Untitled project') AS project_name,
+          ow.is_owned,
           COALESCE(mp.is_completed, 0) AS is_completed,
           COALESCE(
             (
@@ -57,19 +80,38 @@ export async function GET(
             '-'
           ) AS district_names
         FROM hdp.master_projects mp
-        INNER JOIN hdp.project_secretary ps ON ps.project_id = mp.project_id
+        CROSS JOIN ownership ow
         LEFT JOIN hdp.master_sector ms ON ms.sector_id = mp.sector_id
         WHERE mp.project_id = ${id}
-          AND ps.sec_id = ${session.secId}
+          AND (ow.is_owned = true OR ow.has_supported_indicator = true)
           AND COALESCE(mp.is_archived, false) = false
         LIMIT 1
       `),
       db.execute(sql`
+        WITH secretary_departments AS (
+          SELECT md.dept_id
+          FROM hdp.master_department md
+          WHERE md.sec_id = ${session.secId}
+        ),
+        ownership AS (
+          SELECT EXISTS (
+            SELECT 1
+            FROM hdp.project_secretary ps
+            WHERE ps.project_id = ${id}
+              AND ps.sec_id = ${session.secId}
+          ) AS is_owned
+        )
         SELECT
           i.indicator_id,
           COALESCE(i.indicator_name, 'Untitled indicator') AS indicator_name,
           COALESCE(i.verified_percentage, i.percentage, 0) AS physical_progress,
           COALESCE(i.verified_financial_achievement, i.financial_achievement, 0) AS financial_progress,
+          (
+            ow.is_owned = false
+            AND COALESCE(i.supporting_dept_ids, '{}'::integer[]) && ARRAY(
+              SELECT sd.dept_id FROM secretary_departments sd
+            )
+          ) AS is_supporting_participation,
           COALESCE(d.district_name, 'Unassigned') AS district,
           COALESCE(i.verified_date, i.submitted_date) AS last_updated,
           (
@@ -86,10 +128,15 @@ export async function GET(
           ) AS videos_count
         FROM hdp.indicators i
         LEFT JOIN hdp.master_district d ON d.district_id = i.district_id
-        INNER JOIN hdp.project_secretary ps ON ps.project_id = i.project_id
+        CROSS JOIN ownership ow
         INNER JOIN hdp.master_projects mp ON mp.project_id = i.project_id
         WHERE i.project_id = ${id}
-          AND ps.sec_id = ${session.secId}
+          AND (
+            ow.is_owned = true
+            OR COALESCE(i.supporting_dept_ids, '{}'::integer[]) && ARRAY(
+              SELECT sd.dept_id FROM secretary_departments sd
+            )
+          )
           AND COALESCE(mp.is_archived, false) = false
         ORDER BY indicator_name ASC
       `),
@@ -109,6 +156,7 @@ export async function GET(
         projectId: toNum(p.project_id),
         projectCode: String(p.project_code ?? "-"),
         projectName: String(p.project_name ?? "Untitled project"),
+        isOwned: Boolean(p.is_owned),
         status:
           toNum(p.is_completed) === 2
             ? "completed"
@@ -126,6 +174,7 @@ export async function GET(
           indicatorName: String(r.indicator_name ?? "Untitled indicator"),
           physicalProgress: toNum(r.physical_progress),
           financialProgress: toNum(r.financial_progress),
+          isSupportingParticipation: Boolean(r.is_supporting_participation),
           district: String(r.district ?? "Unassigned"),
           imagesCount: toNum(r.images_count),
           videosCount: toNum(r.videos_count),

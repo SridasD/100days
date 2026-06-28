@@ -8,6 +8,7 @@ import { KeralaHeader } from "@/components/layout/KeralaHeader";
 import { OfficerUserMenu } from "@/components/layout/OfficerUserMenu";
 import { SecretaryNav } from "@/components/layout/SecretaryNav";
 import { SiteFooter } from "@/components/layout/SiteFooter";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -16,6 +17,7 @@ type Project = {
     projectId: number;
     projectCode: string | null;
     projectName: string | null;
+    isOwned?: boolean;
     sectorName: string;
     departmentNames: string;
     districtNames: string;
@@ -312,6 +314,13 @@ function SecretaryProjectsPageContent() {
                                                 >
                                                     {project.projectName ?? "Untitled project"}
                                                 </Link>
+                                                {project.isOwned === false && (
+                                                    <div className="mt-1">
+                                                        <Badge variant="outline" className="border-[#C8A951] bg-[#FFF8E1] text-[#7A5A00]">
+                                                            Supporting Participation
+                                                        </Badge>
+                                                    </div>
+                                                )}
                                                 <div className="text-xs text-slate-500">{project.projectCode ?? "-"}</div>
                                             </TableCell>
                                             <TableCell>{project.departmentNames || "Unassigned"}</TableCell>
