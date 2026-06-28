@@ -6,6 +6,26 @@ import { getDefaulterThresholds } from "@/lib/config/defaulter-thresholds";
 
 export const runtime = "nodejs";
 
+const PHASE_START_RAW =
+  process.env.NEXT_PUBLIC_PHASE_START ??
+  process.env.NEXT_PUBLIC_HDP_PHASE_START;
+const PHASE_END_RAW =
+  process.env.NEXT_PUBLIC_PHASE_END ?? process.env.NEXT_PUBLIC_HDP_PHASE_END;
+
+function parseEnvDate(value: string | undefined, endOfDay = false) {
+  if (!value) return null;
+  const suffix = endOfDay ? "T23:59:59.999Z" : "T00:00:00.000Z";
+  const date = new Date(`${value}${suffix}`);
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
+function clampDate(value: Date, min: Date | null, max: Date | null) {
+  let result = value;
+  if (min && result < min) result = min;
+  if (max && result > max) result = max;
+  return result;
+}
+
 function toNum(v: unknown) {
   const n = Number(v);
   return Number.isFinite(n) ? n : 0;
@@ -32,6 +52,15 @@ export async function GET() {
 
   const { pendingDays, inactivityDays, indicatorStaleDays } =
     getDefaulterThresholds();
+  const phaseStart = parseEnvDate(PHASE_START_RAW, false);
+  const phaseEnd = parseEnvDate(PHASE_END_RAW, true);
+  const isValidPhaseWindow =
+    !phaseStart || !phaseEnd || phaseStart.getTime() <= phaseEnd.getTime();
+  const normalizedPhaseStart = isValidPhaseWindow ? phaseStart : null;
+  const normalizedPhaseEnd = isValidPhaseWindow ? phaseEnd : null;
+  const now = new Date();
+  const referenceNow = clampDate(now, normalizedPhaseStart, normalizedPhaseEnd);
+  const alertsEnabled = !normalizedPhaseStart || now >= normalizedPhaseStart;
 
   try {
     const [
@@ -39,6 +68,7 @@ export async function GET() {
       summaryResult,
       projectStatusResult,
       projectRowsResult,
+      supportingParticipationIndicatorsResult,
       departmentResult,
       pendingProgressResult,
       pendingVerificationResult,
@@ -53,23 +83,58 @@ export async function GET() {
         LIMIT 1
       `),
       db.execute(sql`
-        WITH scoped_projects AS (
-          SELECT DISTINCT
+        WITH secretary_departments AS (
+          SELECT md.dept_id
+          FROM hdp.master_department md
+          WHERE md.sec_id = ${session.secId}
+        ),
+        owned_projects AS (
+          SELECT DISTINCT ps.project_id
+          FROM hdp.project_secretary ps
+          WHERE ps.sec_id = ${session.secId}
+        ),
+        supported_indicators AS (
+          SELECT DISTINCT i.indicator_id, i.project_id
+          FROM hdp.indicators i
+          WHERE COALESCE(i.supporting_dept_ids, '{}'::integer[]) && ARRAY(
+            SELECT sd.dept_id FROM secretary_departments sd
+          )
+        ),
+        scoped_projects AS (
+          SELECT
+            t.project_id,
+            BOOL_OR(t.is_owned) AS is_owned
+          FROM (
+            SELECT op.project_id, true AS is_owned
+            FROM owned_projects op
+            UNION ALL
+            SELECT si.project_id, false AS is_owned
+            FROM supported_indicators si
+          ) t
+          GROUP BY t.project_id
+        ),
+        scoped_project_rows AS (
+          SELECT
             mp.project_id,
             COALESCE(mp.is_archived, false) AS is_archived,
             COALESCE(mp.is_completed, 0) AS is_completed,
-            mp.completion_date
+            mp.completion_date,
+            sp.is_owned
           FROM hdp.master_projects mp
-          INNER JOIN hdp.project_secretary ps ON ps.project_id = mp.project_id
-          WHERE ps.sec_id = ${session.secId}
+          INNER JOIN scoped_projects sp ON sp.project_id = mp.project_id
         ),
         active_projects AS (
-          SELECT * FROM scoped_projects WHERE is_archived = false
+          SELECT *
+          FROM scoped_project_rows
+          WHERE is_archived = false
+            AND is_owned = true
         ),
         scoped_indicators AS (
           SELECT i.*
           FROM hdp.indicators i
           INNER JOIN active_projects ap ON ap.project_id = i.project_id
+          LEFT JOIN supported_indicators si ON si.indicator_id = i.indicator_id
+          WHERE ap.is_owned = true OR si.indicator_id IS NOT NULL
         )
         SELECT
           (SELECT COUNT(DISTINCT pd.dept_id)::int
@@ -99,15 +164,32 @@ export async function GET() {
           ) AS last_data_update
       `),
       db.execute(sql`
-        WITH scoped_projects AS (
-          SELECT DISTINCT
-            mp.project_id,
+        WITH secretary_departments AS (
+          SELECT md.dept_id
+          FROM hdp.master_department md
+          WHERE md.sec_id = ${session.secId}
+        ),
+        owned_projects AS (
+          SELECT DISTINCT ps.project_id
+          FROM hdp.project_secretary ps
+          WHERE ps.sec_id = ${session.secId}
+        ),
+        supported_indicators AS (
+          SELECT DISTINCT i.project_id
+          FROM hdp.indicators i
+          WHERE COALESCE(i.supporting_dept_ids, '{}'::integer[]) && ARRAY(
+            SELECT sd.dept_id FROM secretary_departments sd
+          )
+        ),
+        scoped_projects AS (
+          SELECT DISTINCT p.project_id,
             COALESCE(mp.is_archived, false) AS is_archived,
             COALESCE(mp.is_completed, 0) AS is_completed,
             mp.completion_date
-          FROM hdp.master_projects mp
-          INNER JOIN hdp.project_secretary ps ON ps.project_id = mp.project_id
-          WHERE ps.sec_id = ${session.secId}
+          FROM (
+            SELECT op.project_id FROM owned_projects op
+          ) p
+          INNER JOIN hdp.master_projects mp ON mp.project_id = p.project_id
         )
         SELECT
           COUNT(*) FILTER (WHERE is_archived = false AND is_completed = 0)::int AS not_started,
@@ -117,11 +199,26 @@ export async function GET() {
         FROM scoped_projects
       `),
       db.execute(sql`
-        WITH scoped_projects AS (
+        WITH owned_projects AS (
+          SELECT DISTINCT ps.project_id
+          FROM hdp.project_secretary ps
+          WHERE ps.sec_id = ${session.secId}
+        ),
+        scoped_projects AS (
+          SELECT op.project_id, true AS is_owned
+          FROM owned_projects op
+        ),
+        scoped_indicators AS (
+          SELECT i.*
+          FROM hdp.indicators i
+          INNER JOIN owned_projects op ON op.project_id = i.project_id
+        ),
+        scoped_project_rows AS (
           SELECT DISTINCT
             mp.project_id,
             mp.project_code,
             mp.project_name,
+            sp.is_owned,
             COALESCE(mp.is_archived, false) AS is_archived,
             COALESCE(mp.is_completed, 0) AS is_completed,
             mp.completion_date,
@@ -138,21 +235,21 @@ export async function GET() {
             COALESCE(
               (
                 SELECT STRING_AGG(DISTINCT md2.district_name, ', ' ORDER BY md2.district_name)
-                FROM hdp.indicators i2
+                FROM scoped_indicators i2
                 LEFT JOIN hdp.master_district md2 ON md2.district_id = i2.district_id
                 WHERE i2.project_id = mp.project_id
               ),
               '—'
             ) AS district_names
           FROM hdp.master_projects mp
-          INNER JOIN hdp.project_secretary ps ON ps.project_id = mp.project_id
+          INNER JOIN scoped_projects sp ON sp.project_id = mp.project_id
           LEFT JOIN hdp.master_sector ms ON ms.sector_id = mp.sector_id
-          WHERE ps.sec_id = ${session.secId}
         )
         SELECT
           sp.project_id,
           sp.project_code,
           sp.project_name,
+          sp.is_owned,
           sp.is_archived,
           sp.is_completed,
           sp.completion_date,
@@ -166,12 +263,13 @@ export async function GET() {
             WHERE i.submitted_date IS NOT NULL AND i.verified_date IS NULL
           )::int AS pending_verification,
           MAX(COALESCE(i.verified_date, i.submitted_date)) AS last_updated
-        FROM scoped_projects sp
-        LEFT JOIN hdp.indicators i ON i.project_id = sp.project_id
+        FROM scoped_project_rows sp
+        LEFT JOIN scoped_indicators i ON i.project_id = sp.project_id
         GROUP BY
           sp.project_id,
           sp.project_code,
           sp.project_name,
+          sp.is_owned,
           sp.is_archived,
           sp.is_completed,
           sp.completion_date,
@@ -180,8 +278,20 @@ export async function GET() {
           sp.district_names
         ORDER BY sp.project_name ASC NULLS LAST
       `),
+      Promise.resolve({ rows: [] as unknown[] }),
       db.execute(sql`
-        WITH dept_projects AS (
+        WITH
+        owned_projects AS (
+          SELECT DISTINCT ps.project_id
+          FROM hdp.project_secretary ps
+          WHERE ps.sec_id = ${session.secId}
+        ),
+        scoped_indicators AS (
+          SELECT i.*
+          FROM hdp.indicators i
+          INNER JOIN owned_projects op ON op.project_id = i.project_id
+        ),
+        dept_projects AS (
           SELECT DISTINCT
             pd.dept_id,
             COALESCE(md.dept_name, 'Unassigned') AS department,
@@ -189,25 +299,60 @@ export async function GET() {
           FROM hdp.project_department pd
           LEFT JOIN hdp.master_department md ON md.dept_id = pd.dept_id
           INNER JOIN hdp.master_projects mp ON mp.project_id = pd.project_id
-          INNER JOIN hdp.project_secretary ps ON ps.project_id = mp.project_id
-          WHERE ps.sec_id = ${session.secId}
-            AND COALESCE(mp.is_archived, false) = false
+          INNER JOIN owned_projects op ON op.project_id = mp.project_id
+          WHERE COALESCE(mp.is_archived, false) = false
         )
         SELECT
           dp.dept_id,
           dp.department,
           COUNT(DISTINCT dp.project_id)::int AS projects,
+          COUNT(DISTINCT dp.project_id)::int AS owned_projects,
+          0::int AS supporting_projects,
           COUNT(i.indicator_id)::int AS indicators,
           COALESCE(ROUND(AVG(COALESCE(i.verified_percentage, i.percentage, 0))::numeric, 1), 0) AS physical_progress,
           COALESCE(ROUND(AVG(COALESCE(i.verified_financial_achievement, i.financial_achievement, 0))::numeric, 1), 0) AS financial_progress,
           MAX(COALESCE(i.verified_date, i.submitted_date)) AS last_updated
         FROM dept_projects dp
-        LEFT JOIN hdp.indicators i ON i.project_id = dp.project_id
+        LEFT JOIN scoped_indicators i ON i.project_id = dp.project_id
         GROUP BY dp.dept_id, dp.department
         ORDER BY physical_progress ASC, financial_progress ASC, dp.department ASC
       `),
-      db.execute(sql`
-        WITH dept_activity AS (
+      alertsEnabled
+        ? db.execute(sql`
+        WITH secretary_departments AS (
+          SELECT md.dept_id
+          FROM hdp.master_department md
+          WHERE md.sec_id = ${session.secId}
+        ),
+        owned_projects AS (
+          SELECT DISTINCT ps.project_id
+          FROM hdp.project_secretary ps
+          WHERE ps.sec_id = ${session.secId}
+        ),
+        supported_indicators AS (
+          SELECT DISTINCT i.indicator_id, i.project_id
+          FROM hdp.indicators i
+          WHERE COALESCE(i.supporting_dept_ids, '{}'::integer[]) && ARRAY(
+            SELECT sd.dept_id FROM secretary_departments sd
+          )
+        ),
+        scoped_projects AS (
+          SELECT DISTINCT p.project_id
+          FROM (
+            SELECT op.project_id FROM owned_projects op
+            UNION
+            SELECT si.project_id FROM supported_indicators si
+          ) p
+        ),
+        scoped_indicators AS (
+          SELECT i.*
+          FROM hdp.indicators i
+          INNER JOIN scoped_projects sp ON sp.project_id = i.project_id
+          LEFT JOIN supported_indicators si ON si.indicator_id = i.indicator_id
+          LEFT JOIN owned_projects op ON op.project_id = i.project_id
+          WHERE op.project_id IS NOT NULL OR si.indicator_id IS NOT NULL
+        ),
+        dept_activity AS (
           SELECT
             pd.dept_id,
             COALESCE(md.dept_name, 'Unassigned') AS department,
@@ -215,37 +360,108 @@ export async function GET() {
           FROM hdp.project_department pd
           LEFT JOIN hdp.master_department md ON md.dept_id = pd.dept_id
           INNER JOIN hdp.master_projects mp ON mp.project_id = pd.project_id
-          INNER JOIN hdp.project_secretary ps ON ps.project_id = mp.project_id
-          LEFT JOIN hdp.indicators i ON i.project_id = mp.project_id
-          WHERE ps.sec_id = ${session.secId}
-            AND COALESCE(mp.is_archived, false) = false
+          INNER JOIN scoped_projects sp ON sp.project_id = mp.project_id
+          LEFT JOIN scoped_indicators i ON i.project_id = mp.project_id
+          WHERE COALESCE(mp.is_archived, false) = false
           GROUP BY pd.dept_id, COALESCE(md.dept_name, 'Unassigned')
         )
         SELECT
           da.department,
           COALESCE(
-            FLOOR(EXTRACT(EPOCH FROM (NOW() - da.last_activity)) / 86400)::int,
+            FLOOR(EXTRACT(EPOCH FROM (${referenceNow}::timestamptz - da.last_activity)) / 86400)::int,
             ${pendingDays}
           ) AS pending_days
         FROM dept_activity da
         WHERE da.last_activity IS NULL
-           OR da.last_activity < NOW() - (${pendingDays} * INTERVAL '1 day')
+           OR da.last_activity < ${referenceNow}::timestamptz - (${pendingDays} * INTERVAL '1 day')
         ORDER BY pending_days DESC, da.department ASC
         LIMIT 20
-      `),
-      db.execute(sql`
+      `)
+        : Promise.resolve({ rows: [] as unknown[] }),
+      alertsEnabled
+        ? db.execute(sql`
+        WITH secretary_departments AS (
+          SELECT md.dept_id
+          FROM hdp.master_department md
+          WHERE md.sec_id = ${session.secId}
+        ),
+        owned_projects AS (
+          SELECT DISTINCT ps.project_id
+          FROM hdp.project_secretary ps
+          WHERE ps.sec_id = ${session.secId}
+        ),
+        supported_indicators AS (
+          SELECT DISTINCT i.indicator_id, i.project_id
+          FROM hdp.indicators i
+          WHERE COALESCE(i.supporting_dept_ids, '{}'::integer[]) && ARRAY(
+            SELECT sd.dept_id FROM secretary_departments sd
+          )
+        ),
+        scoped_projects AS (
+          SELECT DISTINCT p.project_id
+          FROM (
+            SELECT op.project_id FROM owned_projects op
+            UNION
+            SELECT si.project_id FROM supported_indicators si
+          ) p
+        ),
+        scoped_indicators AS (
+          SELECT i.*
+          FROM hdp.indicators i
+          INNER JOIN scoped_projects sp ON sp.project_id = i.project_id
+          LEFT JOIN supported_indicators si ON si.indicator_id = i.indicator_id
+          LEFT JOIN owned_projects op ON op.project_id = i.project_id
+          WHERE op.project_id IS NOT NULL OR si.indicator_id IS NOT NULL
+        )
         SELECT
           COUNT(*)::int AS pending_verification_count
-        FROM hdp.indicators i
-        INNER JOIN hdp.project_secretary ps ON ps.project_id = i.project_id
+        FROM scoped_indicators i
         INNER JOIN hdp.master_projects mp ON mp.project_id = i.project_id
-        WHERE ps.sec_id = ${session.secId}
-          AND COALESCE(mp.is_archived, false) = false
+        WHERE COALESCE(mp.is_archived, false) = false
           AND i.submitted_date IS NOT NULL
           AND i.verified_date IS NULL
-      `),
-      db.execute(sql`
-        WITH dept_activity AS (
+      `)
+        : Promise.resolve([
+            {
+              pending_verification_count: 0,
+            },
+          ]).then((rows) => ({ rows })),
+      alertsEnabled
+        ? db.execute(sql`
+        WITH secretary_departments AS (
+          SELECT md.dept_id
+          FROM hdp.master_department md
+          WHERE md.sec_id = ${session.secId}
+        ),
+        owned_projects AS (
+          SELECT DISTINCT ps.project_id
+          FROM hdp.project_secretary ps
+          WHERE ps.sec_id = ${session.secId}
+        ),
+        supported_indicators AS (
+          SELECT DISTINCT i.indicator_id, i.project_id
+          FROM hdp.indicators i
+          WHERE COALESCE(i.supporting_dept_ids, '{}'::integer[]) && ARRAY(
+            SELECT sd.dept_id FROM secretary_departments sd
+          )
+        ),
+        scoped_projects AS (
+          SELECT DISTINCT p.project_id
+          FROM (
+            SELECT op.project_id FROM owned_projects op
+            UNION
+            SELECT si.project_id FROM supported_indicators si
+          ) p
+        ),
+        scoped_indicators AS (
+          SELECT i.*
+          FROM hdp.indicators i
+          INNER JOIN scoped_projects sp ON sp.project_id = i.project_id
+          LEFT JOIN supported_indicators si ON si.indicator_id = i.indicator_id
+          LEFT JOIN owned_projects op ON op.project_id = i.project_id
+          WHERE op.project_id IS NOT NULL OR si.indicator_id IS NOT NULL
+        ),
+        dept_activity AS (
           SELECT
             pd.dept_id,
             COALESCE(md.dept_name, 'Unassigned') AS department,
@@ -253,25 +469,59 @@ export async function GET() {
           FROM hdp.project_department pd
           LEFT JOIN hdp.master_department md ON md.dept_id = pd.dept_id
           INNER JOIN hdp.master_projects mp ON mp.project_id = pd.project_id
-          INNER JOIN hdp.project_secretary ps ON ps.project_id = mp.project_id
-          LEFT JOIN hdp.indicators i ON i.project_id = mp.project_id
-          WHERE ps.sec_id = ${session.secId}
-            AND COALESCE(mp.is_archived, false) = false
+          INNER JOIN scoped_projects sp ON sp.project_id = mp.project_id
+          LEFT JOIN scoped_indicators i ON i.project_id = mp.project_id
+          WHERE COALESCE(mp.is_archived, false) = false
           GROUP BY pd.dept_id, COALESCE(md.dept_name, 'Unassigned')
         )
         SELECT
           da.department,
           COALESCE(
-            FLOOR(EXTRACT(EPOCH FROM (NOW() - da.last_activity)) / 86400)::int,
+            FLOOR(EXTRACT(EPOCH FROM (${referenceNow}::timestamptz - da.last_activity)) / 86400)::int,
             ${inactivityDays}
           ) AS inactive_days
         FROM dept_activity da
         WHERE da.last_activity IS NULL
-           OR da.last_activity < NOW() - (${inactivityDays} * INTERVAL '1 day')
+           OR da.last_activity < ${referenceNow}::timestamptz - (${inactivityDays} * INTERVAL '1 day')
         ORDER BY inactive_days DESC, da.department ASC
         LIMIT 20
-      `),
-      db.execute(sql`
+      `)
+        : Promise.resolve({ rows: [] as unknown[] }),
+      alertsEnabled
+        ? db.execute(sql`
+        WITH secretary_departments AS (
+          SELECT md.dept_id
+          FROM hdp.master_department md
+          WHERE md.sec_id = ${session.secId}
+        ),
+        owned_projects AS (
+          SELECT DISTINCT ps.project_id
+          FROM hdp.project_secretary ps
+          WHERE ps.sec_id = ${session.secId}
+        ),
+        supported_indicators AS (
+          SELECT DISTINCT i.indicator_id, i.project_id
+          FROM hdp.indicators i
+          WHERE COALESCE(i.supporting_dept_ids, '{}'::integer[]) && ARRAY(
+            SELECT sd.dept_id FROM secretary_departments sd
+          )
+        ),
+        scoped_projects AS (
+          SELECT DISTINCT p.project_id
+          FROM (
+            SELECT op.project_id FROM owned_projects op
+            UNION
+            SELECT si.project_id FROM supported_indicators si
+          ) p
+        ),
+        scoped_indicators AS (
+          SELECT i.*
+          FROM hdp.indicators i
+          INNER JOIN scoped_projects sp ON sp.project_id = i.project_id
+          LEFT JOIN supported_indicators si ON si.indicator_id = i.indicator_id
+          LEFT JOIN owned_projects op ON op.project_id = i.project_id
+          WHERE op.project_id IS NOT NULL OR si.indicator_id IS NOT NULL
+        )
         SELECT
           i.indicator_id,
           COALESCE(i.indicator_name, 'Untitled indicator') AS indicator_name,
@@ -289,24 +539,23 @@ export async function GET() {
             FLOOR(
               EXTRACT(
                 EPOCH FROM (
-                  NOW() - COALESCE(i.submitted_date, i.verified_date)
+                  ${referenceNow}::timestamptz - COALESCE(i.submitted_date, i.verified_date)
                 )
               ) / 86400
             )::int,
             ${indicatorStaleDays}
           ) AS stale_days
-        FROM hdp.indicators i
+        FROM scoped_indicators i
         INNER JOIN hdp.master_projects mp ON mp.project_id = i.project_id
-        INNER JOIN hdp.project_secretary ps ON ps.project_id = mp.project_id
-        WHERE ps.sec_id = ${session.secId}
-          AND COALESCE(mp.is_archived, false) = false
+        WHERE COALESCE(mp.is_archived, false) = false
           AND (
             (i.submitted_date IS NULL AND i.verified_date IS NULL)
-            OR COALESCE(i.submitted_date, i.verified_date) < NOW() - (${indicatorStaleDays} * INTERVAL '1 day')
+            OR COALESCE(i.submitted_date, i.verified_date) < ${referenceNow}::timestamptz - (${indicatorStaleDays} * INTERVAL '1 day')
           )
         ORDER BY stale_days DESC, indicator_name ASC
         LIMIT 30
-      `),
+      `)
+        : Promise.resolve({ rows: [] as unknown[] }),
       db.execute(sql`
         SELECT
           ul.user_log_id,
@@ -375,6 +624,7 @@ export async function GET() {
           projectId: toNum(r.project_id),
           projectCode: toNullableString(r.project_code),
           projectName: toNullableString(r.project_name),
+          isOwned: Boolean(r.is_owned),
           isArchived: Boolean(r.is_archived),
           isCompleted: toNum(r.is_completed),
           completionDate: r.completion_date ?? null,
@@ -388,12 +638,42 @@ export async function GET() {
           lastUpdated: r.last_updated ?? null,
         };
       }),
+      supportingParticipationIndicators:
+        supportingParticipationIndicatorsResult.rows.map((row) => {
+          const r = row as Record<string, unknown>;
+          return {
+            indicatorId: toNum(r.indicator_id),
+            indicatorName:
+              toNullableString(r.indicator_name) ?? "Untitled indicator",
+            projectId: toNum(r.project_id),
+            projectName: toNullableString(r.project_name) ?? "Untitled project",
+            projectCode: toNullableString(r.project_code),
+            sectorName: toNullableString(r.sector_name) ?? "Unassigned",
+            districtName: toNullableString(r.district_name) ?? "Unassigned",
+            departmentNames:
+              toNullableString(r.department_names) ?? "Unassigned",
+            isCompleted: toNum(r.is_completed),
+            physicalProgress: toNum(r.physical_progress),
+            financialProgress: toNum(r.financial_progress),
+            lastUpdated: r.last_updated ?? null,
+          };
+        }),
       departmentPerformance: departmentResult.rows.map((row) => {
         const r = row as Record<string, unknown>;
+        const ownedProjects = toNum(r.owned_projects);
+        const supportingProjects = toNum(r.supporting_projects);
         return {
           deptId: toNum(r.dept_id),
           department: toNullableString(r.department) ?? "Unassigned",
           projects: toNum(r.projects),
+          ownedProjects,
+          supportingProjects,
+          scopeLabel:
+            ownedProjects > 0 && supportingProjects > 0
+              ? "owned+supporting"
+              : supportingProjects > 0
+                ? "supporting"
+                : "owned",
           indicators: toNum(r.indicators),
           physicalProgress: toNum(r.physical_progress),
           financialProgress: toNum(r.financial_progress),
@@ -401,35 +681,41 @@ export async function GET() {
         };
       }),
       alerts: {
-        pendingProgressUpdates: pendingProgressResult.rows.map((row) => {
-          const r = row as Record<string, unknown>;
-          return {
-            department: toNullableString(r.department) ?? "Unassigned",
-            pendingDays: toNum(r.pending_days),
-          };
-        }),
-        pendingVerificationCount: toNum(pendingVerification),
-        noRecentActivity: noRecentActivityResult.rows.map((row) => {
-          const r = row as Record<string, unknown>;
-          return {
-            department: toNullableString(r.department) ?? "Unassigned",
-            inactiveDays: toNum(r.inactive_days),
-          };
-        }),
-        indicatorsWithoutUpdates: indicatorsWithoutUpdatesResult.rows.map(
-          (row) => {
-            const r = row as Record<string, unknown>;
-            return {
-              indicatorId: toNum(r.indicator_id),
-              indicatorName:
-                toNullableString(r.indicator_name) ?? "Untitled indicator",
-              projectName:
-                toNullableString(r.project_name) ?? "Untitled project",
-              department: toNullableString(r.department) ?? "Unassigned",
-              staleDays: toNum(r.stale_days),
-            };
-          },
-        ),
+        pendingProgressUpdates: alertsEnabled
+          ? pendingProgressResult.rows.map((row) => {
+              const r = row as Record<string, unknown>;
+              return {
+                department: toNullableString(r.department) ?? "Unassigned",
+                pendingDays: toNum(r.pending_days),
+              };
+            })
+          : [],
+        pendingVerificationCount: alertsEnabled
+          ? toNum(pendingVerification)
+          : 0,
+        noRecentActivity: alertsEnabled
+          ? noRecentActivityResult.rows.map((row) => {
+              const r = row as Record<string, unknown>;
+              return {
+                department: toNullableString(r.department) ?? "Unassigned",
+                inactiveDays: toNum(r.inactive_days),
+              };
+            })
+          : [],
+        indicatorsWithoutUpdates: alertsEnabled
+          ? indicatorsWithoutUpdatesResult.rows.map((row) => {
+              const r = row as Record<string, unknown>;
+              return {
+                indicatorId: toNum(r.indicator_id),
+                indicatorName:
+                  toNullableString(r.indicator_name) ?? "Untitled indicator",
+                projectName:
+                  toNullableString(r.project_name) ?? "Untitled project",
+                department: toNullableString(r.department) ?? "Unassigned",
+                staleDays: toNum(r.stale_days),
+              };
+            })
+          : [],
       },
       recentActivity: recentActivityResult.rows.map((row) => {
         const r = row as Record<string, unknown>;
@@ -446,6 +732,12 @@ export async function GET() {
         pendingDays,
         inactivityDays,
         indicatorStaleDays,
+      },
+      phaseWindow: {
+        startDate: normalizedPhaseStart?.toISOString() ?? null,
+        endDate: normalizedPhaseEnd?.toISOString() ?? null,
+        referenceNow: referenceNow.toISOString(),
+        alertsEnabled,
       },
     });
   } catch (err) {

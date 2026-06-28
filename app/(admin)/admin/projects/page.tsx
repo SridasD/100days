@@ -4,12 +4,14 @@ import { Suspense, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useSearchParams, useRouter, usePathname } from 'next/navigation';
 import {
+  Archive,
   ArrowLeft,
   Plus,
   Search,
   AlertTriangle,
   CheckCircle2,
   Copy,
+  FilePenLine,
   FolderOpen,
   Loader2,
   ListFilter,
@@ -365,7 +367,7 @@ function AdminProjectsPageContent() {
               <Button
                 asChild
                 size="sm"
-                className="group mb-2 rounded-full border border-kerala-blue/25 bg-white text-kerala-blue shadow-sm transition-all hover:-translate-y-0.5 hover:bg-kerala-blue hover:text-white"
+                className="group mb-2 rounded-full border border-success-green/30 bg-white text-success-green shadow-sm transition-all hover:-translate-y-0.5 hover:bg-success-green hover:text-white"
               >
                 <Link href={dashboardPath}>
                   <ArrowLeft className="h-4 w-4 transition-transform group-hover:-translate-x-0.5" />
@@ -374,7 +376,7 @@ function AdminProjectsPageContent() {
               </Button>
             ) : null}
             <div className="inline-flex items-center gap-2 rounded-full border bg-white/80 px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground shadow-sm">
-              <Rows3 className="h-3.5 w-3.5 text-kerala-blue" />
+              <Rows3 className="h-3.5 w-3.5 text-success-green" />
               {isOsd ? 'Project Administration' : 'Master Project Registry'}
             </div>
             <div className="space-y-1">
@@ -603,7 +605,7 @@ function AdminProjectsPageContent() {
                                 </p>
                               ) : null}
                               {project.sourceOfFundingName ? (
-                                <p className="text-[11px] font-medium text-kerala-blue/80">
+                                <p className="text-[11px] font-medium text-success-green/90">
                                   Funding: {project.sourceOfFundingName}
                                 </p>
                               ) : null}
@@ -629,18 +631,28 @@ function AdminProjectsPageContent() {
                           </TableCell>
                           <TableCell>
                             <div className="flex justify-center gap-2">
-                              <Button asChild variant="outline" size="sm">
+                              <Button
+                                asChild
+                                size="sm"
+                                className="border border-success-green/35 bg-success-green/10 text-success-green hover:bg-success-green hover:text-white"
+                              >
                                 <Link href={`${projectsBasePath}/${project.projectPublicId ?? project.projectId}/edit`}>
+                                  <FilePenLine className="h-3.5 w-3.5" />
                                   Edit
                                 </Link>
                               </Button>
                               <Button
-                                variant="outline"
+                                variant="secondary"
                                 size="sm"
                                 onClick={() => void openArchiveDialog(project)}
                                 disabled={deletingProjectId === project.projectId}
-                                className="border-warning-amber/40 text-warning-amber hover:bg-warning-amber hover:text-white"
+                                className="border border-warning-amber/45 bg-warning-amber/10 text-warning-amber hover:bg-warning-amber hover:text-white"
                               >
+                                {deletingProjectId === project.projectId ? (
+                                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                ) : (
+                                  <Archive className="h-3.5 w-3.5" />
+                                )}
                                 {deletingProjectId === project.projectId ? 'Loading...' : 'Archive'}
                               </Button>
                             </div>

@@ -64,14 +64,14 @@ export function HeroSection(_unusedProps: HeroSectionProps) {
 
           <div className="mt-8 flex flex-wrap items-center gap-3">
             <Link
-              href="/public/projects"
+              href="#sector-projects"
               className="group inline-flex cursor-pointer items-center gap-2 rounded-full bg-hdp-green px-6 py-3 text-sm font-semibold text-white shadow-lg transition-all duration-200 hover:scale-105 hover:bg-hdp-green-active hover:shadow-xl"
             >
               <span className="font-malayalam">പദ്ധതികൾ കാണുക</span>
               <ArrowRight className="h-4 w-4 transition-transform duration-200 group-hover:translate-x-0.5" />
             </Link>
             <Link
-              href="/public/progress"
+              href="#sector-projects"
               className="inline-flex cursor-pointer items-center gap-2 rounded-full border border-hdp-green/30 bg-white/85 px-6 py-3 text-sm font-semibold text-hdp-green backdrop-blur transition-colors duration-200 hover:bg-white"
             >
               <span className="font-malayalam">പുരോഗതി അറിയുക</span>

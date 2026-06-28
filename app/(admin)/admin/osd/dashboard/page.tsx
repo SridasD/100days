@@ -18,6 +18,8 @@ import {
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Progress } from '@/components/ui/progress';
 import {
     Card,
     CardContent,
@@ -56,6 +58,7 @@ type SummaryResponse = {
     };
     departments: Array<{
         secId: number;
+        departmentPublicId: string | null;
         departmentName: string;
         projectCount: number;
         indicatorCount: number;
@@ -92,6 +95,21 @@ function formatDate(value: string | null) {
         month: 'short',
         year: 'numeric',
     });
+}
+
+function daysSince(value: string | null) {
+    if (!value) return null;
+    const ts = new Date(value).getTime();
+    if (!Number.isFinite(ts)) return null;
+    const diffMs = Date.now() - ts;
+    return Math.max(0, Math.floor(diffMs / 86400000));
+}
+
+function freshnessTone(days: number | null) {
+    if (days === null) return { label: 'No updates', className: 'border-slate-300 bg-slate-100 text-slate-700' };
+    if (days <= 7) return { label: 'Fresh', className: 'border-emerald-300 bg-emerald-50 text-emerald-800' };
+    if (days <= 21) return { label: 'Watch', className: 'border-amber-300 bg-amber-50 text-amber-800' };
+    return { label: 'Stale', className: 'border-rose-300 bg-rose-50 text-rose-800' };
 }
 
 function statusMeta(status: DepartmentProject['status']) {
@@ -160,6 +178,7 @@ export default function OsdDashboardPage() {
     const [error, setError] = useState<string | null>(null);
     const [sortKey, setSortKey] = useState<SortKey>('projectCount');
     const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
+    const [departmentQuery, setDepartmentQuery] = useState('');
     const [expandedDepartmentId, setExpandedDepartmentId] = useState<number | null>(null);
     const [expandedDepartments, setExpandedDepartments] = useState<Record<number, ExpandedDepartmentState>>({});
 
@@ -211,6 +230,17 @@ export default function OsdDashboardPage() {
         return rows;
     }, [data, sortDirection, sortKey]);
 
+    const visibleDepartments = useMemo(() => {
+        const q = departmentQuery.trim().toLowerCase();
+        if (!q) return sortedDepartments;
+        return sortedDepartments.filter((row) => row.departmentName.toLowerCase().includes(q));
+    }, [sortedDepartments, departmentQuery]);
+
+    const staleCount = useMemo(
+        () => visibleDepartments.filter((row) => (daysSince(row.lastUpdated) ?? 999) > 21).length,
+        [visibleDepartments],
+    );
+
     const handleSort = (key: SortKey) => {
         setSortKey((current) => {
             if (current === key) {
@@ -222,7 +252,7 @@ export default function OsdDashboardPage() {
         });
     };
 
-    const toggleDepartment = async (secId: number) => {
+    const toggleDepartment = async (secId: number, departmentPublicId?: string | null) => {
         if (expandedDepartmentId === secId) {
             setExpandedDepartmentId(null);
             return;
@@ -237,18 +267,42 @@ export default function OsdDashboardPage() {
         }));
 
         try {
-            const res = await fetch(`/api/public/departments/${secId}`, {
-                cache: 'no-store',
-            });
-            const body = (await res.json().catch(() => ({}))) as Partial<DepartmentDetailResponse> & { error?: string };
-            if (!res.ok || !body.department) {
-                throw new Error(body.error ?? `HTTP ${res.status}`);
+            const endpoints = [
+                departmentPublicId
+                    ? `/api/public/departments/${encodeURIComponent(departmentPublicId)}`
+                    : null,
+                `/api/public/department/${encodeURIComponent(String(secId))}`,
+                `/api/public/departments/${encodeURIComponent(String(secId))}`,
+            ];
+
+            let body: (Partial<DepartmentDetailResponse> & { error?: string }) | null = null;
+            let lastError: string | null = null;
+
+            for (const endpoint of endpoints) {
+                if (!endpoint) continue;
+                try {
+                    const res = await fetch(endpoint, { cache: 'no-store' });
+                    const parsed = (await res.json().catch(() => ({}))) as Partial<DepartmentDetailResponse> & { error?: string };
+                    if (!res.ok || !parsed.department) {
+                        lastError = parsed.error ?? `HTTP ${res.status}`;
+                        continue;
+                    }
+                    body = parsed;
+                    break;
+                } catch (endpointError) {
+                    lastError = endpointError instanceof Error ? endpointError.message : 'Failed to fetch';
+                }
             }
+
+            if (!body?.department) {
+                throw new Error(lastError ?? 'Failed to load department projects');
+            }
+
             setExpandedDepartments((prev) => ({
                 ...prev,
                 [secId]: {
                     loading: false,
-                    projects: body.department?.projects ?? [],
+                    projects: body.department.projects ?? [],
                     error: null,
                 },
             }));
@@ -380,12 +434,29 @@ export default function OsdDashboardPage() {
                                 <CardDescription>
                                     Click any department row to expand its projects, indicator counts, and delivery status inline.
                                 </CardDescription>
+                                <div className="mt-3 flex flex-wrap items-center gap-2">
+                                    <Input
+                                        value={departmentQuery}
+                                        onChange={(event) => setDepartmentQuery(event.target.value)}
+                                        placeholder="Search department..."
+                                        className="h-9 w-full max-w-xs bg-white"
+                                        aria-label="Search department"
+                                    />
+                                    <Badge variant="outline">{formatNumber(visibleDepartments.length)} shown</Badge>
+                                    {staleCount > 0 ? (
+                                        <Badge variant="warning">{formatNumber(staleCount)} stale</Badge>
+                                    ) : (
+                                        <Badge variant="success">All active</Badge>
+                                    )}
+                                </div>
                             </CardHeader>
                             <CardContent className="p-0">
-                                {sortedDepartments.length === 0 ? (
+                                {visibleDepartments.length === 0 ? (
                                     <div className="flex items-center gap-2 px-6 py-10 text-sm text-muted-foreground">
                                         <Loader2 className="h-4 w-4" />
-                                        No department summary is available yet.
+                                        {departmentQuery.trim()
+                                            ? 'No department matches your search.'
+                                            : 'No department summary is available yet.'}
                                     </div>
                                 ) : (
                                     <div className="overflow-x-auto">
@@ -418,23 +489,26 @@ export default function OsdDashboardPage() {
                                                             onClick={() => handleSort('indicatorCount')}
                                                         />
                                                     </TableHead>
+                                                    <TableHead className="text-right">Freshness</TableHead>
                                                     <TableHead className="text-right">Expand</TableHead>
                                                 </TableRow>
                                             </TableHeader>
                                             <TableBody>
-                                                {sortedDepartments.map((row) => {
+                                                {visibleDepartments.map((row) => {
                                                     const isExpanded = expandedDepartmentId === row.secId;
                                                     const expanded = expandedDepartments[row.secId];
+                                                    const age = daysSince(row.lastUpdated);
+                                                    const tone = freshnessTone(age);
                                                     return (
                                                         <Fragment key={row.secId}>
                                                             <TableRow
                                                                 tabIndex={0}
                                                                 className="cursor-pointer border-b border-slate-100 transition-colors hover:bg-slate-50 focus-visible:bg-slate-50"
-                                                                onClick={() => void toggleDepartment(row.secId)}
+                                                                onClick={() => void toggleDepartment(row.secId, row.departmentPublicId)}
                                                                 onKeyDown={(event: KeyboardEvent<HTMLTableRowElement>) => {
                                                                     if (event.key === 'Enter' || event.key === ' ') {
                                                                         event.preventDefault();
-                                                                        void toggleDepartment(row.secId);
+                                                                        void toggleDepartment(row.secId, row.departmentPublicId);
                                                                     }
                                                                 }}
                                                             >
@@ -462,7 +536,22 @@ export default function OsdDashboardPage() {
                                                                     </Badge>
                                                                 </TableCell>
                                                                 <TableCell className="text-right">
-                                                                    <Button variant="ghost" size="sm" className="h-8 px-2">
+                                                                    <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-semibold ${tone.className}`}>
+                                                                        {tone.label}
+                                                                        {age !== null ? ` • ${age}d` : ''}
+                                                                    </span>
+                                                                </TableCell>
+                                                                <TableCell className="text-right">
+                                                                    <Button
+                                                                        variant="ghost"
+                                                                        size="sm"
+                                                                        className="h-8 px-2"
+                                                                        aria-label={isExpanded ? `Collapse ${row.departmentName}` : `Expand ${row.departmentName}`}
+                                                                        onClick={(event) => {
+                                                                            event.stopPropagation();
+                                                                            void toggleDepartment(row.secId, row.departmentPublicId);
+                                                                        }}
+                                                                    >
                                                                         {isExpanded ? (
                                                                             <ChevronUp className="h-4 w-4" />
                                                                         ) : (
@@ -474,7 +563,7 @@ export default function OsdDashboardPage() {
 
                                                             {isExpanded ? (
                                                                 <TableRow className="bg-slate-50/60">
-                                                                    <TableCell colSpan={4} className="px-5 py-5">
+                                                                    <TableCell colSpan={5} className="px-5 py-5">
                                                                         {expanded?.loading ? (
                                                                             <div className="flex items-center gap-2 text-sm text-muted-foreground">
                                                                                 <Loader2 className="h-4 w-4 animate-spin" />
@@ -486,13 +575,47 @@ export default function OsdDashboardPage() {
                                                                             </div>
                                                                         ) : expanded?.projects.length ? (
                                                                             <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-                                                                                <div className="border-b border-slate-100 px-4 py-3">
-                                                                                    <p className="text-sm font-semibold text-foreground">
-                                                                                        {row.departmentName} Projects
-                                                                                    </p>
-                                                                                    <p className="text-xs text-muted-foreground">
-                                                                                        Project portfolio, indicator count, verification posture, and delivery status.
-                                                                                    </p>
+                                                                                <div className="space-y-4 border-b border-slate-100 bg-gradient-to-r from-slate-50 to-emerald-50/50 px-4 py-4">
+                                                                                    <div>
+                                                                                        <p className="text-sm font-semibold text-foreground">
+                                                                                            {row.departmentName} Projects
+                                                                                        </p>
+                                                                                        <p className="text-xs text-muted-foreground">
+                                                                                            Portfolio health snapshot with progress and verification posture.
+                                                                                        </p>
+                                                                                    </div>
+                                                                                    <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
+                                                                                        <div className="rounded-xl border border-slate-200 bg-white px-3 py-2">
+                                                                                            <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">Projects</p>
+                                                                                            <p className="mt-1 text-lg font-semibold text-slate-900">{formatNumber(expanded.projects.length)}</p>
+                                                                                        </div>
+                                                                                        <div className="rounded-xl border border-slate-200 bg-white px-3 py-2">
+                                                                                            <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">Verified Activity</p>
+                                                                                            <p className="mt-1 text-lg font-semibold text-slate-900">
+                                                                                                {formatNumber(expanded.projects.filter((project) => project.verified).length)}
+                                                                                            </p>
+                                                                                        </div>
+                                                                                        <div className="rounded-xl border border-slate-200 bg-white px-3 py-2">
+                                                                                            <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">Avg Physical</p>
+                                                                                            <p className="mt-1 text-lg font-semibold text-slate-900">
+                                                                                                {Math.round(
+                                                                                                    expanded.projects.reduce((acc, project) => acc + project.physicalPct, 0) /
+                                                                                                    Math.max(1, expanded.projects.length),
+                                                                                                )}
+                                                                                                %
+                                                                                            </p>
+                                                                                        </div>
+                                                                                        <div className="rounded-xl border border-slate-200 bg-white px-3 py-2">
+                                                                                            <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">Avg Financial</p>
+                                                                                            <p className="mt-1 text-lg font-semibold text-slate-900">
+                                                                                                {Math.round(
+                                                                                                    expanded.projects.reduce((acc, project) => acc + project.financialPct, 0) /
+                                                                                                    Math.max(1, expanded.projects.length),
+                                                                                                )}
+                                                                                                %
+                                                                                            </p>
+                                                                                        </div>
+                                                                                    </div>
                                                                                 </div>
                                                                                 <Table>
                                                                                     <TableHeader>
@@ -508,8 +631,10 @@ export default function OsdDashboardPage() {
                                                                                     <TableBody>
                                                                                         {expanded.projects.map((project) => {
                                                                                             const meta = statusMeta(project.status);
+                                                                                            const physical = Math.max(0, Math.min(100, project.physicalPct));
+                                                                                            const financial = Math.max(0, Math.min(100, project.financialPct));
                                                                                             return (
-                                                                                                <TableRow key={project.projectId}>
+                                                                                                <TableRow key={project.projectId} className="hover:bg-slate-50/70">
                                                                                                     <TableCell>
                                                                                                         <div className="space-y-1">
                                                                                                             <p className="font-medium text-foreground">
@@ -530,8 +655,18 @@ export default function OsdDashboardPage() {
                                                                                                     </TableCell>
                                                                                                     <TableCell className="text-right">{formatNumber(project.indicatorsTotal)}</TableCell>
                                                                                                     <TableCell className="text-right">{formatNumber(project.indicatorsCompleted)}</TableCell>
-                                                                                                    <TableCell className="text-right">{project.physicalPct}%</TableCell>
-                                                                                                    <TableCell className="text-right">{project.financialPct}%</TableCell>
+                                                                                                    <TableCell className="min-w-[120px] text-right">
+                                                                                                        <div className="space-y-1">
+                                                                                                            <p className="text-xs font-semibold text-slate-700">{physical}%</p>
+                                                                                                            <Progress value={physical} className="h-1.5" />
+                                                                                                        </div>
+                                                                                                    </TableCell>
+                                                                                                    <TableCell className="min-w-[120px] text-right">
+                                                                                                        <div className="space-y-1">
+                                                                                                            <p className="text-xs font-semibold text-slate-700">{financial}%</p>
+                                                                                                            <Progress value={financial} className="h-1.5" />
+                                                                                                        </div>
+                                                                                                    </TableCell>
                                                                                                     <TableCell className="text-right">
                                                                                                         <Badge variant={meta.variant}>{meta.label}</Badge>
                                                                                                     </TableCell>

@@ -838,7 +838,7 @@ export function IndicatorForm({ projectId, indicatorId }: Props) {
           </Button>
           <Button
             type="submit"
-            disabled={pending || locked}
+            disabled={pending}
             className="cursor-pointer bg-[#2E7D32] hover:bg-[#256328]"
           >
             {pending ? (

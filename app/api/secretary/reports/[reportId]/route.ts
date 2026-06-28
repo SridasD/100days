@@ -55,7 +55,40 @@ function csvToHtmlTable(csv: string, title: string) {
 
 async function reportDepartmentSummary(secId: number) {
   const result = await db.execute(sql`
-    WITH dept_projects AS (
+    WITH secretary_departments AS (
+      SELECT md.dept_id
+      FROM hdp.master_department md
+      WHERE md.sec_id = ${secId}
+    ),
+    owned_projects AS (
+      SELECT DISTINCT ps.project_id
+      FROM hdp.project_secretary ps
+      WHERE ps.sec_id = ${secId}
+    ),
+    supported_indicators AS (
+      SELECT DISTINCT i.indicator_id, i.project_id
+      FROM hdp.indicators i
+      WHERE COALESCE(i.supporting_dept_ids, '{}'::integer[]) && ARRAY(
+        SELECT sd.dept_id FROM secretary_departments sd
+      )
+    ),
+    scoped_projects AS (
+      SELECT DISTINCT p.project_id
+      FROM (
+        SELECT op.project_id FROM owned_projects op
+        UNION
+        SELECT si.project_id FROM supported_indicators si
+      ) p
+    ),
+    scoped_indicators AS (
+      SELECT i.*
+      FROM hdp.indicators i
+      INNER JOIN scoped_projects sp ON sp.project_id = i.project_id
+      LEFT JOIN supported_indicators si ON si.indicator_id = i.indicator_id
+      LEFT JOIN owned_projects op ON op.project_id = i.project_id
+      WHERE op.project_id IS NOT NULL OR si.indicator_id IS NOT NULL
+    ),
+    dept_projects AS (
       SELECT DISTINCT
         pd.dept_id,
         COALESCE(md.dept_name, 'Unassigned') AS department,
@@ -63,9 +96,8 @@ async function reportDepartmentSummary(secId: number) {
       FROM hdp.project_department pd
       LEFT JOIN hdp.master_department md ON md.dept_id = pd.dept_id
       INNER JOIN hdp.master_projects mp ON mp.project_id = pd.project_id
-      INNER JOIN hdp.project_secretary ps ON ps.project_id = mp.project_id
-      WHERE ps.sec_id = ${secId}
-        AND COALESCE(mp.is_archived, false) = false
+      INNER JOIN scoped_projects sp ON sp.project_id = mp.project_id
+      WHERE COALESCE(mp.is_archived, false) = false
     )
     SELECT
       dp.department,
@@ -75,7 +107,7 @@ async function reportDepartmentSummary(secId: number) {
       COALESCE(ROUND(AVG(COALESCE(i.verified_financial_achievement, i.financial_achievement, 0))::numeric, 1), 0) AS financial_progress,
       MAX(COALESCE(i.verified_date, i.submitted_date)) AS last_updated
     FROM dept_projects dp
-    LEFT JOIN hdp.indicators i ON i.project_id = dp.project_id
+    LEFT JOIN scoped_indicators i ON i.project_id = dp.project_id
     GROUP BY dp.department
     ORDER BY dp.department ASC
   `);
@@ -101,6 +133,43 @@ async function reportDepartmentSummary(secId: number) {
 
 async function reportProjectSummary(secId: number) {
   const result = await db.execute(sql`
+    WITH secretary_departments AS (
+      SELECT md.dept_id
+      FROM hdp.master_department md
+      WHERE md.sec_id = ${secId}
+    ),
+    owned_projects AS (
+      SELECT DISTINCT ps.project_id
+      FROM hdp.project_secretary ps
+      WHERE ps.sec_id = ${secId}
+    ),
+    supported_indicators AS (
+      SELECT DISTINCT i.indicator_id, i.project_id
+      FROM hdp.indicators i
+      WHERE COALESCE(i.supporting_dept_ids, '{}'::integer[]) && ARRAY(
+        SELECT sd.dept_id FROM secretary_departments sd
+      )
+    ),
+    scoped_projects AS (
+      SELECT
+        t.project_id,
+        BOOL_OR(t.is_owned) AS is_owned
+      FROM (
+        SELECT op.project_id, true AS is_owned
+        FROM owned_projects op
+        UNION ALL
+        SELECT si.project_id, false AS is_owned
+        FROM supported_indicators si
+      ) t
+      GROUP BY t.project_id
+    ),
+    scoped_indicators AS (
+      SELECT i.*
+      FROM hdp.indicators i
+      INNER JOIN scoped_projects sp ON sp.project_id = i.project_id
+      LEFT JOIN supported_indicators si ON si.indicator_id = i.indicator_id
+      WHERE sp.is_owned = true OR si.indicator_id IS NOT NULL
+    )
     SELECT
       mp.project_code,
       mp.project_name,
@@ -112,12 +181,11 @@ async function reportProjectSummary(secId: number) {
       COUNT(i.indicator_id)::int AS indicators,
       MAX(COALESCE(i.verified_date, i.submitted_date)) AS last_updated
     FROM hdp.master_projects mp
-    INNER JOIN hdp.project_secretary ps ON ps.project_id = mp.project_id
+    INNER JOIN scoped_projects sp ON sp.project_id = mp.project_id
     LEFT JOIN hdp.master_source_of_funding msf
       ON msf.source_of_funding_id = mp.source_of_funding_id
-    LEFT JOIN hdp.indicators i ON i.project_id = mp.project_id
-    WHERE ps.sec_id = ${secId}
-      AND COALESCE(mp.is_archived, false) = false
+    LEFT JOIN scoped_indicators i ON i.project_id = mp.project_id
+    WHERE COALESCE(mp.is_archived, false) = false
     GROUP BY mp.project_id, mp.project_code, mp.project_name, COALESCE(mp.is_completed, 0)
     ORDER BY mp.project_name ASC
   `);
@@ -153,16 +221,51 @@ async function reportProjectSummary(secId: number) {
 
 async function reportPhysicalProgress(secId: number) {
   const result = await db.execute(sql`
+    WITH secretary_departments AS (
+      SELECT md.dept_id
+      FROM hdp.master_department md
+      WHERE md.sec_id = ${secId}
+    ),
+    owned_projects AS (
+      SELECT DISTINCT ps.project_id
+      FROM hdp.project_secretary ps
+      WHERE ps.sec_id = ${secId}
+    ),
+    supported_indicators AS (
+      SELECT DISTINCT i.indicator_id, i.project_id
+      FROM hdp.indicators i
+      WHERE COALESCE(i.supporting_dept_ids, '{}'::integer[]) && ARRAY(
+        SELECT sd.dept_id FROM secretary_departments sd
+      )
+    ),
+    scoped_projects AS (
+      SELECT
+        t.project_id,
+        BOOL_OR(t.is_owned) AS is_owned
+      FROM (
+        SELECT op.project_id, true AS is_owned
+        FROM owned_projects op
+        UNION ALL
+        SELECT si.project_id, false AS is_owned
+        FROM supported_indicators si
+      ) t
+      GROUP BY t.project_id
+    ),
+    scoped_indicators AS (
+      SELECT i.*
+      FROM hdp.indicators i
+      INNER JOIN scoped_projects sp ON sp.project_id = i.project_id
+      LEFT JOIN supported_indicators si ON si.indicator_id = i.indicator_id
+      WHERE sp.is_owned = true OR si.indicator_id IS NOT NULL
+    )
     SELECT
       mp.project_name,
       COALESCE(i.indicator_name, 'Untitled indicator') AS indicator_name,
       COALESCE(i.verified_percentage, i.percentage, 0) AS physical_progress,
       COALESCE(i.verified_date, i.submitted_date) AS last_updated
-    FROM hdp.indicators i
+    FROM scoped_indicators i
     INNER JOIN hdp.master_projects mp ON mp.project_id = i.project_id
-    INNER JOIN hdp.project_secretary ps ON ps.project_id = mp.project_id
-    WHERE ps.sec_id = ${secId}
-      AND COALESCE(mp.is_archived, false) = false
+    WHERE COALESCE(mp.is_archived, false) = false
     ORDER BY mp.project_name ASC, indicator_name ASC
   `);
 
@@ -178,16 +281,51 @@ async function reportPhysicalProgress(secId: number) {
 
 async function reportFinancialProgress(secId: number) {
   const result = await db.execute(sql`
+    WITH secretary_departments AS (
+      SELECT md.dept_id
+      FROM hdp.master_department md
+      WHERE md.sec_id = ${secId}
+    ),
+    owned_projects AS (
+      SELECT DISTINCT ps.project_id
+      FROM hdp.project_secretary ps
+      WHERE ps.sec_id = ${secId}
+    ),
+    supported_indicators AS (
+      SELECT DISTINCT i.indicator_id, i.project_id
+      FROM hdp.indicators i
+      WHERE COALESCE(i.supporting_dept_ids, '{}'::integer[]) && ARRAY(
+        SELECT sd.dept_id FROM secretary_departments sd
+      )
+    ),
+    scoped_projects AS (
+      SELECT
+        t.project_id,
+        BOOL_OR(t.is_owned) AS is_owned
+      FROM (
+        SELECT op.project_id, true AS is_owned
+        FROM owned_projects op
+        UNION ALL
+        SELECT si.project_id, false AS is_owned
+        FROM supported_indicators si
+      ) t
+      GROUP BY t.project_id
+    ),
+    scoped_indicators AS (
+      SELECT i.*
+      FROM hdp.indicators i
+      INNER JOIN scoped_projects sp ON sp.project_id = i.project_id
+      LEFT JOIN supported_indicators si ON si.indicator_id = i.indicator_id
+      WHERE sp.is_owned = true OR si.indicator_id IS NOT NULL
+    )
     SELECT
       mp.project_name,
       COALESCE(i.indicator_name, 'Untitled indicator') AS indicator_name,
       COALESCE(i.verified_financial_achievement, i.financial_achievement, 0) AS financial_progress,
       COALESCE(i.verified_date, i.submitted_date) AS last_updated
-    FROM hdp.indicators i
+    FROM scoped_indicators i
     INNER JOIN hdp.master_projects mp ON mp.project_id = i.project_id
-    INNER JOIN hdp.project_secretary ps ON ps.project_id = mp.project_id
-    WHERE ps.sec_id = ${secId}
-      AND COALESCE(mp.is_archived, false) = false
+    WHERE COALESCE(mp.is_archived, false) = false
     ORDER BY mp.project_name ASC, indicator_name ASC
   `);
 
@@ -203,17 +341,52 @@ async function reportFinancialProgress(secId: number) {
 
 async function reportIndicators(secId: number) {
   const result = await db.execute(sql`
+    WITH secretary_departments AS (
+      SELECT md.dept_id
+      FROM hdp.master_department md
+      WHERE md.sec_id = ${secId}
+    ),
+    owned_projects AS (
+      SELECT DISTINCT ps.project_id
+      FROM hdp.project_secretary ps
+      WHERE ps.sec_id = ${secId}
+    ),
+    supported_indicators AS (
+      SELECT DISTINCT i.indicator_id, i.project_id
+      FROM hdp.indicators i
+      WHERE COALESCE(i.supporting_dept_ids, '{}'::integer[]) && ARRAY(
+        SELECT sd.dept_id FROM secretary_departments sd
+      )
+    ),
+    scoped_projects AS (
+      SELECT
+        t.project_id,
+        BOOL_OR(t.is_owned) AS is_owned
+      FROM (
+        SELECT op.project_id, true AS is_owned
+        FROM owned_projects op
+        UNION ALL
+        SELECT si.project_id, false AS is_owned
+        FROM supported_indicators si
+      ) t
+      GROUP BY t.project_id
+    ),
+    scoped_indicators AS (
+      SELECT i.*
+      FROM hdp.indicators i
+      INNER JOIN scoped_projects sp ON sp.project_id = i.project_id
+      LEFT JOIN supported_indicators si ON si.indicator_id = i.indicator_id
+      WHERE sp.is_owned = true OR si.indicator_id IS NOT NULL
+    )
     SELECT
       COALESCE(i.indicator_name, 'Untitled indicator') AS indicator_name,
       COALESCE(mp.project_name, 'Untitled project') AS project_name,
       COALESCE(i.verified_percentage, i.percentage, 0) AS physical_progress,
       COALESCE(i.verified_financial_achievement, i.financial_achievement, 0) AS financial_progress,
       COALESCE(i.verified_date, i.submitted_date) AS last_updated
-    FROM hdp.indicators i
+    FROM scoped_indicators i
     INNER JOIN hdp.master_projects mp ON mp.project_id = i.project_id
-    INNER JOIN hdp.project_secretary ps ON ps.project_id = mp.project_id
-    WHERE ps.sec_id = ${secId}
-      AND COALESCE(mp.is_archived, false) = false
+    WHERE COALESCE(mp.is_archived, false) = false
     ORDER BY indicator_name ASC
   `);
 
@@ -242,7 +415,40 @@ async function reportDefaulters(secId: number) {
   } = getDefaulterThresholds();
 
   const result = await db.execute(sql`
-    WITH pending_progress AS (
+    WITH secretary_departments AS (
+      SELECT md.dept_id
+      FROM hdp.master_department md
+      WHERE md.sec_id = ${secId}
+    ),
+    owned_projects AS (
+      SELECT DISTINCT ps.project_id
+      FROM hdp.project_secretary ps
+      WHERE ps.sec_id = ${secId}
+    ),
+    supported_indicators AS (
+      SELECT DISTINCT i.indicator_id, i.project_id
+      FROM hdp.indicators i
+      WHERE COALESCE(i.supporting_dept_ids, '{}'::integer[]) && ARRAY(
+        SELECT sd.dept_id FROM secretary_departments sd
+      )
+    ),
+    scoped_projects AS (
+      SELECT DISTINCT p.project_id
+      FROM (
+        SELECT op.project_id FROM owned_projects op
+        UNION
+        SELECT si.project_id FROM supported_indicators si
+      ) p
+    ),
+    scoped_indicators AS (
+      SELECT i.*
+      FROM hdp.indicators i
+      INNER JOIN scoped_projects sp ON sp.project_id = i.project_id
+      LEFT JOIN supported_indicators si ON si.indicator_id = i.indicator_id
+      LEFT JOIN owned_projects op ON op.project_id = i.project_id
+      WHERE op.project_id IS NOT NULL OR si.indicator_id IS NOT NULL
+    ),
+    pending_progress AS (
       SELECT
         COALESCE(md.dept_name, 'Unassigned') AS subject,
         FLOOR(EXTRACT(EPOCH FROM (NOW() - MAX(COALESCE(i.verified_date, i.submitted_date)))) / 86400)::int AS days,
@@ -250,10 +456,9 @@ async function reportDefaulters(secId: number) {
       FROM hdp.project_department pd
       LEFT JOIN hdp.master_department md ON md.dept_id = pd.dept_id
       INNER JOIN hdp.master_projects mp ON mp.project_id = pd.project_id
-      INNER JOIN hdp.project_secretary ps ON ps.project_id = mp.project_id
-      LEFT JOIN hdp.indicators i ON i.project_id = mp.project_id
-      WHERE ps.sec_id = ${secId}
-        AND COALESCE(mp.is_archived, false) = false
+      INNER JOIN scoped_projects sp ON sp.project_id = mp.project_id
+      LEFT JOIN scoped_indicators i ON i.project_id = mp.project_id
+      WHERE COALESCE(mp.is_archived, false) = false
       GROUP BY COALESCE(md.dept_name, 'Unassigned')
       HAVING MAX(COALESCE(i.verified_date, i.submitted_date)) IS NULL
          OR MAX(COALESCE(i.verified_date, i.submitted_date)) < NOW() - (${pendingDays} * INTERVAL '1 day')
@@ -266,10 +471,9 @@ async function reportDefaulters(secId: number) {
       FROM hdp.project_department pd
       LEFT JOIN hdp.master_department md ON md.dept_id = pd.dept_id
       INNER JOIN hdp.master_projects mp ON mp.project_id = pd.project_id
-      INNER JOIN hdp.project_secretary ps ON ps.project_id = mp.project_id
-      LEFT JOIN hdp.indicators i ON i.project_id = mp.project_id
-      WHERE ps.sec_id = ${secId}
-        AND COALESCE(mp.is_archived, false) = false
+      INNER JOIN scoped_projects sp ON sp.project_id = mp.project_id
+      LEFT JOIN scoped_indicators i ON i.project_id = mp.project_id
+      WHERE COALESCE(mp.is_archived, false) = false
       GROUP BY COALESCE(md.dept_name, 'Unassigned')
       HAVING MAX(COALESCE(i.verified_date, i.submitted_date)) IS NULL
          OR MAX(COALESCE(i.verified_date, i.submitted_date)) < NOW() - (${inactivityDays} * INTERVAL '1 day')
@@ -279,11 +483,9 @@ async function reportDefaulters(secId: number) {
         COALESCE(i.indicator_name, 'Untitled indicator') AS subject,
         FLOOR(EXTRACT(EPOCH FROM (NOW() - COALESCE(i.submitted_date, i.verified_date))) / 86400)::int AS days,
         'stale_indicator' AS category
-      FROM hdp.indicators i
+      FROM scoped_indicators i
       INNER JOIN hdp.master_projects mp ON mp.project_id = i.project_id
-      INNER JOIN hdp.project_secretary ps ON ps.project_id = mp.project_id
-      WHERE ps.sec_id = ${secId}
-        AND COALESCE(mp.is_archived, false) = false
+      WHERE COALESCE(mp.is_archived, false) = false
         AND (
           (i.submitted_date IS NULL AND i.verified_date IS NULL)
           OR COALESCE(i.submitted_date, i.verified_date) < NOW() - (${staleDays} * INTERVAL '1 day')

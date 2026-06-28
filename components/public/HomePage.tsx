@@ -23,7 +23,6 @@ import Link from 'next/link';
 import {
   AlertCircle,
   ArrowRight,
-  ArrowUpRight,
   BarChart3,
   Building2,
   CheckCircle2,
@@ -307,19 +306,6 @@ function ProjectStatusOverview({
                 total={totalIndicators}
                 color="bg-[#A78BFA]"
               />
-            </div>
-
-            <div className="mt-4 flex items-center justify-between border-t pt-3 text-[11px] text-muted-foreground">
-              <span className="font-malayalam">
-                പ്രീ പുരോഗതി ദിശയിൽ കാണുക
-              </span>
-              <Link
-                href="/public/progress"
-                className="inline-flex items-center gap-1 font-medium text-hdp-green hover:underline"
-              >
-                <span className="font-malayalam">വിശദമായി</span>
-                <ArrowUpRight className="h-3 w-3" />
-              </Link>
             </div>
           </div>
         </div>
