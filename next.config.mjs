@@ -1,17 +1,24 @@
 /** @type {import('next').NextConfig} */
-const cspHeader = `
-  default-src 'self';
-  script-src 'self' 'unsafe-eval' 'unsafe-inline';
-  style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;
-  font-src 'self' https://fonts.gstatic.com;
-  img-src 'self' blob: data: https://i.ytimg.com https://*.fbcdn.net;
-  object-src 'none';
-  base-uri 'self';
-  form-action 'self';
-  frame-src 'self' https://www.youtube.com https://www.youtube-nocookie.com https://www.facebook.com;
-  frame-ancestors 'none';
-  upgrade-insecure-requests;
-`;
+const isProduction = process.env.NODE_ENV === "production";
+
+const cspDirectives = [
+  "default-src 'self'",
+  "script-src 'self' 'unsafe-eval' 'unsafe-inline'",
+  "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+  "font-src 'self' https://fonts.gstatic.com",
+  "img-src 'self' blob: data: https://i.ytimg.com https://*.fbcdn.net",
+  "object-src 'none'",
+  "base-uri 'self'",
+  "form-action 'self'",
+  "frame-src 'self' https://www.youtube.com https://www.youtube-nocookie.com https://www.facebook.com",
+  "frame-ancestors 'none'",
+];
+
+if (isProduction) {
+  cspDirectives.push("upgrade-insecure-requests");
+}
+
+const cspHeader = `${cspDirectives.join("; ")};`;
 
 const nextConfig = {
   reactStrictMode: true,
@@ -34,7 +41,7 @@ const nextConfig = {
         headers: [
           {
             key: "Content-Security-Policy",
-            value: cspHeader.replace(/\n/g, ""),
+            value: cspHeader,
           },
           { key: "X-Frame-Options", value: "DENY" },
           { key: "X-Content-Type-Options", value: "nosniff" },
