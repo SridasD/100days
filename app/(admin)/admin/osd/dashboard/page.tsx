@@ -298,11 +298,13 @@ export default function OsdDashboardPage() {
                 throw new Error(lastError ?? 'Failed to load department projects');
             }
 
+            const department = body.department;
+
             setExpandedDepartments((prev) => ({
                 ...prev,
                 [secId]: {
                     loading: false,
-                    projects: body.department.projects ?? [],
+                    projects: department.projects ?? [],
                     error: null,
                 },
             }));
