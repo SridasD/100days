@@ -25,6 +25,14 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import {
   Select,
@@ -469,7 +477,6 @@ export function IndicatorTable({ projectId, projectTargets }: Props) {
   const [data, setData] = useState<IndicatorRow[] | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [canDeleteIndicator, setCanDeleteIndicator] = useState(false);
 
   const [rawQuery, setRawQuery] = useState('');
   const query = useDebouncedValue(rawQuery, 300);
@@ -479,6 +486,10 @@ export function IndicatorTable({ projectId, projectTargets }: Props) {
   const [showToast, setShowToast] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
   const [queryToastHandled, setQueryToastHandled] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [pendingDeleteIndicator, setPendingDeleteIndicator] =
+    useState<IndicatorRow | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   const [sheetOpen, setSheetOpen] = useState(false);
   const [sheetTab, setSheetTab] = useState<ActionTab>('progress');
@@ -510,26 +521,6 @@ export function IndicatorTable({ projectId, projectTargets }: Props) {
   useEffect(() => {
     void load();
   }, [load]);
-
-  useEffect(() => {
-    let cancelled = false;
-    fetch('/api/me', { cache: 'no-store' })
-      .then(async (res) => {
-        if (!res.ok) return null;
-        return (await res.json()) as { roleId?: number };
-      })
-      .then((profile) => {
-        if (cancelled || !profile) return;
-        setCanDeleteIndicator(profile.roleId === 3 || profile.roleId === 4);
-      })
-      .catch(() => {
-        if (!cancelled) setCanDeleteIndicator(false);
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, []);
 
   const params = useSearchParams();
   const router = useRouter();
@@ -622,12 +613,19 @@ export function IndicatorTable({ projectId, projectTargets }: Props) {
   };
 
   const handleDeleteIndicator = async (indicator: IndicatorRow) => {
-    if (!canDeleteIndicator) return;
+    if (indicator.isVerified) {
+      setError('Verified indicators cannot be deleted.');
+      return;
+    }
 
-    const confirmed = window.confirm(
-      `Delete indicator "${indicator.name}"?\n\nThis action permanently removes the indicator and related media/documents from active records.`,
-    );
-    if (!confirmed) return;
+    setPendingDeleteIndicator(indicator);
+    setDeleteDialogOpen(true);
+  };
+
+  const confirmDeleteIndicator = async () => {
+    if (!pendingDeleteIndicator) return;
+    const indicator = pendingDeleteIndicator;
+    setDeleting(true);
 
     try {
       const res = await fetch(`/api/officer/indicators/${indicator.indicatorPublicId ?? indicator.indicatorId}`, {
@@ -645,8 +643,12 @@ export function IndicatorTable({ projectId, projectTargets }: Props) {
       if (activeIndicator?.indicatorId === indicator.indicatorId) {
         setSheetOpen(false);
       }
+      setDeleteDialogOpen(false);
+      setPendingDeleteIndicator(null);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to delete indicator');
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -726,7 +728,7 @@ export function IndicatorTable({ projectId, projectTargets }: Props) {
             serialNo={startIdx + idx + 1}
             i={ind}
             onOpenSheet={openSheet}
-            canDelete={canDeleteIndicator}
+            canDelete={!ind.isVerified}
             onDelete={handleDeleteIndicator}
           />
         ))}
@@ -777,6 +779,48 @@ export function IndicatorTable({ projectId, projectTargets }: Props) {
         onProgressSaved={applyProgressPatch}
         onMediaCountsChange={applyMediaCounts}
       />
+
+      <Dialog
+        open={deleteDialogOpen}
+        onOpenChange={(open) => {
+          if (deleting) return;
+          setDeleteDialogOpen(open);
+          if (!open) setPendingDeleteIndicator(null);
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete indicator?</DialogTitle>
+            <DialogDescription>
+              {pendingDeleteIndicator
+                ? `This will permanently remove "${pendingDeleteIndicator.name}" and its related media/documents from active records.`
+                : 'This action permanently removes the indicator and its related records.'}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                setDeleteDialogOpen(false);
+                setPendingDeleteIndicator(null);
+              }}
+              disabled={deleting}
+              className="cursor-pointer"
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              onClick={() => void confirmDeleteIndicator()}
+              disabled={deleting || !pendingDeleteIndicator}
+              className="cursor-pointer bg-error-red text-white hover:bg-error-red/90"
+            >
+              {deleting ? 'Deleting...' : 'Delete'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </section>
   );
 }

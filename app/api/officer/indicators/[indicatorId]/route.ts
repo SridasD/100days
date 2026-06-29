@@ -294,21 +294,9 @@ export async function DELETE(
   req: NextRequest,
   { params }: { params: Promise<{ indicatorId: string }> },
 ) {
-  const sessionOrResponse = await requireSession(req);
+  const sessionOrResponse = await requireOfficerSession(req);
   if (!isSession(sessionOrResponse)) return sessionOrResponse;
   const session = sessionOrResponse;
-
-  const canDeleteByRole =
-    session.roleId === ROLE.ADMIN || session.roleId === ROLE.OSD_ADMIN;
-  if (!canDeleteByRole) {
-    return NextResponse.json(
-      {
-        error:
-          "Only Tech Administrator and OSD admin are authorized to delete indicators.",
-      },
-      { status: 403 },
-    );
-  }
 
   const { indicatorId } = await params;
   const id = await resolveIndicatorId(indicatorId);
@@ -316,17 +304,37 @@ export async function DELETE(
     return NextResponse.json({ error: "Invalid indicatorId" }, { status: 400 });
   }
 
+  const owns = await officerOwnsIndicator(id, {
+    roleId: session.roleId,
+    secId: session.secId,
+    deptId: session.deptId,
+  });
+  if (!owns) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+
   const rowResult = await db.execute(sql`
-    SELECT indicator_id, indicator_name
+    SELECT indicator_id, indicator_name, verified_date
     FROM hdp.indicators
     WHERE indicator_id = ${id}
     LIMIT 1
   `);
   const row = rowResult.rows[0] as
-    | { indicator_id: number | string; indicator_name: string | null }
+    | {
+        indicator_id: number | string;
+        indicator_name: string | null;
+        verified_date: string | Date | null;
+      }
     | undefined;
   if (!row) {
     return NextResponse.json({ error: "Indicator not found" }, { status: 404 });
+  }
+
+  if (row.verified_date) {
+    return NextResponse.json(
+      { error: "Verified indicators cannot be deleted" },
+      { status: 409 },
+    );
   }
 
   try {
