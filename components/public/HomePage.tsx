@@ -19,6 +19,7 @@
  * can roll over without a code change.
  */
 import { useEffect, useState } from 'react';
+import Image from 'next/image';
 import Link from 'next/link';
 import {
   AlertCircle,
@@ -573,22 +574,47 @@ function CTABanner() {
         className="absolute -bottom-24 -left-20 h-72 w-72 rounded-full bg-white/10 blur-3xl"
       />
       <div className="container relative mx-auto px-4">
-        <div>
-          <div className="flex items-center gap-3">
-            <div className="flex flex-col items-center justify-center leading-none text-white">
-              <span className="text-[28px] font-black leading-none tracking-tight">
-                100
-              </span>
-              <span className="mt-0.5 text-[10px] font-bold uppercase tracking-[0.18em] text-white/85">
-                Days
-              </span>
+        <div className="mx-auto w-full max-w-5xl py-1 md:py-2">
+          <div className="grid gap-5 md:grid-cols-[320px_1fr] md:items-center">
+            <div className="flex flex-wrap items-center justify-center gap-3 md:justify-start">
+              <Image
+                src="/images/cdipd-logo.png"
+                alt="CDIPD"
+                width={170}
+                height={44}
+                className="h-10 w-auto rounded-md bg-white/95 px-2 py-1 object-contain"
+              />
+              <Image
+                src="/images/duk-logo.png"
+                alt="Digital University Kerala"
+                width={170}
+                height={44}
+                className="h-10 w-auto rounded-md bg-white/95 px-2 py-1 object-contain"
+              />
             </div>
-            <div className="leading-tight">
-              <p className="font-malayalam text-sm font-bold text-white">
-                കേരള സർക്കാർ
+
+            <div className="space-y-1.5 text-center text-xs leading-relaxed text-white/90 sm:text-sm md:text-left">
+              <p>
+                Designed, Developed and Implemented by{' '}
+                <a
+                  href="https://cdipd.duk.ac.in/"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="font-semibold text-white transition-colors hover:text-hdp-gold"
+                >
+                  Centre for Digital Innovation and Product Development (CDIPD - CMMI level 3 process oriented center)
+                </a>
               </p>
-              <p className="font-malayalam text-[11px] text-white/80">
-                ജനകീയ വികസനത്തിനായുള്ള നൂറുദിന കർമ്മപദ്ധതി
+              <p>
+                A Centre of Excellence Established by{' '}
+                <a
+                  href="https://duk.ac.in/"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="font-semibold text-white transition-colors hover:text-hdp-gold"
+                >
+                  Digital University Kerala
+                </a>
               </p>
             </div>
           </div>
@@ -603,17 +629,11 @@ function CTABanner() {
 // ===========================================================================
 function PublicFooter() {
   return (
-    <footer className="border-t bg-white">
-      <div className="border-t">
-        <div className="container mx-auto flex flex-col items-center justify-between gap-2 px-4 py-4 text-xs text-muted-foreground md:flex-row">
-          <p>
-            © 2026 <span className="font-malayalam">കേരള സർക്കാർ</span>.{' '}
-            <span className="font-malayalam">എല്ലാ അവകാശങ്ങളും നിക്ഷിപ്തം.</span>
-          </p>
-          <p>
-            <span className="font-malayalam">
-              ഡിജിറ്റൽ യൂണിവേഴ്സിറ്റി കേരള രൂപകൽപന ചെയ്തു വികസിപ്പിച്ചു
-            </span>
+    <footer className="border-t bg-gradient-to-b from-white to-hdp-bg/40">
+      <div className="container mx-auto px-4 py-6">
+        <div className="flex flex-col items-center gap-2 text-center">
+          <p className="text-xs text-muted-foreground sm:text-sm">
+            © 2026 Government of Kerala. All rights reserved.
           </p>
         </div>
       </div>
