@@ -193,10 +193,6 @@ export function DepartmentProgressCard({
               value={projects.toLocaleString('en-IN')}
             />
             <StatCell
-              labelMal="ആകെ പദ്ധതികൾ"
-              value={projects.toLocaleString('en-IN')}
-            />
-            <StatCell
               labelMal="പൂർത്തിയായ പദ്ധതികൾ"
               value={status === 'completed' ? projects.toString() : '0'}
             />
