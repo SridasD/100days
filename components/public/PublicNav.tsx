@@ -18,7 +18,6 @@ interface NavLink {
 
 const NAV_LINKS: NavLink[] = [
   { href: '/', labelMal: 'ഹോം' },
-  { href: '/public/projects', labelMal: 'പദ്ധതികൾ' },
   { href: '/#sectors-section', labelMal: 'മേഖലകൾ' },
 ];
 

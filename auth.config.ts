@@ -11,13 +11,38 @@ export const authConfig: NextAuthConfig = {
   },
   providers: [],
   callbacks: {
-    authorized({ auth, request: { nextUrl } }) {
+    authorized({ auth, request }) {
+      const { nextUrl } = request;
       const isLoggedIn = !!auth?.user;
       const { pathname } = nextUrl;
       const role = (auth?.user as any)?.roleId as number | undefined;
       const isApiRoute = pathname.startsWith("/api/");
+      const method = request.method.toUpperCase();
+      const isUnsafeMethod =
+        method === "POST" ||
+        method === "PUT" ||
+        method === "PATCH" ||
+        method === "DELETE";
       const isStaticAsset =
         /\.(png|jpg|jpeg|gif|webp|svg|ico|css|js|map|txt|xml)$/i.test(pathname);
+
+      // CSRF mitigation: for unsafe API methods, require same-origin when
+      // browsers send an Origin header.
+      if (isApiRoute && isUnsafeMethod) {
+        const origin = request.headers.get("origin");
+        if (origin) {
+          const proto =
+            request.headers.get("x-forwarded-proto") ??
+            nextUrl.protocol.replace(":", "");
+          const host =
+            request.headers.get("x-forwarded-host") ??
+            request.headers.get("host");
+          const expectedOrigin = host ? `${proto}://${host}` : null;
+          if (expectedOrigin && origin !== expectedOrigin) {
+            return Response.json({ error: "Forbidden" }, { status: 403 });
+          }
+        }
+      }
 
       // OSD-only district detail view and backing API.
       // Keep both legacy singular and canonical plural paths protected.
