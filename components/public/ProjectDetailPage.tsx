@@ -112,7 +112,7 @@ const STATUS_META: Record<
   },
   'not-started': {
     chip: 'bg-[#FFEBEE] text-[#C62828]',
-    chipMal: 'ആരംഭിക്കാൻ',
+    chipMal: 'ആരംഭിച്ചിട്ടില്ല',
     ringBorder: 'border-hdp-danger',
   },
 };
@@ -321,7 +321,7 @@ function IndicatorCard({
         {ind.verified ? (
           <span className="inline-flex items-center gap-1 rounded-full bg-[#E8F5E9] px-2.5 py-0.5 text-[10px] font-semibold text-[#1B5E20]">
             <ShieldCheck className="h-3 w-3" />
-            <span className="font-malayalam">സ്ഥിരീകരിച്ചത്</span>
+            <span className="font-malayalam">വെരിഫൈഡ്</span>
           </span>
         ) : (
           <span className="inline-flex items-center gap-1 rounded-full bg-[#FFF8E1] px-2.5 py-0.5 text-[10px] font-semibold text-[#E65100]">

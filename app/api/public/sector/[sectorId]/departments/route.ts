@@ -43,6 +43,26 @@ export async function GET(
         ), 0) AS projects,
 
         COALESCE((
+          SELECT COUNT(DISTINCT mp.project_id)::int
+          FROM hdp.master_projects mp
+          INNER JOIN hdp.project_secretary ps ON mp.project_id = ps.project_id
+          WHERE ps.sec_id = ms.sec_id
+            AND mp.sector_id = ${id}
+            AND COALESCE(mp.is_archived, false) = false
+            AND COALESCE(mp.is_completed, 0) = 2
+        ), 0) AS projects_completed,
+
+        COALESCE((
+          SELECT COUNT(DISTINCT mp.project_id)::int
+          FROM hdp.master_projects mp
+          INNER JOIN hdp.project_secretary ps ON mp.project_id = ps.project_id
+          WHERE ps.sec_id = ms.sec_id
+            AND mp.sector_id = ${id}
+            AND COALESCE(mp.is_archived, false) = false
+            AND COALESCE(mp.is_completed, 0) = 1
+        ), 0) AS projects_in_progress,
+
+        COALESCE((
           SELECT COUNT(*)::int
           FROM hdp.indicators i
           INNER JOIN hdp.master_projects mp ON i.project_id = mp.project_id
@@ -127,14 +147,17 @@ export async function GET(
     const departments = (r.rows as Array<any>).map((row) => {
       const physicalPct = Number(row.physical_pct) || 0;
       const financialPct = Number(row.financial_pct) || 0;
+      const projects = Number(row.projects) || 0;
+      const projectsCompleted = Number(row.projects_completed) || 0;
+      const projectsInProgress = Number(row.projects_in_progress) || 0;
       const indicators = Number(row.indicators) || 0;
       let status: "completed" | "in-progress" | "not-started" = "not-started";
-      if (indicators === 0) {
-        status = "not-started";
-      } else if (physicalPct >= 99.9 && financialPct >= 99.9) {
+      if (projects > 0 && projectsCompleted >= projects) {
         status = "completed";
-      } else {
+      } else if (projectsInProgress > 0) {
         status = "in-progress";
+      } else {
+        status = "not-started";
       }
       return {
         secId: Number(row.sec_id),
@@ -143,7 +166,7 @@ export async function GET(
             row.secretary_name_mal) ||
           row.secretary_name ||
           "",
-        projects: Number(row.projects) || 0,
+        projects,
         indicators,
         costInLakhs: Number(row.total_cost) || 0,
         physicalPct: Math.round(physicalPct),

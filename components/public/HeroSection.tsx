@@ -41,7 +41,7 @@ export function HeroSection(_unusedProps: HeroSectionProps) {
       />
       <div
         aria-hidden
-        className="absolute inset-0 -z-10 bg-gradient-to-r from-white/80 via-white/55 to-white/15"
+        className="absolute inset-0 -z-10 bg-gradient-to-r from-white/58 via-white/24 to-transparent"
       />
 
       <div className="container mx-auto grid gap-10 px-4 py-16 lg:grid-cols-[1.7fr_minmax(0,360px)] lg:py-24">

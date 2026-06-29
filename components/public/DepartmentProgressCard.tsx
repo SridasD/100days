@@ -49,7 +49,7 @@ const STATUS_META: Record<
   'not-started': {
     dot: 'bg-hdp-danger',
     chip: 'bg-[#FFEBEE] text-[#C62828]',
-    chipMal: 'ആരംഭിക്കാൻ',
+    chipMal: 'ആരംഭിച്ചിട്ടില്ല',
     ringColor: '#E53935',
   },
 };
@@ -269,13 +269,6 @@ export function DepartmentProgressCard({
         </div>
       </div>
 
-      {/* ============== INFO FOOTER ============== */}
-      <footer className="flex flex-wrap items-center gap-3 border-t bg-hdp-bg/40 px-5 py-2.5 text-[11px] text-muted-foreground">
-        <CheckCircle2 className="h-3.5 w-3.5 text-hdp-success" />
-        <span className="font-malayalam">
-          വരുമാന പദ്ധതികൾ, എണ്ണം, ചിത്രങ്ങൾ, വീഡിയോകൾ
-        </span>
-      </footer>
     </article>
   );
 }

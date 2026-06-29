@@ -7,8 +7,10 @@ import { db } from "@/lib/db/client";
 // Joins each sector to:
 //   - master_projects (sector_id) â†’ projects count
 //   - indicators via projects â†’ indicators count
-// Status is derived: all indicators verified at 100% â†’ completed;
-// any indicator submitted â†’ in-progress; otherwise not-started.
+// Status is derived in this order:
+//   - all projects completed â†’ completed
+//   - any project in progress (is_completed = 1) â†’ in-progress
+//   - otherwise â†’ not-started
 //
 // `sector_name_mal` is the Malayalam label if the column exists, falling
 // back to the English `sector_name`. `sector_img_path` is the file name
@@ -29,6 +31,18 @@ export async function GET() {
           WHERE mp.sector_id = ms.sector_id
             AND COALESCE(mp.is_archived, false) = false
         ), 0) AS projects,
+        COALESCE((
+          SELECT COUNT(*)::int FROM hdp.master_projects mp
+          WHERE mp.sector_id = ms.sector_id
+            AND COALESCE(mp.is_archived, false) = false
+            AND COALESCE(mp.is_completed, 0) = 2
+        ), 0) AS projects_completed,
+        COALESCE((
+          SELECT COUNT(*)::int FROM hdp.master_projects mp
+          WHERE mp.sector_id = ms.sector_id
+            AND COALESCE(mp.is_archived, false) = false
+            AND COALESCE(mp.is_completed, 0) = 1
+        ), 0) AS projects_in_progress,
         COALESCE((
           SELECT COUNT(*)::int FROM hdp.indicators i
           INNER JOIN hdp.master_projects mp ON i.project_id = mp.project_id
@@ -55,13 +69,16 @@ export async function GET() {
     `);
 
     const sectors = (result.rows as Array<any>).map((r) => {
+      const projects = Number(r.projects) || 0;
+      const projectsCompleted = Number(r.projects_completed) || 0;
+      const projectsInProgress = Number(r.projects_in_progress) || 0;
       const indicators = Number(r.indicators) || 0;
       const verifiedComplete = Number(r.verified_complete) || 0;
       const submitted = Number(r.submitted) || 0;
       let status: "completed" | "in-progress" | "not-started" = "not-started";
-      if (indicators > 0 && verifiedComplete >= indicators) {
+      if (projects > 0 && projectsCompleted >= projects) {
         status = "completed";
-      } else if (submitted > 0 || verifiedComplete > 0) {
+      } else if (projectsInProgress > 0) {
         status = "in-progress";
       }
       return {
@@ -71,7 +88,7 @@ export async function GET() {
         imagePath: r.sector_img_path
           ? `/images/sector_images/${r.sector_img_path}`
           : null,
-        projects: Number(r.projects) || 0,
+        projects,
         indicators,
         status,
       };

@@ -53,7 +53,7 @@ const STATUS_META: Record<
     border: 'border-l-hdp-danger',
     bg: 'bg-[#FFEBEE]/30',
     indexBg: 'bg-[#FFEBEE] text-[#C62828]',
-    chipMal: 'ആരംഭിക്കാൻ',
+    chipMal: 'ആരംഭിച്ചിട്ടില്ല',
   },
 };
 
@@ -92,7 +92,7 @@ const FILTER_LABELS_MAL: Record<Filter, string> = {
   all: 'എല്ലാം',
   completed: 'പൂർത്തിയായി',
   'in-progress': 'പുരോഗതിയിൽ',
-  'not-started': 'ആരംഭിക്കാൻ',
+  'not-started': 'ആരംഭിച്ചിട്ടില്ല',
 };
 
 export function DepartmentPage({
@@ -134,8 +134,7 @@ export function DepartmentPage({
               {nameMal}
             </h1>
             <p className="font-malayalam mt-3 max-w-xl text-sm leading-relaxed text-white/80">
-              പദ്ധതികളുടെ ഭൗതികവും സാമ്പത്തികവുമായ പുരോഗതി, ഘടകങ്ങൾ, മാധ്യമങ്ങൾ
-              എന്നിവ
+              പദ്ധതികളുടെ ഭൗതികവും സാമ്പത്തികവുമായ പുരോഗതി, ഘടകങ്ങൾ എന്നിവ
             </p>
           </div>
 
@@ -171,9 +170,6 @@ export function DepartmentPage({
       <section className="border-b bg-white">
         <div className="container mx-auto flex flex-col gap-4 px-4 py-6 md:flex-row md:items-center md:justify-between">
           <div>
-            <p className="font-malayalam text-xs font-semibold uppercase tracking-wide text-hdp-green">
-              പദ്ധതിപട്ടിക
-            </p>
             <h2 className="font-malayalam text-xl font-bold text-foreground">
               വകുപ്പിലെ പദ്ധതികൾ
             </h2>
@@ -354,11 +350,6 @@ function ProjectCard({
           <p className="font-malayalam text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
             പദ്ധതിപുരോഗതി
           </p>
-          {!project.verified && (
-            <span className="font-malayalam rounded-full bg-white/80 px-2 py-0.5 text-[10px] text-muted-foreground">
-              സർക്കാർ സ്ഥിരീകരിച്ചത് അല്ല
-            </span>
-          )}
           {project.verified && (
             <span className="font-malayalam rounded-full bg-hdp-success/15 px-2 py-0.5 text-[10px] text-hdp-success">
               സ്ഥിരീകരിച്ചത്
