@@ -171,7 +171,7 @@ export function LiveCountdown() {
   const badgeColor = phaseEnded
     ? 'bg-hdp-success/15 text-hdp-success'
     : 'bg-hdp-warning/15 text-hdp-warning';
-  const badgeText = phaseEnded ? 'പൂർത്തിയായി' : 'തൽസമയം';
+  const badgeText = phaseEnded ? 'പൂർത്തിയായ' : 'തൽസമയം';
 
   return (
     <div className="relative">
@@ -182,10 +182,7 @@ export function LiveCountdown() {
       />
       <div className="rounded-3xl border border-white bg-white/95 p-6 shadow-2xl backdrop-blur-md">
         {/* Header row */}
-        <div className="flex items-center justify-between">
-          <p className="font-malayalam text-xs text-muted-foreground">
-            പദ്ധതി പൂർത്തിയാക്കാൻ
-          </p>
+        <div className="flex items-center justify-center">
           <span
             className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[10px] font-semibold ${badgeColor}`}
           >

@@ -231,7 +231,7 @@ function ProjectStatusOverview({
           rightAction={
             <span className="hidden items-center gap-2 text-xs text-muted-foreground md:inline-flex">
               <RefreshCw className="h-3.5 w-3.5" />
-              <span className="font-malayalam">വിവരങ്ങൾ തത്സമയം പുതുക്കുന്നു</span>
+              <span className="font-malayalam">വിവരങ്ങൾ തത്സമയം</span>
             </span>
           }
         />
@@ -254,21 +254,21 @@ function ProjectStatusOverview({
               <StatusBlock
                 tone="success"
                 icon={CheckCircle2}
-                labelMal="പൂർത്തിയായി"
+                labelMal="പൂർത്തിയായ"
                 subMal="പദ്ധതികൾ"
                 value={completedProjects}
               />
               <StatusBlock
                 tone="warning"
                 icon={Loader2}
-                labelMal="പുരോഗതിയിൽ"
+                labelMal="പുരോഗതിയിലുള്ള"
                 subMal="പദ്ധതികൾ"
                 value={inProgressProjects}
               />
               <StatusBlock
                 tone="danger"
                 icon={AlertCircle}
-                labelMal="ആരംഭിക്കേണ്ടത്"
+                labelMal="ആരംഭിക്കാനുള്ള"
                 subMal="പദ്ധതികൾ"
                 value={notStartedProjects}
               />
@@ -288,10 +288,6 @@ function ProjectStatusOverview({
                 {totalIndicators}
               </span>
             </div>
-
-            <p className="font-malayalam mt-1 text-[11px] text-muted-foreground">
-              പുരോഗതി പദ്ധതികൾ, ഘടകങ്ങൾ ഉൾപ്പെടെയുള്ളവ
-            </p>
 
             <div className="mt-5 space-y-4">
               <BarRow
@@ -414,7 +410,7 @@ function ProjectsByNature({ nature }: { nature: NatureSummary | null }) {
     <section id="sectors-section" className="bg-hdp-bg py-14">
       <div className="container mx-auto px-4">
         <SectionHeader
-          eyebrowMal="പ്രധാന മേഖലകൾ"
+          eyebrowMal=""
           titleMal="പദ്ധതികളുടെ സ്വഭാവം"
         />
         <div className="mt-8 grid gap-5 md:grid-cols-2">
@@ -422,7 +418,7 @@ function ProjectsByNature({ nature }: { nature: NatureSummary | null }) {
             iconBg="bg-hdp-success/15 text-hdp-success"
             icon={Users}
             titleMal="ഉപജീവനമാർഗ്ഗ പദ്ധതികൾ"
-            descMal="തൊഴിൽ, വരുമാനം, ഉപകരണവുമായ ലളിത ഇടപെടലുകൾ"
+            descMal="തൊഴിൽ, വരുമാനം"
             count={livelihood.total}
             completed={livelihood.completed}
             tone="success"
@@ -493,7 +489,7 @@ function NatureCard({
           >
             <CheckCircle2 className="h-3 w-3" />
             <span>
-              {completed} <span className="font-malayalam">പൂർത്തിയായി</span>
+              {completed} <span className="font-malayalam">പൂർത്തിയായ</span>
             </span>
           </span>
         </div>

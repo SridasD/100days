@@ -48,7 +48,7 @@ interface SectorMeta {
 const SECTOR_META: Record<number, SectorMeta> = {
   1: { nameMal: 'കൃഷി അനുബന്ധ മേഖല', icon: Leaf },
   3: { nameMal: 'സഹകരണ മേഖല', icon: HandHeart },
-  4: { nameMal: 'ജലവിഭവ - ജലസേചനം', icon: Droplets },
+  4: { nameMal: 'ജലവിഭവ- ജലസേചന മേഖല', icon: Droplets },
   5: { nameMal: 'ഊർജ്ജ മേഖല', icon: Sun },
   6: { nameMal: 'വ്യവസായ സംരംഭക മേഖല', icon: Cpu },
   7: { nameMal: 'ഗതാഗതം - പൊതുമേഖല', icon: Train },
