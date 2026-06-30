@@ -40,13 +40,12 @@ export function PublicNav() {
       <div className="container mx-auto flex h-16 items-center justify-between px-4">
         {/* LOGO BLOCK — borderless wordmark, white tile, deep green text */}
         <Link href="/" className="flex items-center gap-3">
-          <div className="flex flex-col items-center justify-center leading-none text-hdp-green">
-            <span className="text-[28px] font-black leading-none tracking-tight">
-              100
-            </span>
-            <span className="mt-0.5 text-[10px] font-bold uppercase tracking-[0.18em] text-hdp-green/85">
-              Days
-            </span>
+          <div className="flex h-11 w-11 items-center justify-center rounded-full border border-hdp-green/15 bg-white p-1">
+            <img
+              src="/images/kerala-emblem-black.jpg"
+              alt="Kerala State emblem"
+              className="h-9 w-9 object-contain"
+            />
           </div>
           <div className="hidden h-9 w-px bg-border sm:block" />
           <div className="hidden leading-tight sm:block">

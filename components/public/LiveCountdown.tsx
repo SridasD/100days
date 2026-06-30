@@ -161,7 +161,7 @@ export function LiveCountdown() {
     const fmt = (s: string) =>
       new Date(`${s}T00:00:00+05:30`).toLocaleDateString('ml-IN', {
         day: 'numeric',
-        month: 'short',
+        month: 'long',
         year: 'numeric',
       });
     return `${fmt(PHASE_START)} — ${fmt(PHASE_END)}`;
