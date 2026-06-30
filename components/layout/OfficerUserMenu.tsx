@@ -37,6 +37,7 @@ const ROLE_NAMES: Record<number, string> = {
   5: 'Secretary',
   6: 'Head of Department',
   3: 'Administrator',
+  4: 'OSD Administrator',
 };
 
 /**
@@ -48,6 +49,7 @@ function changePasswordHref(roleId: number | undefined): string {
     case 1:
       return '/verify/settings/change-password';
     case 3:
+    case 4:
       return '/admin/settings/change-password';
     case 5:
       return '/secretary/settings/change-password';

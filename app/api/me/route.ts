@@ -33,7 +33,7 @@ const updateProfileSchema = z.object({
 });
 
 export async function GET(req: NextRequest) {
-  const sessionOrResponse = await requireSession(req);
+  const sessionOrResponse = await requireSession();
   if (!isSession(sessionOrResponse)) return sessionOrResponse;
   const session = sessionOrResponse;
   const userId = session.userId;
@@ -113,7 +113,7 @@ export async function GET(req: NextRequest) {
 }
 
 export async function PATCH(req: NextRequest) {
-  const sessionOrResponse = await requireSession(req);
+  const sessionOrResponse = await requireSession();
   if (!isSession(sessionOrResponse)) return sessionOrResponse;
   const session = sessionOrResponse;
 

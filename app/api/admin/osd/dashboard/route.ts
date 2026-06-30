@@ -9,8 +9,8 @@ import { db } from "@/lib/db/client";
 
 export const runtime = "nodejs";
 
-export async function GET(req: NextRequest) {
-  const sessionOrResponse = await requireOsdAdminSession(req);
+export async function GET(_req: NextRequest) {
+  const sessionOrResponse = await requireOsdAdminSession();
   if (!isAdminSession(sessionOrResponse)) return sessionOrResponse;
 
   try {

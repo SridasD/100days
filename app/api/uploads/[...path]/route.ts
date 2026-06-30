@@ -1,9 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { sql } from "drizzle-orm";
 import { createReadStream } from "node:fs";
 import { stat } from "node:fs/promises";
 import path from "node:path";
-import { db } from "@/lib/db/client";
 
 export const runtime = "nodejs";
 
@@ -35,6 +33,14 @@ const MIME_BY_EXT: Record<string, string> = {
   pdf: "application/pdf",
 };
 
+const YEAR_RE = /^\d{4}$/;
+const INDICATOR_ID_RE = /^\d+$/;
+// New uploads use randomUUID() (hyphenated v4). Keep a legacy 32-hex option
+// for old rows if any were written by earlier tooling.
+const UUID_V4_RE =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const UUID_HEX32_RE = /^[0-9a-f]{32}$/i;
+
 function safeJoin(base: string, parts: string[]) {
   // Normalise + reject any traversal.
   const clean = parts
@@ -53,6 +59,21 @@ function safeJoin(base: string, parts: string[]) {
   return absJoined;
 }
 
+function isValidEvidencePath(parts: string[]) {
+  if (parts.length !== 3) return false;
+  const [year, indicatorId, file] = parts.map((p) => decodeURIComponent(p));
+
+  if (!YEAR_RE.test(year) || !INDICATOR_ID_RE.test(indicatorId)) {
+    return false;
+  }
+
+  const ext = file.split(".").pop()?.toLowerCase() ?? "";
+  if (!MIME_BY_EXT[ext]) return false;
+
+  const basename = file.slice(0, -(ext.length + 1));
+  return UUID_V4_RE.test(basename) || UUID_HEX32_RE.test(basename);
+}
+
 export async function GET(
   _req: NextRequest,
   { params }: { params: Promise<{ path: string[] }> },
@@ -62,26 +83,13 @@ export async function GET(
     return NextResponse.json({ error: "Bad path" }, { status: 400 });
   }
 
-  const abs = safeJoin(UPLOAD_ROOT, parts);
-  if (!abs) {
+  if (!isValidEvidencePath(parts)) {
     return NextResponse.json({ error: "Bad path" }, { status: 400 });
   }
 
-  // Authorization: the file MUST be referenced by a row in hdp.gallery
-  // or hdp.documents. If not, return 404 — refuses to enumerate orphans.
-  const relPosix = parts.map((p) => decodeURIComponent(p)).join("/");
-  try {
-    const found = await db.execute(sql`
-      SELECT 1 FROM hdp.gallery WHERE image_path = ${relPosix}
-      UNION ALL
-      SELECT 1 FROM hdp.documents WHERE document_path = ${relPosix}
-      LIMIT 1
-    `);
-    if (found.rows.length === 0) {
-      return NextResponse.json({ error: "Not found" }, { status: 404 });
-    }
-  } catch {
-    return NextResponse.json({ error: "Not found" }, { status: 404 });
+  const abs = safeJoin(UPLOAD_ROOT, parts);
+  if (!abs) {
+    return NextResponse.json({ error: "Bad path" }, { status: 400 });
   }
 
   let info;

@@ -15,7 +15,7 @@ export async function GET(
   req: NextRequest,
   { params }: { params: Promise<{ deptId: string }> },
 ) {
-  const sessionOrResponse = await requireSession(req);
+  const sessionOrResponse = await requireSession();
   if (!isSession(sessionOrResponse)) return sessionOrResponse;
   const session = sessionOrResponse;
 

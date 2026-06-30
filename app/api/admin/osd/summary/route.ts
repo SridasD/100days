@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { sql } from "drizzle-orm";
 import {
   isAdminSession,
@@ -8,8 +8,8 @@ import { db } from "@/lib/db/client";
 
 export const runtime = "nodejs";
 
-export async function GET(req: NextRequest) {
-  const sessionOrResponse = await requireOsdAdminSession(req);
+export async function GET() {
+  const sessionOrResponse = await requireOsdAdminSession();
   if (!isAdminSession(sessionOrResponse)) return sessionOrResponse;
 
   try {

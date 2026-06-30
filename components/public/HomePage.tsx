@@ -10,8 +10,7 @@
  *   <ProjectsByNature />          ← livelihood vs infrastructure
  *   <SectorGrid />
  *   <DepartmentProgress />        ← list of DepartmentProgressCard
- *   <CTABanner />
- *   <PublicFooter />
+ *   <SiteFooter />
  *
  * On mount we hit /api/public/dashboard and slot the live counts into the
  * hero stats + status overview. Phase boundaries are read from env vars
@@ -19,7 +18,6 @@
  * can roll over without a code change.
  */
 import { useEffect, useState } from 'react';
-import Image from 'next/image';
 import Link from 'next/link';
 import {
   AlertCircle,
@@ -33,6 +31,7 @@ import {
   Users,
 } from 'lucide-react';
 import { HeroSection } from './HeroSection';
+import { SiteFooter } from '@/components/layout/SiteFooter';
 import { PublicNav } from './PublicNav';
 import { StatsOverview } from './StatsOverview';
 import { SectorGrid } from './SectorGrid';
@@ -196,9 +195,7 @@ export function HomePage() {
 
       <SectorGrid />
 
-      <CTABanner />
-
-      <PublicFooter />
+      <SiteFooter />
     </div>
   );
 }
@@ -556,88 +553,6 @@ function DepartmentProgress({
         )}
       </div>
     </section>
-  );
-}
-
-// ===========================================================================
-// CTA BANNER
-// ===========================================================================
-function CTABanner() {
-  return (
-    <section className="relative overflow-hidden bg-gradient-to-br from-hdp-green via-hdp-green-active to-[#246328] py-14 text-white">
-      <div
-        aria-hidden
-        className="absolute -right-32 -top-20 h-72 w-72 rounded-full bg-hdp-gold/20 blur-3xl"
-      />
-      <div
-        aria-hidden
-        className="absolute -bottom-24 -left-20 h-72 w-72 rounded-full bg-white/10 blur-3xl"
-      />
-      <div className="container relative mx-auto px-4">
-        <div className="mx-auto w-full max-w-5xl py-1 md:py-2">
-          <div className="grid gap-5 md:grid-cols-[320px_1fr] md:items-center">
-            <div className="flex flex-wrap items-center justify-center gap-3 md:justify-start">
-              <Image
-                src="/images/cdipd-logo.png"
-                alt="CDIPD"
-                width={170}
-                height={44}
-                className="h-10 w-auto rounded-md bg-white/95 px-2 py-1 object-contain"
-              />
-              <Image
-                src="/images/duk-logo.png"
-                alt="Digital University Kerala"
-                width={170}
-                height={44}
-                className="h-10 w-auto rounded-md bg-white/95 px-2 py-1 object-contain"
-              />
-            </div>
-
-            <div className="space-y-1.5 text-center text-xs leading-relaxed text-white/90 sm:text-sm md:text-left">
-              <p>
-                Designed, Developed and Implemented by{' '}
-                <a
-                  href="https://cdipd.duk.ac.in/"
-                  target="_blank"
-                  rel="noreferrer"
-                  className="font-semibold text-white transition-colors hover:text-hdp-gold"
-                >
-                  Centre for Digital Innovation and Product Development (CDIPD - CMMI level 3 process oriented center)
-                </a>
-              </p>
-              <p>
-                A Centre of Excellence Established by{' '}
-                <a
-                  href="https://duk.ac.in/"
-                  target="_blank"
-                  rel="noreferrer"
-                  className="font-semibold text-white transition-colors hover:text-hdp-gold"
-                >
-                  Digital University Kerala
-                </a>
-              </p>
-            </div>
-          </div>
-        </div>
-      </div>
-    </section>
-  );
-}
-
-// ===========================================================================
-// FOOTER
-// ===========================================================================
-function PublicFooter() {
-  return (
-    <footer className="border-t bg-gradient-to-b from-white to-hdp-bg/40">
-      <div className="container mx-auto px-4 py-6">
-        <div className="flex flex-col items-center gap-2 text-center">
-          <p className="text-xs text-muted-foreground sm:text-sm">
-            © 2026 Government of Kerala. All rights reserved.
-          </p>
-        </div>
-      </div>
-    </footer>
   );
 }
 

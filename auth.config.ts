@@ -13,10 +13,18 @@ export const authConfig: NextAuthConfig = {
   callbacks: {
     authorized({ auth, request }) {
       const { nextUrl } = request;
-      const isLoggedIn = !!auth?.user;
       const { pathname } = nextUrl;
       const role = (auth?.user as any)?.roleId as number | undefined;
       const isApiRoute = pathname.startsWith("/api/");
+      const hasSessionCookie =
+        !!request.cookies.get("__Secure-authjs.session-token") ||
+        !!request.cookies.get("authjs.session-token") ||
+        !!request.cookies.get("__Secure-next-auth.session-token") ||
+        !!request.cookies.get("next-auth.session-token");
+      // Edge middleware can occasionally fail to deserialize session on API
+      // routes behind certain proxy setups. For APIs, allow cookie-present
+      // requests through and let route-level guards enforce auth strictly.
+      const isLoggedIn = !!auth?.user || (isApiRoute && hasSessionCookie);
       const method = request.method.toUpperCase();
       const isUnsafeMethod =
         method === "POST" ||
@@ -72,6 +80,7 @@ export const authConfig: NextAuthConfig = {
         pathname === "/" ||
         pathname.startsWith("/images") ||
         pathname.startsWith("/public") ||
+        pathname.startsWith("/api/uploads") ||
         pathname.startsWith("/login") ||
         pathname.startsWith("/forgot-password") ||
         pathname.startsWith("/reset-password") ||

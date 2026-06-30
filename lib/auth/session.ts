@@ -3,6 +3,7 @@ import type { NextRequest } from "next/server";
 import { headers } from "next/headers";
 import { getToken } from "next-auth/jwt";
 import { sql } from "drizzle-orm";
+import { auth } from "@/auth";
 import { db } from "@/lib/db/client";
 
 export interface OfficerSession {
@@ -38,10 +39,13 @@ export const ROLE = {
 export async function requireSession(
   req?: NextRequest,
 ): Promise<OfficerSession | NextResponse> {
+  const authDebug = process.env.AUTH_DEBUG_LOG === "true";
   const saltCandidates = [
     process.env.AUTH_SALT,
     "__Secure-authjs.session-token",
     "authjs.session-token",
+    "__Secure-next-auth.session-token",
+    "next-auth.session-token",
   ].filter((v, i, arr): v is string => Boolean(v) && arr.indexOf(v) === i);
 
   let token: {
@@ -63,6 +67,30 @@ export async function requireSession(
       });
       if (token) break;
     }
+    if (authDebug) {
+      const host = req.headers.get("host");
+      const proto = req.headers.get("x-forwarded-proto");
+      const cookieHeader = req.headers.get("cookie") ?? "";
+      const hasAuthjsSecure = cookieHeader.includes(
+        "__Secure-authjs.session-token=",
+      );
+      const hasAuthjs = cookieHeader.includes("authjs.session-token=");
+      const hasNextAuthSecure = cookieHeader.includes(
+        "__Secure-next-auth.session-token=",
+      );
+      const hasNextAuth = cookieHeader.includes("next-auth.session-token=");
+      console.info("[auth][requireSession][req]", {
+        path: req.nextUrl.pathname,
+        method: req.method,
+        host,
+        proto,
+        hasAuthjsSecure,
+        hasAuthjs,
+        hasNextAuthSecure,
+        hasNextAuth,
+        tokenResolved: Boolean(token),
+      });
+    }
   } else {
     const hdrs = await headers();
     const forwardedProto =
@@ -80,6 +108,26 @@ export async function requireSession(
         salt,
       });
       if (token) break;
+    }
+    if (authDebug) {
+      const cookieHeader = hdrs.get("cookie") ?? "";
+      const hasAuthjsSecure = cookieHeader.includes(
+        "__Secure-authjs.session-token=",
+      );
+      const hasAuthjs = cookieHeader.includes("authjs.session-token=");
+      const hasNextAuthSecure = cookieHeader.includes(
+        "__Secure-next-auth.session-token=",
+      );
+      const hasNextAuth = cookieHeader.includes("next-auth.session-token=");
+      console.info("[auth][requireSession][headers]", {
+        host: hdrs.get("host"),
+        forwardedProto,
+        hasAuthjsSecure,
+        hasAuthjs,
+        hasNextAuthSecure,
+        hasNextAuth,
+        tokenResolved: Boolean(token),
+      });
     }
   }
 
@@ -104,6 +152,47 @@ export async function requireSession(
       secId: Number(token.secId ?? 0),
       deptId: Number(token.deptId ?? 0),
     };
+  }
+
+  // Fallback: in some proxy/runtime setups getToken can intermittently fail
+  // even when a valid session exists. Try NextAuth's auth() before rejecting.
+  if (!user?.id) {
+    try {
+      const authWithReq = auth as unknown as (
+        request: NextRequest,
+      ) => Promise<{ user?: unknown } | null>;
+      const session = req ? await authWithReq(req) : await auth();
+      const sessionUser = session?.user as
+        | {
+            id?: string;
+            loginName?: string;
+            name?: string | null;
+            roleId?: number;
+            secId?: number;
+            deptId?: number;
+          }
+        | undefined;
+
+      if (sessionUser?.id) {
+        user = {
+          id: String(sessionUser.id),
+          loginName: String(sessionUser.loginName ?? ""),
+          name: sessionUser.name ?? null,
+          roleId: Number(sessionUser.roleId ?? 0),
+          secId: Number(sessionUser.secId ?? 0),
+          deptId: Number(sessionUser.deptId ?? 0),
+        };
+      }
+
+      if (authDebug) {
+        console.info("[auth][requireSession][fallbackAuth]", {
+          resolved: Boolean(user?.id),
+          roleId: user?.roleId ?? null,
+        });
+      }
+    } catch {
+      // Ignore and return Unauthorized below if no usable session is found.
+    }
   }
 
   if (!user?.id) {
