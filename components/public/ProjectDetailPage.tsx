@@ -159,7 +159,7 @@ export function ProjectDetailPage({ project }: { project: PublicProject }) {
               </span>
             </div>
 
-            <h1 className="font-malayalam mt-3 text-3xl font-bold leading-tight md:text-4xl">
+            <h1 className="font-malayalam mt-3 text-xl font-bold leading-tight sm:text-2xl md:text-3xl lg:text-4xl">
               {project.name}
             </h1>
 

@@ -294,7 +294,7 @@ export function LiveCountdown() {
           {/* Centre text */}
           <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center text-center">
             {!hydrated ? (
-              <span className="font-mono text-5xl font-extrabold leading-none tracking-tight text-hdp-green">
+              <span className="font-mono text-2xl font-extrabold leading-none tracking-tight text-hdp-green sm:text-3xl md:text-4xl lg:text-5xl">
                 {TOTAL_DAYS}
               </span>
             ) : !phaseStarted ? (
@@ -303,7 +303,7 @@ export function LiveCountdown() {
               </span>
             ) : phaseEnded ? (
               <>
-                <span className="font-mono text-5xl font-extrabold leading-none tracking-tight text-hdp-green">
+                <span className="font-mono text-2xl font-extrabold leading-none tracking-tight text-hdp-green sm:text-3xl md:text-4xl lg:text-5xl">
                   0
                 </span>
                 <span className="font-malayalam mt-1 text-[11px] text-muted-foreground">
@@ -312,7 +312,7 @@ export function LiveCountdown() {
               </>
             ) : (
               <>
-                <span className="font-mono text-5xl font-extrabold leading-none tracking-tight text-hdp-green">
+                <span className="font-mono text-2xl font-extrabold leading-none tracking-tight text-hdp-green sm:text-3xl md:text-4xl lg:text-5xl">
                   {daysRemaining}
                 </span>
                 <span className="font-malayalam mt-1 text-[11px] text-muted-foreground">

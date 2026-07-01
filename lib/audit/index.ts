@@ -1,6 +1,6 @@
-import { db } from '@/lib/db/client';
-import { userLog, type AuditAction } from '@/lib/db/schema/audit';
-import { sessionBlocklist } from '@/lib/db/schema/user';
+import { db } from "@/lib/db/client";
+import { userLog, type AuditAction } from "@/lib/db/schema/audit";
+import { sessionBlocklist } from "@/lib/db/schema/user";
 
 export interface AuditParams {
   userId?: number | null;
@@ -10,7 +10,7 @@ export interface AuditParams {
   ip?: string | null;
   userAgent?: string | null;
   secId?: number | null;
-  outcome?: 'SUCCESS' | 'FAILURE';
+  outcome?: "SUCCESS" | "FAILURE";
   meta?: Record<string, unknown>;
 }
 
@@ -22,12 +22,15 @@ export async function writeAuditLog(p: AuditParams): Promise<void> {
     userId: p.userId ?? null,
     action: p.action,
     entity: p.entity ?? null,
-    entityId: typeof p.entityId === 'bigint' ? Number(p.entityId) : p.entityId ?? null,
+    entityId:
+      typeof p.entityId === "bigint"
+        ? Number(p.entityId)
+        : (p.entityId ?? null),
     userIp: p.ip ?? null,
     userAgent: p.userAgent?.slice(0, 500) ?? null,
     browserDetails: p.userAgent?.slice(0, 250) ?? null,
     secId: p.secId ?? null,
-    outcome: p.outcome ?? 'SUCCESS',
+    outcome: p.outcome ?? "SUCCESS",
     meta: p.meta ?? null,
     loggedOn: new Date(),
   });
@@ -40,7 +43,7 @@ export async function writeAuditLog(p: AuditParams): Promise<void> {
 export async function blocklistJWT(
   userId: number,
   jti: string,
-  reason: string = 'USER_LOGOUT'
+  reason: string = "USER_LOGOUT",
 ): Promise<void> {
   try {
     await db.insert(sessionBlocklist).values({
@@ -50,6 +53,6 @@ export async function blocklistJWT(
     });
   } catch (error) {
     // Log the error but don't fail the logout
-    console.error('Failed to blocklist JWT:', error);
+    console.error("Failed to blocklist JWT:", error);
   }
 }

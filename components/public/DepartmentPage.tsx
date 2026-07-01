@@ -130,7 +130,7 @@ export function DepartmentPage({
             <p className="font-malayalam mt-4 text-xs font-semibold uppercase tracking-wide text-hdp-gold">
               വകുപ്പുതല ഡാഷ്ബോർഡ്
             </p>
-            <h1 className="font-malayalam mt-2 text-3xl font-bold leading-tight md:text-4xl">
+            <h1 className="font-malayalam mt-2 text-xl font-bold leading-tight sm:text-2xl md:text-3xl lg:text-4xl">
               {nameMal}
             </h1>
             <p className="font-malayalam mt-3 max-w-xl text-sm leading-relaxed text-white/80">

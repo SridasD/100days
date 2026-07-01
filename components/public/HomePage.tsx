@@ -574,7 +574,7 @@ function SectionHeader({
         <p className="font-malayalam text-xs font-semibold uppercase tracking-wide text-hdp-green">
           {eyebrowMal}
         </p>
-        <h2 className="font-malayalam mt-1 text-2xl font-bold tracking-tight text-foreground md:text-3xl">
+        <h2 className="font-malayalam mt-1 text-lg font-bold tracking-tight text-foreground sm:text-xl md:text-2xl lg:text-3xl">
           {titleMal}
         </h2>
       </div>

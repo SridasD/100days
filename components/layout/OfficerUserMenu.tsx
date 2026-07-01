@@ -62,7 +62,7 @@ async function logoutWithAudit() {
 
     if (session?.user?.id) {
       const userId = parseInt(session.user.id, 10);
-      
+
       // Generate a unique jti (JWT ID) for blocklisting
       // In production, this would come from the JWT itself, but since we don't
       // have direct access to it here, we use a combination of userId + timestamp
