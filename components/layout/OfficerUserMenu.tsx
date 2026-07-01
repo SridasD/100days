@@ -4,6 +4,10 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { ChevronDown, KeyRound, LogOut, UserCircle } from 'lucide-react';
 import { signOut } from 'next-auth/react';
+import { headers } from 'next/headers';
+import { auth } from '@/auth';
+import { writeAuditLog } from '@/lib/audit';
+import { AUDIT_ACTIONS } from '@/lib/db/schema/audit';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -39,6 +43,41 @@ const ROLE_NAMES: Record<number, string> = {
   3: 'Administrator',
   4: 'OSD Administrator',
 };
+
+/**
+ * Server action: Write LOGOUT audit event and sign out the user.
+ * Extracts IP address and user-agent from request headers.
+ */
+async function logoutWithAudit() {
+  'use server';
+  
+  try {
+    const session = await auth();
+    const headersList = await headers();
+    
+    const userIp = headersList.get('x-forwarded-for')?.split(',')[0] || 
+                   headersList.get('x-real-ip') || 
+                   'unknown';
+    const userAgent = headersList.get('user-agent') || undefined;
+    
+    // Write LOGOUT audit event
+    if (session?.user?.id) {
+      await writeAuditLog({
+        userId: parseInt(session.user.id, 10),
+        action: AUDIT_ACTIONS.LOGOUT,
+        outcome: 'SUCCESS',
+        ip: userIp,
+        userAgent: userAgent,
+      });
+    }
+  } catch (error) {
+    // Log error but don't fail the logout
+    console.error('Failed to write logout audit:', error);
+  }
+  
+  // Sign out the user
+  await signOut({ callbackUrl: '/login' });
+}
 
 /**
  * Map the current user's role_id to the role-scoped change-password URL.
@@ -186,7 +225,7 @@ export function OfficerUserMenu({
         </DropdownMenuItem>
         <DropdownMenuSeparator />
         <DropdownMenuItem
-          onClick={() => signOut({ callbackUrl: '/login' })}
+          onClick={() => logoutWithAudit()}
           className="text-error-red focus:bg-error-red/10 focus:text-error-red"
         >
           <LogOut className="h-4 w-4" />
