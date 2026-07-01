@@ -50,16 +50,16 @@ const ROLE_NAMES: Record<number, string> = {
  */
 async function logoutWithAudit() {
   'use server';
-  
+
   try {
     const session = await auth();
     const headersList = await headers();
-    
-    const userIp = headersList.get('x-forwarded-for')?.split(',')[0] || 
-                   headersList.get('x-real-ip') || 
-                   'unknown';
+
+    const userIp = headersList.get('x-forwarded-for')?.split(',')[0] ||
+      headersList.get('x-real-ip') ||
+      'unknown';
     const userAgent = headersList.get('user-agent') || undefined;
-    
+
     // Write LOGOUT audit event
     if (session?.user?.id) {
       await writeAuditLog({
@@ -74,7 +74,7 @@ async function logoutWithAudit() {
     // Log error but don't fail the logout
     console.error('Failed to write logout audit:', error);
   }
-  
+
   // Sign out the user
   await signOut({ callbackUrl: '/login' });
 }

@@ -635,9 +635,23 @@ export function ProjectTable() {
       </div>
 
       <div className="space-y-4">
-        {visible.map((p) => (
-          <ProjectCard key={p.projectId} p={p} />
-        ))}
+        {visible.length === 0 ? (
+          <div className="flex flex-col items-center justify-center gap-3 rounded-lg border border-dashed bg-muted/30 py-12 text-center">
+            <FolderOpen className="h-12 w-12 opacity-40" aria-hidden />
+            <div>
+              <h3 className="font-semibold text-foreground">No projects found</h3>
+              <p className="text-sm text-muted-foreground">
+                {searchQuery
+                  ? 'Try adjusting your search or filter criteria'
+                  : 'There are no projects to display'}
+              </p>
+            </div>
+          </div>
+        ) : (
+          visible.map((p) => (
+            <ProjectCard key={p.projectId} p={p} />
+          ))
+        )}
       </div>
 
       <div className="flex flex-col items-center justify-between gap-3 sm:flex-row">

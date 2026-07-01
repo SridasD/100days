@@ -13,6 +13,7 @@
 The HDP Portal 2.0 is **NOT PRODUCTION READY**. While core authentication, authorization, and data persistence are sound, **critical user-facing features remain unimplemented as placeholder pages**. Deployment tomorrow would result in immediate support escalations and user confusion.
 
 ### Critical Blockers (Must Fix Before Go-Live)
+
 1. **Logout** — Audit logging missing
 2. **CSP Header** — Dangerously loose (`unsafe-eval`, `unsafe-inline` in script-src)
 
@@ -20,16 +21,16 @@ The HDP Portal 2.0 is **NOT PRODUCTION READY**. While core authentication, autho
 
 ### Production Readiness Score: **65%**
 
-| Dimension | Score | Status |
-|-----------|-------|--------|
-| **Feature Completeness** | 80% | ✅ Core features implemented |
-| **Security** | 75% | 🟡 CSP issues, audit gaps |
-| **Performance** | 60% | 🟡 N+1 queries, client-side fetching |
-| **UX/Responsiveness** | 65% | 🟡 Empty states, typography jumps |
-| **Accessibility** | 50% | 🔴 No ARIA audit performed |
-| **Code Quality** | 70% | 🟡 TODOs, duplicates, generic errors |
-| **Test Coverage** | 0% | 🔴 No E2E tests mentioned |
-| **Documentation** | 80% | ✅ Blueprint and specs thorough |
+| Dimension                | Score | Status                               |
+| ------------------------ | ----- | ------------------------------------ |
+| **Feature Completeness** | 80%   | ✅ Core features implemented         |
+| **Security**             | 75%   | 🟡 CSP issues, audit gaps            |
+| **Performance**          | 60%   | 🟡 N+1 queries, client-side fetching |
+| **UX/Responsiveness**    | 65%   | 🟡 Empty states, typography jumps    |
+| **Accessibility**        | 50%   | 🔴 No ARIA audit performed           |
+| **Code Quality**         | 70%   | 🟡 TODOs, duplicates, generic errors |
+| **Test Coverage**        | 0%    | 🔴 No E2E tests mentioned            |
+| **Documentation**        | 80%   | ✅ Blueprint and specs thorough      |
 
 ---
 
@@ -44,11 +45,12 @@ The HDP Portal 2.0 is **NOT PRODUCTION READY**. While core authentication, autho
 ### ✅ Change Password - IMPLEMENTED
 
 **Status:** VERIFIED IMPLEMENTED  
-**Location:** `/officer/settings/change-password`, `/verify/settings/change-password`, `/admin/settings/change-password`, `/secretary/settings/change-password`  
+**Location:** `/officer/settings/change-password`, `/verify/settings/change-password`, `/admin/settings/change-password`, `/secretary/settings/change-password`
 
 Change Password feature is fully implemented across all roles. Users can successfully change their passwords while logged in.
 
 **Out of Scope (Official Design Decision):**
+
 - ⏭️ Forgot Password — Not required per product design
 - ⏭️ Reset Password — Not required per product design
 
@@ -64,12 +66,14 @@ Password recovery is handled via administrator manual reset (OSD Admin role) or 
 The `signOut()` function clears the JWT cookie but does not emit a `LOGOUT` audit row to `hdp.user_log`.
 
 **Current State:**
+
 - `OfficerUserMenu` calls `signOut()` on menu click ✅
 - Session cookie is cleared ✅
 - Subsequent requests redirected to `/login` via middleware ✅
 - **NO AUDIT ROW WRITTEN** ❌
 
 **Expected Behavior:**
+
 - Every logout writes a `LOGOUT` row with user_id, timestamp, IP, user-agent
 - Audit trail completeness
 
@@ -78,6 +82,7 @@ Government systems require complete audit trails. Missing logout events violate 
 
 **Recommendation:**  
 Add logout audit logging by either:
+
 1. Wrapping `signOut()` in a server action that writes audit first
 2. Using a NextAuth callback to intercept logout events
 
@@ -87,14 +92,16 @@ Add logout audit logging by either:
 
 **Severity:** 🔴 CRITICAL (Security)  
 **Location:** `next.config.mjs` (lines 4-7)  
-**Description:**  
+**Description:**
+
 ```javascript
-"script-src 'self' 'unsafe-eval' 'unsafe-inline'"
+"script-src 'self' 'unsafe-eval' 'unsafe-inline'";
 ```
 
 This CSP directive **completely disables CSP protection for scripts**. The `'unsafe-eval'` and `'unsafe-inline'` keywords negate the security benefits of CSP.
 
 **Current State:**
+
 ```
 default-src 'self'
 script-src 'self' 'unsafe-eval' 'unsafe-inline'  // ❌ TOO LOOSE
@@ -104,18 +111,21 @@ font-src 'self' https://fonts.gstatic.com
 ```
 
 **Attack Surface Opened:**
+
 - Inline `<script>` tags allowed (inline scripts)
 - `eval()` and similar dynamic code execution allowed
 - Reduces XSS protection to React's auto-escaping alone
 - Attackers can bypass CSP and execute arbitrary scripts
 
 **Expected Behavior:**
+
 - Remove `'unsafe-eval'` (not needed for Next.js)
 - Move inline styles to CSS classes (remove `'unsafe-inline'` from style-src)
 - If inline styles required, use CSP nonce strategy
 
 **Recommendation:**  
 **REFACTOR CSP IMMEDIATELY**. CSP should be:
+
 ```
 script-src 'self'
 style-src 'self' https://fonts.googleapis.com [nonce for inline styles]
@@ -135,12 +145,14 @@ style-src 'self' https://fonts.googleapis.com [nonce for inline styles]
 While database schema exists for password reset tokens, no API endpoints implement the reset flow.
 
 **Expected Routes Missing:**
+
 1. `POST /api/auth/forgot-password` — accepts login_name + mobile, generates token, sends SMS
 2. `POST /api/auth/reset-password` — accepts token + new password, validates token, updates password
 3. `DELETE /api/auth/reset-password/[tokenId]` — admin-initiated reset token revocation (optional)
 
 **Recommendation:**  
 Implement all three endpoints with:
+
 - Zod validation for token format + password complexity
 - Rate limiting (max 5 reset attempts per user per 15 minutes)
 - Token TTL = 1 hour, single-use enforcement
@@ -152,7 +164,8 @@ Implement all three endpoints with:
 ## 2.2 Query Performance: N+1 Pattern in Dashboard Routes
 
 **Severity:** 🟠 HIGH  
-**Location:** 
+**Location:**
+
 - `/api/secretary/dashboard/route.ts` (11 parallel queries)
 - `/api/admin/osd/dashboard/route.ts` (multiple independent queries)
 
@@ -160,28 +173,36 @@ Implement all three endpoints with:
 Dashboard routes execute multiple independent queries that could be consolidated into fewer JOINs.
 
 **Example:** Secretary Dashboard (Line 45-130)
+
 ```typescript
 // Query 1: Summary stats
-const summary = await db.execute(sql`SELECT COUNT(*) FROM hdp.master_projects ...`);
+const summary = await db.execute(
+  sql`SELECT COUNT(*) FROM hdp.master_projects ...`,
+);
 
 // Query 2-11: Department summaries (loop + query per dept)
 for (const dept of departments) {
-  const deptData = await db.execute(sql`SELECT ... FROM hdp.master_projects WHERE dept_id = ${dept}...`);
+  const deptData = await db.execute(
+    sql`SELECT ... FROM hdp.master_projects WHERE dept_id = ${dept}...`,
+  );
   // Parse results, aggregate
 }
 ```
 
 **Performance Impact:**
+
 - 11 round-trips to database
 - Slow on high-latency networks (satellite, mobile)
 - Dashboard page load time = 11x single query + JS parsing
 
 **Expected Behavior:**
+
 - One consolidated query using `GROUP BY` + `JOIN` to fetch all data
 - Or batch queries using Promise.all() (current pattern, but could be reduced)
 
 **Recommendation:**  
 Refactor dashboard queries to use:
+
 1. Single CTE-based query with aggregations
 2. Index optimization on `(dept_id, project_id)` for fast filtering
 3. Cache dashboard response for 5 minutes (public dashboards rarely change mid-day)
@@ -191,7 +212,8 @@ Refactor dashboard queries to use:
 ## 2.3 Missing Empty States & Loading States
 
 **Severity:** 🟠 HIGH (UX Impact)  
-**Location:** 
+**Location:**
+
 - `components/tables/ProjectTable.tsx` — No empty state when `filtered.length === 0`
 - `components/public/DepartmentPage.tsx` — Grid disappears on no-data
 - `components/public/SectorGrid.tsx` — "No sectors" state missing
@@ -200,6 +222,7 @@ Refactor dashboard queries to use:
 When data lists are empty, users see blank grids with no explanation or call-to-action.
 
 **Current Behavior:**
+
 ```tsx
 // ProjectTable.tsx — Line 550
 {filtered.length === 0 ? (
@@ -210,16 +233,19 @@ When data lists are empty, users see blank grids with no explanation or call-to-
 ```
 
 **Expected Behavior:**
+
 - Show "No projects found" message with icon
 - Offer actionable next step (e.g., "Create your first project")
 - Show skeleton loaders while data is fetching
 
 **Examples of Properly Implemented Empty States:**
+
 - `IndicatorTable.tsx` → `EmptyState` component ✅
 - `AdminUsersPage.tsx` → "No users found" card ✅
 
 **Recommendation:**  
 Create a reusable `EmptyState` component and apply to all data tables:
+
 ```tsx
 <EmptyState
   icon={<FolderOpen />}
@@ -238,9 +264,14 @@ Create a reusable `EmptyState` component and apply to all data tables:
 OSD Admin (role_id=4) can access certain `/admin/*` routes that should be restricted to Tech Admin (role_id=3).
 
 **Current Logic:**
+
 ```typescript
-if (role === 4 && pathname.startsWith("/admin") && !pathname.startsWith("/admin/osd") &&
-    !pathname.startsWith("/admin/projects")) {
+if (
+  role === 4 &&
+  pathname.startsWith("/admin") &&
+  !pathname.startsWith("/admin/osd") &&
+  !pathname.startsWith("/admin/projects")
+) {
   return Response.redirect(new URL("/admin/osd/dashboard", nextUrl));
 }
 ```
@@ -248,13 +279,15 @@ if (role === 4 && pathname.startsWith("/admin") && !pathname.startsWith("/admin/
 **Issue:**  
 The whitelist allows OSD to bypass redirect for `/admin/projects`. OSD Admin should NOT have access to general project management (which includes all departments). They should only see `/admin/osd/*` routes.
 
-**Expected Behavior:**  
+**Expected Behavior:**
+
 - Role 4 → `/admin/osd/*` only
 - Role 3 → `/admin/*` (except `/admin/osd`)
 - No overlap or exceptions
 
 **Recommendation:**  
 Tighten authorization:
+
 ```typescript
 if (role === 4 && !pathname.startsWith("/admin/osd")) {
   return Response.redirect(new URL("/admin/osd/dashboard", nextUrl));
@@ -274,20 +307,23 @@ if (role === 3 && pathname.startsWith("/admin/osd")) {
 The application does not set `Cache-Control: no-store` headers on protected pages. After logout, users can use browser back button to see cached sensitive data.
 
 **Current Behavior:**
+
 1. User logs in and views `/officer/projects` (contains project data, budgets, indicators)
 2. User logs out
 3. User clicks browser back button → sees cached HTML from `/officer/projects`
 4. Data is visible on screen (though API calls return 401)
 
 **Expected Behavior:**
+
 - Protected pages should include `Cache-Control: no-store, must-revalidate`
 - Browser will not cache, prevents back-button data leak
 
 **Recommendation:**  
 Add cache headers in `app/(officer)/layout.tsx` (and similar for other route groups):
+
 ```typescript
 export const headers = {
-  'Cache-Control': 'no-store, must-revalidate, max-age=0',
+  "Cache-Control": "no-store, must-revalidate, max-age=0",
 };
 ```
 
@@ -301,6 +337,7 @@ export const headers = {
 Error responses return generic messages like "Failed to load users" without distinguishing validation errors from database failures. Support team cannot effectively help users.
 
 **Current Pattern:**
+
 ```typescript
 try {
   const data = await db.query(...);
@@ -315,6 +352,7 @@ try {
 ```
 
 **Problems:**
+
 1. Client sees "Failed to load users" for both validation errors AND database connection failures
 2. No error code to cite to support team
 3. No retry guidance for transient failures
@@ -322,6 +360,7 @@ try {
 
 **Recommendation:**  
 Implement structured error responses:
+
 ```typescript
 interface ApiError {
   code: string;  // e.g., "VALIDATION_ERROR", "DB_TIMEOUT", "NOT_FOUND"
@@ -339,7 +378,8 @@ interface ApiError {
 ## 3.1 Performance: Unnecessary Client-Side Data Fetching
 
 **Severity:** 🟡 MEDIUM  
-**Location:** 
+**Location:**
+
 - `components/layout/OfficerUserMenu.tsx` (lines 67-77)
 - `components/public/ProfilePage.tsx` (similar pattern)
 
@@ -347,6 +387,7 @@ interface ApiError {
 The `OfficerUserMenu` component fetches user profile from `/api/me` on every page mount without caching, even though user data changes infrequently.
 
 **Current Code:**
+
 ```typescript
 useEffect(() => {
   fetch('/api/me', { cache: 'no-store' })  // Forced cache bypass
@@ -360,19 +401,22 @@ useEffect(() => {
 ```
 
 **Impact:**
+
 - Every page navigation = new API call to `/api/me`
 - Dashboard load: /officer/projects → /officer/projects/[id] → /officer/projects/[id]/indicators/[id] = 3 redundant calls
 
 **Expected Behavior:**
+
 - Use React Context or a client library (SWR, React Query) for caching
 - Cache `/api/me` for 5 minutes or until session changes
 
-**Recommendation:**  
+**Recommendation:**
+
 ```typescript
 // Instead of fetch in component:
-const { data: me } = useSWR('/api/me', fetch, {
+const { data: me } = useSWR("/api/me", fetch, {
   revalidateOnFocus: false,
-  dedupingInterval: 1000 * 60 * 5,  // 5 minute cache
+  dedupingInterval: 1000 * 60 * 5, // 5 minute cache
 });
 ```
 
@@ -381,7 +425,8 @@ const { data: me } = useSWR('/api/me', fetch, {
 ## 3.2 Responsive Typography Issues
 
 **Severity:** 🟡 MEDIUM (UX)  
-**Location:** 
+**Location:**
+
 - `components/public/ProjectDetailPage.tsx` (line 162)
 - `components/public/DepartmentPage.tsx` (line 133)
 - Multiple public pages
@@ -390,20 +435,23 @@ const { data: me } = useSWR('/api/me', fetch, {
 Heading sizes jump abruptly from default (16-18px) to `md:text-4xl` (36px) on tablets. No `sm:` or `lg:` variants to handle responsive sizing gracefully.
 
 **Current Code:**
+
 ```tsx
-<h1 className="md:text-4xl text-foreground">  {/* Jumps from 16px to 36px! */}
+<h1 className="md:text-4xl text-foreground">
+  {" "}
+  {/* Jumps from 16px to 36px! */}
   {project.name}
 </h1>
 ```
 
 **Expected Behavior:**
+
 ```tsx
-<h1 className="text-xl sm:text-2xl md:text-3xl lg:text-4xl">
-  {project.name}
-</h1>
+<h1 className="text-xl sm:text-2xl md:text-3xl lg:text-4xl">{project.name}</h1>
 ```
 
-**Impact:** 
+**Impact:**
+
 - Mobile (< 640px): tiny text, hard to read
 - Tablet (640-1024px): abrupt jump to 36px
 - Desktop: good
@@ -416,7 +464,8 @@ Apply responsive text scaling to all headings across public pages.
 ## 3.3 Input Validation: Password Complexity Not Enforced Consistently
 
 **Severity:** 🟡 MEDIUM (Security)  
-**Location:** 
+**Location:**
+
 - `lib/validations/login.ts` (login password = min 1 char! ❌)
 - Password creation in admin user form (✅ 8 chars, complexity)
 - Change password (not implemented)
@@ -425,15 +474,17 @@ Apply responsive text scaling to all headings across public pages.
 Login form accepts passwords as short as 1 character. Only user creation form enforces complexity (8 chars, 1 uppercase, 1 number, 1 special).
 
 **Current Validation:**
+
 ```typescript
 // lib/validations/login.ts
 export const loginSchema = z.object({
   loginName: z.string().min(3).max(150),
-  password: z.string().min(1, "Password required").max(200),  // ❌ min(1)!
+  password: z.string().min(1, "Password required").max(200), // ❌ min(1)!
 });
 ```
 
 **Expected:**
+
 - Login = accept whatever is in DB (since hashed)
 - User creation = enforce complexity at creation
 - Password reset = enforce complexity
@@ -441,6 +492,7 @@ export const loginSchema = z.object({
 
 **Recommendation:**  
 Keep login lenient (for backward compatibility with legacy hashes), but ensure all password-setting operations enforce:
+
 - Minimum 8 characters
 - At least 1 uppercase letter
 - At least 1 number
@@ -451,7 +503,8 @@ Keep login lenient (for backward compatibility with legacy hashes), but ensure a
 ## 3.4 Duplicate Code: SECTOR_META Definition
 
 **Severity:** 🟡 MEDIUM (Maintainability)  
-**Location:** 
+**Location:**
+
 - `components/public/SectorGrid.tsx` (lines 48-62)
 - `app/(public)/public/sectors/[sectorId]/page.tsx` (lines 50-62)
 
@@ -460,9 +513,13 @@ Sector metadata (icon, color, name mapping) is defined in two separate files. Ch
 
 **Recommendation:**  
 Extract to `lib/config/sectors.ts`:
+
 ```typescript
-export const SECTOR_META = { /* shared definition */ };
+export const SECTOR_META = {
+  /* shared definition */
+};
 ```
+
 Import in both components to maintain DRY principle.
 
 ---
@@ -475,6 +532,7 @@ Import in both components to maintain DRY principle.
 All error paths include `console.error()` statements with full error objects, which are logged server-side but also printed to browser console in development mode.
 
 **Current Pattern:**
+
 ```typescript
 } catch (err) {
   console.error("GET /api/admin/users failed", err);  // Full stack trace
@@ -483,13 +541,15 @@ All error paths include `console.error()` statements with full error objects, wh
 ```
 
 **Issue:**
+
 - In production, errors logged to server (good)
 - In development/staging, full error traces appear in browser console (information disclosure risk if inspected by unauthorized parties)
 
 **Recommendation:**  
 Use conditional logging:
+
 ```typescript
-if (process.env.NODE_ENV === 'development') {
+if (process.env.NODE_ENV === "development") {
   console.error("...", err);
 }
 ```
@@ -504,22 +564,27 @@ if (process.env.NODE_ENV === 'development') {
 No validation prevents assigning a secretary to a project from a different department. Violates the constraint that "secretaries manage only their department's projects."
 
 **Example Scenario:**
+
 1. Nodal Officer from Department A creates Indicator
 2. Admin assigns Secretary from Department B to the project
 3. Secretary B now controls Department A's project (authorization violation)
 
 **Expected Behavior:**
+
 - When assigning secretary, validate `secretary.dept_id === project.dept_id`
 
 **Recommendation:**  
 Add validation in `/api/admin/projects` POST/PATCH:
+
 ```typescript
-const secretary = await db.select().from(userDetails)
+const secretary = await db
+  .select()
+  .from(userDetails)
   .where(eq(userDetails.userId, data.secretary_id));
 if (secretary.deptId !== data.dept_id) {
   return NextResponse.json(
     { error: "Secretary must be from the same department" },
-    { status: 400 }
+    { status: 400 },
   );
 }
 ```
@@ -534,6 +599,7 @@ if (secretary.deptId !== data.dept_id) {
 Role 5 (Secretary) and Role 6 (Head of Department) are not explicitly tested in public routes authorization. Could allow unintended access.
 
 **Current Code:**
+
 ```typescript
 if (role === 5 && pathname.startsWith("/secretary")) return true;
 if ((role === 2 || role === 6) && pathname.startsWith("/officer")) return true;
@@ -556,26 +622,30 @@ Create comprehensive RBAC matrix and test all combinations (6 roles × 8 route g
 The application has a `sessionBlocklist` table (for JWT revocation) but it's never used. After logout, existing JWT tokens remain valid until expiration (8 hours).
 
 **Attack Scenario:**
+
 1. User logs in, JWT issued (valid for 8 hours)
 2. User logs out, but JWT is still valid
 3. If JWT is compromised (e.g., stolen from cache), attacker can use it for 8 hours
 4. No server-side invalidation
 
 **Current Behavior:**
+
 - `sessionBlocklist` table exists ✅
 - `signOut()` clears cookie ✅
 - **JWT itself is never invalidated** ❌
 
 **Expected:**
+
 - On logout, add JWT to blocklist
 - On every request, check if JWT is blocklisted
 - Cache blocklist in-memory for performance
 
 **Recommendation:**  
 Implement JWT blocklisting in middleware:
+
 ```typescript
 // In requireSession() or middleware
-if (tokenJti && await isJwtBlocklisted(tokenJti)) {
+if (tokenJti && (await isJwtBlocklisted(tokenJti))) {
   return NextResponse.json({ error: "Session invalidated" }, { status: 401 });
 }
 ```
@@ -610,6 +680,7 @@ Convert TODOs to tracked issues with deadlines before each release.
 **Location:** Duplicate endpoints  
 **Description:**  
 Old singular endpoints alongside new plural endpoints:
+
 - `/api/public/sector/[sectorId]/route.ts` vs `/api/public/sectors/[sectorId]/route.ts`
 - `/api/public/department/[deptId]/route.ts` vs `/api/public/departments/[deptId]/route.ts`
 
@@ -626,6 +697,7 @@ Deprecate old endpoints or redirect to new ones. Remove old versions after 3-mon
 Rate limiting uses in-memory Map, which resets on server restart. Determined attacker can restart server to bypass limits.
 
 **Current Implementation:**
+
 ```typescript
 const attempts = new Map<number, number[]>();
 
@@ -636,6 +708,7 @@ function consumeRateLimit(userId: number) {
 
 **Recommendation:**  
 Use Redis or database-backed rate limiting for production:
+
 ```typescript
 // Redis approach (better for distributed deployments)
 await redis.incr(`rate_limit:change_password:${userId}`);
@@ -651,13 +724,15 @@ await redis.incr(`rate_limit:change_password:${userId}`);
 Some API responses cast with `as` instead of using proper TypeScript types.
 
 **Example:**
+
 ```typescript
-const roleId = session.user?.roleId as number | undefined;  // Should be typed
-const meta = body.debug as any;  // Too loose
+const roleId = session.user?.roleId as number | undefined; // Should be typed
+const meta = body.debug as any; // Too loose
 ```
 
 **Recommendation:**  
 Define response types for every API endpoint:
+
 ```typescript
 interface GetUsersResponse {
   users: AdminUser[];
@@ -688,23 +763,23 @@ These are features referenced in the blueprint but not yet implemented:
 
 ## Pre-Production Checklist
 
-| Item | Status | Owner | Deadline |
-|------|--------|-------|----------|
-| Forgot password implementation | 🔴 Not Started | Backend | CRITICAL |
-| Reset password implementation | 🔴 Not Started | Backend | CRITICAL |
-| Change password implementation | 🔴 Not Started | Backend | CRITICAL |
-| Logout audit logging | 🔴 Not Started | Backend | CRITICAL |
-| CSP header hardening | 🟡 In Progress | DevOps/Frontend | CRITICAL |
-| Password reset E2E tests | ⬜ Not Started | QA | CRITICAL |
-| Change password E2E tests | ⬜ Not Started | QA | CRITICAL |
-| Authorization edge cases testing | 🟡 In Progress | QA | HIGH |
-| Empty states on all tables | 🟡 In Progress | Frontend | HIGH |
-| Dashboard performance optimization | 🟡 In Progress | Backend | HIGH |
-| Responsive typography audit | 🟡 In Progress | Frontend | HIGH |
-| VAPT engagement | ⬜ Not Started | Security | HIGH |
-| Browser back-button fix | ⬜ Not Started | Backend | HIGH |
-| Rate limiting implementation | ⬜ Not Started | Backend | MEDIUM |
-| UAT completion | ⬜ Not Started | QA | MEDIUM |
+| Item                               | Status         | Owner           | Deadline |
+| ---------------------------------- | -------------- | --------------- | -------- |
+| Forgot password implementation     | 🔴 Not Started | Backend         | CRITICAL |
+| Reset password implementation      | 🔴 Not Started | Backend         | CRITICAL |
+| Change password implementation     | 🔴 Not Started | Backend         | CRITICAL |
+| Logout audit logging               | 🔴 Not Started | Backend         | CRITICAL |
+| CSP header hardening               | 🟡 In Progress | DevOps/Frontend | CRITICAL |
+| Password reset E2E tests           | ⬜ Not Started | QA              | CRITICAL |
+| Change password E2E tests          | ⬜ Not Started | QA              | CRITICAL |
+| Authorization edge cases testing   | 🟡 In Progress | QA              | HIGH     |
+| Empty states on all tables         | 🟡 In Progress | Frontend        | HIGH     |
+| Dashboard performance optimization | 🟡 In Progress | Backend         | HIGH     |
+| Responsive typography audit        | 🟡 In Progress | Frontend        | HIGH     |
+| VAPT engagement                    | ⬜ Not Started | Security        | HIGH     |
+| Browser back-button fix            | ⬜ Not Started | Backend         | HIGH     |
+| Rate limiting implementation       | ⬜ Not Started | Backend         | MEDIUM   |
+| UAT completion                     | ⬜ Not Started | QA              | MEDIUM   |
 
 ---
 
@@ -762,36 +837,36 @@ Perform full WCAG 2.1 AA accessibility audit using AXON or Lighthouse before lau
 
 ## Critical Bugs (P0)
 
-| ID | Title | Severity | Affected Feature | Fix Effort |
-|-------|-------|----------|------------------|------------|
-| BUG-001 | Forgot password page is placeholder | CRITICAL | Auth Flow | 8-12 hours |
-| BUG-002 | Reset password page is placeholder | CRITICAL | Auth Flow | 8-12 hours |
-| BUG-003 | Change password page is placeholder (all roles) | CRITICAL | Auth Flow | 12-16 hours |
-| BUG-004 | Logout does not emit audit log | CRITICAL | Audit Trail | 2-4 hours |
-| BUG-005 | CSP header allows unsafe-eval + unsafe-inline | CRITICAL | Security | 1-2 hours |
+| ID      | Title                                           | Severity | Affected Feature | Fix Effort  |
+| ------- | ----------------------------------------------- | -------- | ---------------- | ----------- |
+| BUG-001 | Forgot password page is placeholder             | CRITICAL | Auth Flow        | 8-12 hours  |
+| BUG-002 | Reset password page is placeholder              | CRITICAL | Auth Flow        | 8-12 hours  |
+| BUG-003 | Change password page is placeholder (all roles) | CRITICAL | Auth Flow        | 12-16 hours |
+| BUG-004 | Logout does not emit audit log                  | CRITICAL | Audit Trail      | 2-4 hours   |
+| BUG-005 | CSP header allows unsafe-eval + unsafe-inline   | CRITICAL | Security         | 1-2 hours   |
 
 ## High Bugs (P1)
 
-| ID | Title | Severity | Affected Feature | Fix Effort |
-|-------|-------|----------|------------------|------------|
-| BUG-006 | Dashboard N+1 queries slow down page load | HIGH | Performance | 6-8 hours |
-| BUG-007 | Missing empty states on ProjectTable | HIGH | UX | 2-3 hours |
-| BUG-008 | OSD Admin authorization too permissive | HIGH | Security | 1-2 hours |
-| BUG-009 | Browser back button caches sensitive data | HIGH | Security | 1-2 hours |
-| BUG-010 | OfficerUserMenu fetches /api/me on every mount | HIGH | Performance | 3-4 hours |
-| BUG-011 | Typography jumps on responsive breakpoints | HIGH | UX | 2-3 hours |
-| BUG-012 | JWT not blocklisted on logout (session fixation) | HIGH | Security | 4-6 hours |
+| ID      | Title                                            | Severity | Affected Feature | Fix Effort |
+| ------- | ------------------------------------------------ | -------- | ---------------- | ---------- |
+| BUG-006 | Dashboard N+1 queries slow down page load        | HIGH     | Performance      | 6-8 hours  |
+| BUG-007 | Missing empty states on ProjectTable             | HIGH     | UX               | 2-3 hours  |
+| BUG-008 | OSD Admin authorization too permissive           | HIGH     | Security         | 1-2 hours  |
+| BUG-009 | Browser back button caches sensitive data        | HIGH     | Security         | 1-2 hours  |
+| BUG-010 | OfficerUserMenu fetches /api/me on every mount   | HIGH     | Performance      | 3-4 hours  |
+| BUG-011 | Typography jumps on responsive breakpoints       | HIGH     | UX               | 2-3 hours  |
+| BUG-012 | JWT not blocklisted on logout (session fixation) | HIGH     | Security         | 4-6 hours  |
 
 ## Medium Bugs (P2)
 
-| ID | Title | Severity | Affected Feature | Fix Effort |
-|-------|-------|----------|------------------|------------|
-| BUG-013 | Password complexity not enforced in login validation | MEDIUM | Security | 1-2 hours |
-| BUG-014 | Duplicate SECTOR_META definition | MEDIUM | Code Quality | 1 hour |
-| BUG-015 | Generic error messages hide debugging info | MEDIUM | Supportability | 4-6 hours |
-| BUG-016 | Console.error in production | MEDIUM | Security | 1-2 hours |
-| BUG-017 | Department assignment validation missing | MEDIUM | Business Logic | 1-2 hours |
-| BUG-018 | Rate limiting uses in-memory Map | MEDIUM | Security | 3-4 hours |
+| ID      | Title                                                | Severity | Affected Feature | Fix Effort |
+| ------- | ---------------------------------------------------- | -------- | ---------------- | ---------- |
+| BUG-013 | Password complexity not enforced in login validation | MEDIUM   | Security         | 1-2 hours  |
+| BUG-014 | Duplicate SECTOR_META definition                     | MEDIUM   | Code Quality     | 1 hour     |
+| BUG-015 | Generic error messages hide debugging info           | MEDIUM   | Supportability   | 4-6 hours  |
+| BUG-016 | Console.error in production                          | MEDIUM   | Security         | 1-2 hours  |
+| BUG-017 | Department assignment validation missing             | MEDIUM   | Business Logic   | 1-2 hours  |
+| BUG-018 | Rate limiting uses in-memory Map                     | MEDIUM   | Security         | 3-4 hours  |
 
 ---
 
@@ -802,21 +877,25 @@ Perform full WCAG 2.1 AA accessibility audit using AXON or Lighthouse before lau
 ## Phase 1: CRITICAL FIXES (Deployment Blocker) — **4-5 Days**
 
 ### Week 1, Day 1
+
 - [ ] Implement forgot-password API + UI (`POST /api/auth/forgot-password`)
 - [ ] Implement reset-password API + UI (`POST /api/auth/reset-password`)
 - [ ] Write E2E tests for both flows
 
 ### Week 1, Day 2
+
 - [ ] Implement change-password API for all roles (`POST /api/auth/change-password`)
 - [ ] Role-scoped change-password pages (officer, verify, admin, secretary)
 - [ ] Write E2E tests
 
 ### Week 1, Day 3
+
 - [ ] Add logout audit logging (`OfficerUserMenu` → server action → writeAudit)
 - [ ] Fix CSP header: remove `unsafe-eval`, handle inline styles
 - [ ] Test all authentication flows end-to-end
 
 ### Week 1, Day 4-5
+
 - [ ] Fix OSD Admin authorization bypass
 - [ ] Fix browser back-button cache issue (add `Cache-Control` headers)
 - [ ] Regression testing
@@ -828,16 +907,19 @@ Perform full WCAG 2.1 AA accessibility audit using AXON or Lighthouse before lau
 ## Phase 2: HIGH-PRIORITY FIXES (Launch Quality) — **3-4 Days**
 
 ### Week 2, Day 1-2
+
 - [ ] Optimize dashboard queries (consolidate to fewer round-trips)
 - [ ] Implement JWT blocklisting on logout
 - [ ] Add empty states to all data tables
 
 ### Week 2, Day 3
+
 - [ ] Fix responsive typography
 - [ ] Fix ClientMenu `/api/me` caching (add SWR or React Query)
 - [ ] Add missing input validation
 
 ### Week 2, Day 4
+
 - [ ] VAPT engagement (schedule)
 - [ ] Performance testing + optimization
 
@@ -858,12 +940,12 @@ Perform full WCAG 2.1 AA accessibility audit using AXON or Lighthouse before lau
 
 ## Timeline to Production Ready
 
-| Phase | Duration | Cumulative | Go-Live Ready |
-|-------|----------|-----------|----------------|
-| Phase 1 (Blockers) | 5-6 days | 5-6 days | ❌ Still at 55% |
-| Phase 2 (Quality) | 3-4 days | 8-10 days | 🟡 75% (with caution) |
-| Phase 3 (Polish) | 2-3 days | 10-13 days | ✅ 85% (acceptable) |
-| VAPT + UAT | 5-7 days | 15-20 days | ✅ 95% (launch ready) |
+| Phase              | Duration | Cumulative | Go-Live Ready         |
+| ------------------ | -------- | ---------- | --------------------- |
+| Phase 1 (Blockers) | 5-6 days | 5-6 days   | ❌ Still at 55%       |
+| Phase 2 (Quality)  | 3-4 days | 8-10 days  | 🟡 75% (with caution) |
+| Phase 3 (Polish)   | 2-3 days | 10-13 days | ✅ 85% (acceptable)   |
+| VAPT + UAT         | 5-7 days | 15-20 days | ✅ 95% (launch ready) |
 
 **Minimum Go-Live Date:** 3 weeks (if Phase 1 + Phase 2 + basic UAT done in parallel)  
 **Recommended Go-Live Date:** 4-5 weeks (with VAPT + full UAT)
@@ -884,16 +966,16 @@ The HDP Portal 2.0 has **solid architectural foundations** (authentication, auth
 ✗ Users unable to change passwords after login  
 ✗ No audit trail for logout events  
 ✗ XSS vulnerabilities from loose CSP  
-✗ Support team overwhelmed with "I can't change my password" tickets  
+✗ Support team overwhelmed with "I can't change my password" tickets
 
 ### Deployment Recommendation Matrix
 
-| Scenario | Recommendation | Risk Level |
-|----------|----------------|-----------|
-| **Deploy NOW** | ❌ DO NOT PROCEED | 🔴 CRITICAL |
-| **Deploy in 1 week** | ⚠️ Only if Phase 1 complete + Phase 2 in progress | 🟠 HIGH |
-| **Deploy in 2-3 weeks** | ✅ Acceptable if Phase 1 + Phase 2 complete | 🟡 MEDIUM |
-| **Deploy in 4-5 weeks** | ✅ Recommended (with VAPT + UAT) | 🟢 LOW |
+| Scenario                | Recommendation                                    | Risk Level  |
+| ----------------------- | ------------------------------------------------- | ----------- |
+| **Deploy NOW**          | ❌ DO NOT PROCEED                                 | 🔴 CRITICAL |
+| **Deploy in 1 week**    | ⚠️ Only if Phase 1 complete + Phase 2 in progress | 🟠 HIGH     |
+| **Deploy in 2-3 weeks** | ✅ Acceptable if Phase 1 + Phase 2 complete       | 🟡 MEDIUM   |
+| **Deploy in 4-5 weeks** | ✅ Recommended (with VAPT + UAT)                  | 🟢 LOW      |
 
 ---
 
@@ -940,7 +1022,6 @@ OVERALL                 ████░░░░░░░░░░░░░  42%
 
 ### Document History
 
-| Version | Date | Author | Status |
-|---------|------|--------|--------|
-| 1.0 | 2026-07-01 | Audit Team | FINAL |
-
+| Version | Date       | Author     | Status |
+| ------- | ---------- | ---------- | ------ |
+| 1.0     | 2026-07-01 | Audit Team | FINAL  |

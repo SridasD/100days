@@ -120,6 +120,18 @@ export function SectorGrid() {
             ))}
           </ul>
         )}
+
+        {sectors && sectors.length === 0 && (
+          <div className="mt-10 flex flex-col items-center justify-center gap-3 rounded-lg border border-dashed bg-muted/30 py-12 text-center">
+            <Building2 className="h-12 w-12 opacity-40" aria-hidden />
+            <div>
+              <h3 className="font-semibold text-foreground">No sectors available</h3>
+              <p className="text-sm text-muted-foreground">
+                There are no sectors to display at this time
+              </p>
+            </div>
+          </div>
+        )}
       </div>
     </section>
   );

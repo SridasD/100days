@@ -116,8 +116,7 @@ export const authConfig: NextAuthConfig = {
       if (
         role === 4 &&
         pathname.startsWith("/admin") &&
-        !pathname.startsWith("/admin/osd") &&
-        !pathname.startsWith("/admin/projects")
+        !pathname.startsWith("/admin/osd")
       )
         return Response.redirect(new URL("/admin/osd/dashboard", nextUrl));
       if (role === 3 && pathname.startsWith("/admin/osd"))
