@@ -1,0 +1,31 @@
+/**
+ * Lighthouse performance testing configuration
+ * Measures: FCP, LCP, CLS, TTI, accessibility, best practices
+ */
+
+module.exports = {
+  extends: 'lighthouse:default',
+  settings: {
+    onlyCategories: ['performance', 'accessibility', 'best-practices', 'seo'],
+    skipAudits: [
+      'installable-manifest',
+      'pwa-page-transitions',
+      'pwa-cross-browser',
+    ],
+  },
+  audits: [
+    {
+      path: 'lighthouse:performance',
+      options: {
+        // Performance audit configuration
+        thresholds: {
+          first_contentful_paint: 1800,
+          largest_contentful_paint: 2500,
+          cumulative_layout_shift: 0.1,
+          time_to_interactive: 3500,
+          speed_index: 2500,
+        },
+      },
+    },
+  ],
+};
