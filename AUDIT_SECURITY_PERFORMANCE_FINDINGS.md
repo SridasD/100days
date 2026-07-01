@@ -124,15 +124,16 @@
 - ✅ INDICATOR_VERIFIED (written in `/api/verify/indicators/[id]`)
 - ✅ MEDIA_UPLOADED (written in gallery routes)
 - ✅ MEDIA_DELETED (written in gallery routes)
+- ✅ CHANGE_PASSWORD_SUCCESS / CHANGE_PASSWORD_FAILURE (Change Password feature implemented)
 
 **Missing Actions:**
 - ❌ LOGOUT
-- ❌ PASSWORD_RESET_REQUEST / PASSWORD_RESET_COMPLETE
-- ❌ CHANGE_PASSWORD_SUCCESS / CHANGE_PASSWORD_FAILURE
 - ❌ PROJECT_COMPLETED
 - ❌ USER_DELETED / USER_MODIFIED
 
-**Assessment:** 🟡 **ACCEPTABLE WITH GAPS** — Core actions logged, but password management & logout missing.
+**Note:** PASSWORD_RESET_REQUEST and PASSWORD_RESET_COMPLETE are not in scope (Forgot/Reset Password are official out-of-scope).
+
+**Assessment:** 🟡 **ACCEPTABLE WITH GAPS** — Core actions logged, but logout missing (audit compliance issue).
 
 ---
 

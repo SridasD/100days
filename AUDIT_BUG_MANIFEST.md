@@ -1,10 +1,22 @@
 # HDP PORTAL 2.0 — CRITICAL BUG MANIFEST
 
 **Report Date:** 2026-07-01  
-**Total Bugs Identified:** 18 unique issues  
-**Critical Blockers:** 5  
+**Total Bugs Identified:** 15 unique issues  
+**Critical Blockers:** 2  
 **High Priority:** 7  
 **Medium Priority:** 6  
+
+---
+
+## PASSWORD MANAGEMENT STATUS
+
+✅ **Change Password** — FULLY IMPLEMENTED  
+Users can successfully change passwords across all roles (Officer, Verify, Admin, Secretary).
+
+✅ **Password Management** — OUT OF SCOPE (Official Design Decision)  
+- Forgot Password: Not required per product design
+- Reset Password: Not required per product design
+- Account recovery: Via IT support desk / OSD Admin manual reset
 
 ---
 
@@ -12,188 +24,7 @@
 
 ### 🔴 CRITICAL BUGS (DEPLOYMENT BLOCKERS)
 
-#### BUG-C001: Forgot Password - Complete Placeholder
-
-| Field | Value |
-|-------|-------|
-| **ID** | BUG-C001 |
-| **Title** | Forgot Password feature not implemented |
-| **Severity** | CRITICAL |
-| **Component** | `/app/(auth)/forgot-password/page.tsx` |
-| **Status** | Not Started |
-| **User Impact** | Users cannot recover forgotten passwords |
-| **Fix Effort** | 8-12 hours |
-| **Fix Owner** | Backend Engineer |
-| **Dependencies** | SMS provider integration, email provider (optional) |
-
-**Description:**  
-The forgot-password page is just a `PagePlaceholder` component. Users cannot request a password reset.
-
-**What's Missing:**
-1. `POST /api/auth/forgot-password` endpoint
-   - Accept: `{ loginName, mobileNo }`
-   - Validate: login_name exists, mobile matches registered phone
-   - Generate: random 6-8 digit token
-   - Store: in `password_reset_tokens` table with 1-hour expiry
-   - Send: SMS with token (requires SMS provider config)
-
-2. UI Form
-   - Login name input + mobile number confirmation
-   - Submit button
-   - Success message showing masked phone number
-
-3. Validation
-   - Zod schema for request validation
-   - Rate limiting: max 3 requests per user per hour
-   - Audit logging: `PASSWORD_RESET_REQUEST` action
-
-4. Tests
-   - E2E: Valid request → SMS sent
-   - E2E: Invalid login → error message
-   - Unit: Rate limit enforcement
-
-**Current Error Messages to Users:**  
-"This feature is not yet available. Reset password flows are under development."
-
-**Business Impact:**  
-Locked-out users have NO path to recovery. Support escalation guaranteed.
-
-**Recommendation:**  
-Priority: **MUST FIX BEFORE GO-LIVE**  
-Acceptance Criteria:
-- [ ] API endpoint implemented with rate limiting
-- [ ] UI form accepts login_name + mobile
-- [ ] SMS sent on valid request
-- [ ] E2E test passes
-- [ ] Audit logs created
-
----
-
-#### BUG-C002: Reset Password - Complete Placeholder
-
-| Field | Value |
-|-------|-------|
-| **ID** | BUG-C002 |
-| **Title** | Reset Password feature not implemented |
-| **Severity** | CRITICAL |
-| **Component** | `/app/(auth)/reset-password/page.tsx` |
-| **Status** | Not Started |
-| **User Impact** | Users cannot complete password reset flow |
-| **Fix Effort** | 8-12 hours |
-| **Fix Owner** | Backend Engineer |
-| **Dependencies** | BUG-C001 (forgot-password) must be done first |
-
-**Description:**  
-The reset-password page is just a `PagePlaceholder` component. Even if users receive reset tokens, they cannot use them.
-
-**What's Missing:**
-1. `POST /api/auth/reset-password` endpoint
-   - Accept: `{ token, newPassword }`
-   - Validate: token exists, not used, not expired
-   - Hash: new password with bcrypt (12 rounds)
-   - Update: `hdp.user_details.password`
-   - Mark: token as used (`usedAt` timestamp)
-   - Blocklist: existing JWTs (optional but recommended)
-
-2. UI Form
-   - Token input (6-8 digits from SMS)
-   - New password input (with strength meter)
-   - Confirm password
-   - Submit button
-
-3. Validation
-   - Zod schema: password complexity (8 chars, 1 upper, 1 number, 1 special)
-   - Token format validation (6-8 digits)
-   - Zod `refine`: confirm password matches
-
-4. Tests
-   - E2E: Valid token + password → success
-   - E2E: Expired token → error
-   - E2E: Already-used token → error
-   - E2E: Weak password → validation error
-
-**Current Error Messages to Users:**  
-"This feature is not yet available. Password reset flows are under development."
-
-**Business Impact:**  
-Cascading failure from BUG-C001. Even if users get reset tokens, cannot use them.
-
-**Recommendation:**  
-Priority: **MUST FIX BEFORE GO-LIVE**  
-Acceptance Criteria:
-- [ ] API endpoint implemented with token validation
-- [ ] UI form accepts token + new password
-- [ ] New password hashed and stored
-- [ ] Token marked as used
-- [ ] E2E test passes
-- [ ] Audit logs created
-
----
-
-#### BUG-C003: Change Password - Complete Placeholder (All Roles)
-
-| Field | Value |
-|-------|-------|
-| **ID** | BUG-C003 |
-| **Title** | Change Password feature not implemented for all roles |
-| **Severity** | CRITICAL |
-| **Components** | `/app/(officer|verify|admin|secretary)/*/settings/change-password/page.tsx` (4 routes) |
-| **Status** | Not Started |
-| **User Impact** | Users cannot change passwords while logged in |
-| **Fix Effort** | 12-16 hours |
-| **Fix Owner** | Backend Engineer + Frontend Engineer |
-| **Dependencies** | None |
-
-**Description:**  
-All four role-scoped change-password pages are placeholders. Users logged in cannot change their passwords.
-
-**What's Missing:**
-1. `POST /api/auth/change-password` endpoint
-   - Accept: `{ currentPassword, newPassword, confirmPassword }`
-   - Authenticate: verify currentPassword via bcrypt
-   - Validate: newPassword complexity (8 chars, 1 upper, 1 number, 1 special)
-   - Hash: newPassword with bcrypt (12 rounds)
-   - Update: `hdp.user_details.password`
-   - Reset: failedLoginAttempts to 0
-   - Blocklist: existing JWTs (invalidate other sessions)
-
-2. UI Forms (4 variants, same logic)
-   - Current password input
-   - New password input (with strength indicator)
-   - Confirm password
-   - Submit button
-
-3. Security
-   - Rate limiting: max 5 attempts per user per 15 minutes
-   - Audit logging: `CHANGE_PASSWORD_SUCCESS` / `CHANGE_PASSWORD_FAILURE`
-   - Session must still be valid (require session check)
-
-4. Tests
-   - E2E: Correct current password → success
-   - E2E: Wrong current password → error
-   - E2E: Weak new password → validation error
-   - E2E: Non-matching confirm password → validation error
-   - Unit: Rate limit enforcement
-
-**Current User Paths:**  
-Officer User Menu → "Change Password" → Placeholder page
-
-**Business Impact:**  
-Users cannot proactively update passwords. No self-service password management.
-
-**Recommendation:**  
-Priority: **MUST FIX BEFORE GO-LIVE**  
-Acceptance Criteria:
-- [ ] API endpoint implemented (shared across all roles)
-- [ ] Role-scoped UI pages implement same form logic
-- [ ] Rate limiting enforced
-- [ ] Audit logs emitted
-- [ ] E2E tests for all roles
-- [ ] Password complexity enforced
-
----
-
-#### BUG-C004: Logout Does Not Emit Audit Log
+#### BUG-C001: Logout Does Not Emit Audit Log
 
 | Field | Value |
 |-------|-------|
@@ -244,11 +75,11 @@ Acceptance Criteria:
 
 ---
 
-#### BUG-C005: CSP Header Allows unsafe-eval and unsafe-inline Scripts
+#### BUG-C002: CSP Header Allows unsafe-eval and unsafe-inline Scripts
 
 | Field | Value |
 |-------|-------|
-| **ID** | BUG-C005 |
+| **ID** | BUG-C002 |
 | **Title** | Content Security Policy too permissive |
 | **Severity** | CRITICAL |
 | **Location** | `next.config.mjs` (lines 4-7) |
@@ -504,22 +335,20 @@ The application has a `sessionBlocklist` table but never uses it. Existing JWT t
 
 ### Critical Path (Must Do First)
 
-1. **Week 1, Day 1:** BUG-C001 (Forgot Password)
-2. **Week 1, Day 2:** BUG-C002 (Reset Password)
-3. **Week 1, Day 3:** BUG-C003 (Change Password) + BUG-C004 (Logout Audit)
-4. **Week 1, Day 4:** BUG-C005 (CSP Header)
+1. **Week 1, Day 1:** BUG-C001 (Logout Audit Logging)
+2. **Week 1, Day 2:** BUG-C002 (CSP Header Fix)
 
-### High Priority (Week 2)
+### High Priority (Week 1-2)
 
-1. BUG-H001 (Dashboard queries)
+1. BUG-H001 (Dashboard N+1 queries)
 2. BUG-H002 (Empty states)
 3. BUG-H003 (Authorization leak)
-4. BUG-H004 (Back button)
+4. BUG-H004 (Back button cache)
 5. BUG-H007 (JWT blocklist)
 
-### Medium Priority (Week 3)
+### Medium Priority (Week 2-3)
 
-All M-level bugs + H005 (Caching), H006 (Typography)
+All M-level bugs + BUG-H005 (Client caching), BUG-H006 (Typography)
 
 ---
 

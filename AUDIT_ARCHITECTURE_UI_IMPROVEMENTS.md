@@ -200,10 +200,10 @@ Create test pyramid:
 
 **Priority Tests for Launch:**
 1. Login → Change Password → Logout
-2. Forgot Password → Reset Password flow
-3. Officer creates indicator, Verifier approves
-4. Project completion workflow
-5. Authorization boundaries (wrong role denied)
+2. Officer creates indicator, Verifier approves
+3. Project completion workflow
+4. Authorization boundaries (wrong role denied)
+5. Logout audit trail verification
 
 ---
 

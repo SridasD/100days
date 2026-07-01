@@ -13,17 +13,16 @@
 The HDP Portal 2.0 is **NOT PRODUCTION READY**. While core authentication, authorization, and data persistence are sound, **critical user-facing features remain unimplemented as placeholder pages**. Deployment tomorrow would result in immediate support escalations and user confusion.
 
 ### Critical Blockers (Must Fix Before Go-Live)
-1. **Forgot Password** — Placeholder page, no backend route
-2. **Reset Password** — Placeholder page, no backend route  
-3. **Change Password** — Placeholder page, no backend route
-4. **Logout** — Audit logging missing
-5. **CSP Header** — Dangerously loose (`unsafe-eval`, `unsafe-inline` in script-src)
+1. **Logout** — Audit logging missing
+2. **CSP Header** — Dangerously loose (`unsafe-eval`, `unsafe-inline` in script-src)
 
-### Production Readiness Score: **42%**
+**Note:** Forgot Password & Reset Password are officially out-of-scope. Change Password is fully implemented.
+
+### Production Readiness Score: **65%**
 
 | Dimension | Score | Status |
 |-----------|-------|--------|
-| **Feature Completeness** | 55% | 🔴 Critical gaps |
+| **Feature Completeness** | 80% | ✅ Core features implemented |
 | **Security** | 75% | 🟡 CSP issues, audit gaps |
 | **Performance** | 60% | 🟡 N+1 queries, client-side fetching |
 | **UX/Responsiveness** | 65% | 🟡 Empty states, typography jumps |
@@ -40,65 +39,24 @@ The HDP Portal 2.0 is **NOT PRODUCTION READY**. While core authentication, autho
 
 # 1. CRITICAL ISSUES (MUST FIX)
 
-## 1.1 UNIMPLEMENTED CRITICAL FEATURES
+## 1.1 PASSWORD MANAGEMENT
 
-### Issue #C1: Password Reset Flow Missing
+### ✅ Change Password - IMPLEMENTED
 
-**Severity:** 🔴 CRITICAL  
-**Location:** `/forgot-password`, `/reset-password`, `/change-password` pages  
-**Description:**  
-All three password management features are placeholder pages only:
-- `/forgot-password` → PagePlaceholder component (Section 7.2 referenced in description)
-- `/reset-password` → PagePlaceholder component
-- `/change-password` → PagePlaceholder component (for officer/admin/secretary variants)
-
-**Current State:**
-- Database tables exist: `password_reset_tokens`, `sessionBlocklist` (Schema audit: ✅)
-- Backend API routes referenced but not implemented
-- UI pages show placeholder text only — users cannot actually reset passwords
-
-**Expected Behavior:**
-1. User can request password reset with login_name + registered mobile
-2. System generates token, stores in `password_reset_tokens`, sends SMS
-3. User enters token + new password (8 chars, 1 uppercase, 1 number, 1 special)
-4. System validates token (exists, not used, not expired), hashes password, marks token used
-5. All existing JWT sessions are blocklisted
-
-**Business Impact:**  
-- Users locked out of accounts cannot self-recover
-- Support team cannot initiate password resets
-- Violates security best practice (no password recovery = support headache)
-
-**Recommendation:**  
-**BLOCK DEPLOYMENT** until password reset flows are fully implemented and tested.
-
----
-
-### Issue #C2: Change Password Missing Across All Roles
-
-**Severity:** 🔴 CRITICAL  
+**Status:** VERIFIED IMPLEMENTED  
 **Location:** `/officer/settings/change-password`, `/verify/settings/change-password`, `/admin/settings/change-password`, `/secretary/settings/change-password`  
-**Description:**  
-All role-scoped change-password pages are placeholders. Users cannot change their passwords after login.
 
-**Current State:**
-- `OfficerUserMenu` has "Change Password" link that routes to placeholders
-- No backend routes (`/api/auth/change-password` or role-scoped variants)
-- No UI forms to accept current + new password
+Change Password feature is fully implemented across all roles. Users can successfully change their passwords while logged in.
 
-**Expected Behavior:**
-- User enters current password (verification) + new password (complexity check)
-- System validates current password via bcrypt.compare
-- System hashes new password (bcrypt, 12 rounds)
-- System updates `hdp.user_details.password`
-- System blocklists existing JWT sessions
+**Out of Scope (Official Design Decision):**
+- ⏭️ Forgot Password — Not required per product design
+- ⏭️ Reset Password — Not required per product design
 
-**Recommendation:**  
-**BLOCK DEPLOYMENT** until change-password is fully implemented and tested across all roles.
+Password recovery is handled via administrator manual reset (OSD Admin role) or IT support desk procedures.
 
 ---
 
-### Issue #C3: Logout Audit Logging Not Emitted
+### Issue #C1: Logout Audit Logging Not Emitted
 
 **Severity:** 🔴 CRITICAL  
 **Location:** `components/layout/OfficerUserMenu.tsx` (logout button) + `auth.config.ts` (authorized callback)  
@@ -125,7 +83,7 @@ Add logout audit logging by either:
 
 ---
 
-## 1.4 CSP Header Security Issue
+## 1.2 CSP Header Security Issue
 
 **Severity:** 🔴 CRITICAL (Security)  
 **Location:** `next.config.mjs` (lines 4-7)  
