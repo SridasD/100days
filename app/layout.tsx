@@ -19,18 +19,8 @@ export const metadata: Metadata = {
 /**
  * Disable browser caching for protected routes to prevent sensitive data
  * from being visible after logout when using browser back button.
+ * Note: Cache control headers are applied via middleware.ts
  */
-export const headers = async () => [
-  {
-    source: '/(admin|officer|verify|secretary)/:path*',
-    headers: [
-      {
-        key: 'Cache-Control',
-        value: 'no-store, must-revalidate, max-age=0, private',
-      },
-    ],
-  },
-];
 
 export default function RootLayout({
   children,

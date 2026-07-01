@@ -3,8 +3,12 @@ const isProduction = process.env.NODE_ENV === "production";
 
 const cspDirectives = [
   "default-src 'self'",
-  "script-src 'self'",
-  "style-src 'self' https://fonts.googleapis.com",
+  isProduction
+    ? "script-src 'self'"
+    : "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
+  isProduction
+    ? "style-src 'self' https://fonts.googleapis.com"
+    : "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
   "font-src 'self' https://fonts.gstatic.com",
   "img-src 'self' blob: data: https://i.ytimg.com https://*.fbcdn.net",
   "object-src 'none'",

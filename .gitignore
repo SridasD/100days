@@ -84,6 +84,9 @@ screenshots/generated/
 tmp-ai/
 .claude/
 HDP screens/
+playwright-report/
+test-results/
+lintout.txt
 
 # Local share artifacts / deployment handoff copies
 HDP-2026-share.zip

@@ -2,7 +2,6 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
-import { signOut } from 'next-auth/react';
 import {
   AlertCircle,
   Building2,
@@ -26,6 +25,7 @@ import { Label } from '@/components/ui/label';
 import { KeralaHeader } from '@/components/layout/KeralaHeader';
 import { OfficerUserMenu } from '@/components/layout/OfficerUserMenu';
 import { SiteFooter } from '@/components/layout/SiteFooter';
+import { logoutWithAuditClient } from '@/lib/auth/logout-client';
 import { cn } from '@/lib/utils';
 
 interface MeResponse {
@@ -70,7 +70,7 @@ function initialsFrom(name: string): string {
 
 function changePasswordHref(roleId: number): string {
   if (roleId === 1) return '/verify/settings/change-password';
-  if (roleId === 4) return '/admin/settings/change-password';
+  if (roleId === 4) return '/admin/osd/settings/change-password';
   if (roleId === 3) return '/admin/settings/change-password';
   if (roleId === 5) return '/secretary/settings/change-password';
   return '/officer/settings/change-password';
@@ -340,7 +340,7 @@ export function ProfilePage({ homeHref: homeHrefOverride }: ProfilePageProps) {
                         Change password
                       </Link>
                     </Button>
-                    <Button type="button" variant="ghost" onClick={() => signOut({ callbackUrl: '/login' })}>
+                    <Button type="button" variant="ghost" onClick={() => void logoutWithAuditClient('/login')}>
                       <LogOut className="h-4 w-4" />
                       Logout
                     </Button>
@@ -382,7 +382,7 @@ export function ProfilePage({ homeHref: homeHrefOverride }: ProfilePageProps) {
                       Change password
                     </Link>
                   </Button>
-                  <Button variant="outline" className="border-white/20 bg-white/10 text-white hover:bg-white/15 hover:text-white" onClick={() => signOut({ callbackUrl: '/login' })}>
+                  <Button variant="outline" className="border-white/20 bg-white/10 text-white hover:bg-white/15 hover:text-white" onClick={() => void logoutWithAuditClient('/login')}>
                     <LogOut className="h-4 w-4" />
                     Logout
                   </Button>

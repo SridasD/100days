@@ -206,9 +206,11 @@ export async function requireSession(
 
   // Check if JWT is blocklisted (i.e., user logged out after this JWT was issued)
   try {
-    if (token?.iat) {
+    // Note: 'iat' claim may not be available in this token object; skip blocklist check if missing
+    const iatValue = (token as Record<string, unknown>)?.iat;
+    if (iatValue && typeof iatValue === "number") {
       // iat (issued at) is available in the JWT
-      const iatDate = new Date(Number(token.iat) * 1000);
+      const iatDate = new Date(Number(iatValue) * 1000);
       const blocklist = await db.execute(sql`
         SELECT 1 FROM hdp.session_blocklist
         WHERE user_id = ${userId}

@@ -641,7 +641,7 @@ export function ProjectTable() {
             <div>
               <h3 className="font-semibold text-foreground">No projects found</h3>
               <p className="text-sm text-muted-foreground">
-                {searchQuery
+                {query
                   ? 'Try adjusting your search or filter criteria'
                   : 'There are no projects to display'}
               </p>

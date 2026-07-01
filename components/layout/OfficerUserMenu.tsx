@@ -2,12 +2,8 @@
 
 import Link from 'next/link';
 import { ChevronDown, KeyRound, LogOut, UserCircle } from 'lucide-react';
-import { signOut } from 'next-auth/react';
-import { headers } from 'next/headers';
 import useSWR from 'swr';
-import { auth } from '@/auth';
-import { writeAuditLog, blocklistJWT } from '@/lib/audit';
-import { AUDIT_ACTIONS } from '@/lib/db/schema/audit';
+import { logoutWithAuditClient } from '@/lib/auth/logout-client';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -45,51 +41,6 @@ const ROLE_NAMES: Record<number, string> = {
 };
 
 /**
- * Server action: Write LOGOUT audit event, blocklist JWT, and sign out the user.
- * Extracts IP address and user-agent from request headers.
- */
-async function logoutWithAudit() {
-  'use server';
-
-  try {
-    const session = await auth();
-    const headersList = await headers();
-
-    const userIp = headersList.get('x-forwarded-for')?.split(',')[0] ||
-      headersList.get('x-real-ip') ||
-      'unknown';
-    const userAgent = headersList.get('user-agent') || undefined;
-
-    if (session?.user?.id) {
-      const userId = parseInt(session.user.id, 10);
-
-      // Generate a unique jti (JWT ID) for blocklisting
-      // In production, this would come from the JWT itself, but since we don't
-      // have direct access to it here, we use a combination of userId + timestamp
-      const jti = `${userId}-${Date.now()}-${Math.random().toString(36).slice(2)}`;
-
-      // Blocklist the JWT to prevent reuse after logout
-      await blocklistJWT(userId, jti, 'USER_LOGOUT');
-
-      // Write LOGOUT audit event
-      await writeAuditLog({
-        userId: userId,
-        action: AUDIT_ACTIONS.LOGOUT,
-        outcome: 'SUCCESS',
-        ip: userIp,
-        userAgent: userAgent,
-      });
-    }
-  } catch (error) {
-    // Log error but don't fail the logout
-    console.error('Failed to write logout audit or blocklist JWT:', error);
-  }
-
-  // Sign out the user
-  await signOut({ callbackUrl: '/login' });
-}
-
-/**
  * Map the current user's role_id to the role-scoped change-password URL.
  * Falls back to the canonical officer path so unknown roles still resolve.
  */
@@ -98,8 +49,9 @@ function changePasswordHref(roleId: number | undefined): string {
     case 1:
       return '/verify/settings/change-password';
     case 3:
-    case 4:
       return '/admin/settings/change-password';
+    case 4:
+      return '/admin/osd/settings/change-password';
     case 5:
       return '/secretary/settings/change-password';
     case 6:
@@ -132,7 +84,7 @@ export function OfficerUserMenu({
   initials,
 }: Props) {
   // Use SWR to cache /api/me response with aggressive revalidation settings
-  const { data: me } = useSWR<MeResponse>(
+  const { data: me } = useSWR<MeResponse | null>(
     '/api/me',
     async (url) => {
       const r = await fetch(url, { cache: 'no-store' });
@@ -236,7 +188,7 @@ export function OfficerUserMenu({
         </DropdownMenuItem>
         <DropdownMenuSeparator />
         <DropdownMenuItem
-          onClick={() => logoutWithAudit()}
+          onClick={() => void logoutWithAuditClient('/login')}
           className="text-error-red focus:bg-error-red/10 focus:text-error-red"
         >
           <LogOut className="h-4 w-4" />

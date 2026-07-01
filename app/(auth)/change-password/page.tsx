@@ -15,6 +15,9 @@ export default async function LegacyRedirect() {
   if (roleId === ROLE.ADMIN) {
     redirect('/admin/settings/change-password');
   }
+  if (roleId === ROLE.OSD_ADMIN) {
+    redirect('/admin/osd/settings/change-password');
+  }
   if (roleId === 5) {
     redirect('/secretary/settings/change-password');
   }
