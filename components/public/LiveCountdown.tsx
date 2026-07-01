@@ -16,6 +16,21 @@
 import { useEffect, useMemo, useState } from 'react';
 import { CalendarDays } from 'lucide-react';
 
+const MALAYALAM_MONTHS = [
+  'ജനുവരി',
+  'ഫെബ്രുവരി',
+  'മാർച്ച്',
+  'ഏപ്രിൽ',
+  'മേയ്',
+  'ജൂൺ',
+  'ജൂലൈ',
+  'ഓഗസ്റ്റ്',
+  'സെപ്റ്റംബർ',
+  'ഒക്ടോബർ',
+  'നവംബർ',
+  'ഡിസംബർ',
+] as const;
+
 /* ─────────────────────────────────────────────────────────────
  * CONFIG
  * ──────────────────────────────────────────────────────────── */
@@ -68,6 +83,20 @@ function nowISTParts() {
 function nextIstMidnight(now: Date): Date {
   const { year, month, day } = nowISTParts();
   return new Date(Date.UTC(year, month, day + 1, 0, -IST_OFFSET_MIN, 0, 0));
+}
+
+function formatMalayalamDate(dateISO: string): string {
+  const [yearRaw, monthRaw, dayRaw] = dateISO.split('-');
+  const year = Number(yearRaw);
+  const month = Number(monthRaw);
+  const day = Number(dayRaw);
+
+  if (!Number.isFinite(year) || !Number.isFinite(month) || !Number.isFinite(day)) {
+    return dateISO;
+  }
+  if (month < 1 || month > 12) return dateISO;
+
+  return `${year} ${MALAYALAM_MONTHS[month - 1]} ${day}`;
 }
 
 /* ─────────────────────────────────────────────────────────────
@@ -158,13 +187,7 @@ export function LiveCountdown() {
   const dotCy = RING_CY + RING_R * Math.sin(angleRad);
 
   const phaseLabel = useMemo(() => {
-    const fmt = (s: string) =>
-      new Date(`${s}T00:00:00+05:30`).toLocaleDateString('ml-IN', {
-        day: 'numeric',
-        month: 'long',
-        year: 'numeric',
-      });
-    return `${fmt(PHASE_START)} — ${fmt(PHASE_END)}`;
+    return `${formatMalayalamDate(PHASE_START)} — ${formatMalayalamDate(PHASE_END)}`;
   }, []);
 
   /* Status badge */
