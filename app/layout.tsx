@@ -3,7 +3,7 @@ import './globals.css';
 import { AppProviders } from '@/components/providers/AppProviders';
 
 export const metadata: Metadata = {
-  title: 'HDP Kerala — 100 Days Programme',
+  title: 'Govt. of Kerala — 100 Days Programme — Project Monitoring System',
   description: 'Kerala CMO 100 Days Programme project tracking portal',
   icons: {
     icon: [
