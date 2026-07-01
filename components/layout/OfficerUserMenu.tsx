@@ -1,10 +1,10 @@
 'use client';
 
-import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { ChevronDown, KeyRound, LogOut, UserCircle } from 'lucide-react';
 import { signOut } from 'next-auth/react';
 import { headers } from 'next/headers';
+import useSWR from 'swr';
 import { auth } from '@/auth';
 import { writeAuditLog, blocklistJWT } from '@/lib/audit';
 import { AUDIT_ACTIONS } from '@/lib/db/schema/audit';
@@ -122,32 +122,33 @@ function initialsFrom(text: string): string {
 }
 
 /**
- * Top-right account chip. Reads the live user profile from /api/me — that
- * way the displayed user_name + designation + department come straight from
- * hdp.user_details on every page load, independent of what was baked into
- * the JWT at login.
+ * Top-right account chip. Caches the live user profile from /api/me using SWR
+ * to avoid redundant fetches on navigation. The cached data is refreshed on focus
+ * or when the component remounts, ensuring fresh data without excessive API calls.
  */
 export function OfficerUserMenu({
   roleLabel,
   departmentLabel: deptFallback,
   initials,
 }: Props) {
-  const [me, setMe] = useState<MeResponse | null>(null);
-
-  useEffect(() => {
-    let cancelled = false;
-    fetch('/api/me', { cache: 'no-store' })
-      .then(async (r) => (r.ok ? ((await r.json()) as MeResponse) : null))
-      .then((data) => {
-        if (!cancelled && data) setMe(data);
-      })
-      .catch(() => {
-        /* keep fallbacks */
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+  // Use SWR to cache /api/me response with aggressive revalidation settings
+  const { data: me } = useSWR<MeResponse>(
+    '/api/me',
+    async (url) => {
+      const r = await fetch(url, { cache: 'no-store' });
+      return r.ok ? ((await r.json()) as MeResponse) : null;
+    },
+    {
+      // Cache strategy: Keep stale data while revalidating in background
+      revalidateOnFocus: false, // Don't refetch just because user focuses window
+      revalidateOnReconnect: false, // Don't refetch on reconnect
+      dedupingInterval: 60000, // 1 minute deduping interval - prevents duplicate fetches
+      focusThrottleInterval: 300000, // 5 minute throttle on focus revalidation
+      errorRetryCount: 2, // Retry failed requests up to 2 times
+      errorRetryInterval: 5000, // Wait 5 seconds between retries
+      keepPreviousData: true, // Keep old data while loading new
+    }
+  );
 
   // Resolution order:
   //   me.userName  →  caller's roleLabel  →  'User'
