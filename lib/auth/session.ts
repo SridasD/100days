@@ -204,6 +204,29 @@ export async function requireSession(
     return NextResponse.json({ error: "Bad session" }, { status: 400 });
   }
 
+  // Check if JWT is blocklisted (i.e., user logged out after this JWT was issued)
+  try {
+    if (token?.iat) {
+      // iat (issued at) is available in the JWT
+      const iatDate = new Date(Number(token.iat) * 1000);
+      const blocklist = await db.execute(sql`
+        SELECT 1 FROM hdp.session_blocklist
+        WHERE user_id = ${userId}
+          AND blocked_at > ${iatDate}
+        LIMIT 1
+      `);
+      if (blocklist.rows.length > 0) {
+        return NextResponse.json(
+          { error: "Session terminated - please log in again" },
+          { status: 401 },
+        );
+      }
+    }
+  } catch (error) {
+    // DB error checking blocklist — log but don't fail the request
+    console.error("[auth][requireSession] Error checking blocklist:", error);
+  }
+
   // Re-resolve live sec_id / role_id from DB so admin updates take effect
   // without forcing every user to log out + back in.
   let liveSecId = user.secId;

@@ -6,7 +6,7 @@ import { ChevronDown, KeyRound, LogOut, UserCircle } from 'lucide-react';
 import { signOut } from 'next-auth/react';
 import { headers } from 'next/headers';
 import { auth } from '@/auth';
-import { writeAuditLog } from '@/lib/audit';
+import { writeAuditLog, blocklistJWT } from '@/lib/audit';
 import { AUDIT_ACTIONS } from '@/lib/db/schema/audit';
 import {
   DropdownMenu,
@@ -45,7 +45,7 @@ const ROLE_NAMES: Record<number, string> = {
 };
 
 /**
- * Server action: Write LOGOUT audit event and sign out the user.
+ * Server action: Write LOGOUT audit event, blocklist JWT, and sign out the user.
  * Extracts IP address and user-agent from request headers.
  */
 async function logoutWithAudit() {
@@ -60,10 +60,20 @@ async function logoutWithAudit() {
       'unknown';
     const userAgent = headersList.get('user-agent') || undefined;
 
-    // Write LOGOUT audit event
     if (session?.user?.id) {
+      const userId = parseInt(session.user.id, 10);
+      
+      // Generate a unique jti (JWT ID) for blocklisting
+      // In production, this would come from the JWT itself, but since we don't
+      // have direct access to it here, we use a combination of userId + timestamp
+      const jti = `${userId}-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+
+      // Blocklist the JWT to prevent reuse after logout
+      await blocklistJWT(userId, jti, 'USER_LOGOUT');
+
+      // Write LOGOUT audit event
       await writeAuditLog({
-        userId: parseInt(session.user.id, 10),
+        userId: userId,
         action: AUDIT_ACTIONS.LOGOUT,
         outcome: 'SUCCESS',
         ip: userIp,
@@ -72,7 +82,7 @@ async function logoutWithAudit() {
     }
   } catch (error) {
     // Log error but don't fail the logout
-    console.error('Failed to write logout audit:', error);
+    console.error('Failed to write logout audit or blocklist JWT:', error);
   }
 
   // Sign out the user

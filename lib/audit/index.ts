@@ -1,5 +1,6 @@
 import { db } from '@/lib/db/client';
 import { userLog, type AuditAction } from '@/lib/db/schema/audit';
+import { sessionBlocklist } from '@/lib/db/schema/user';
 
 export interface AuditParams {
   userId?: number | null;
@@ -30,4 +31,25 @@ export async function writeAuditLog(p: AuditParams): Promise<void> {
     meta: p.meta ?? null,
     loggedOn: new Date(),
   });
+}
+
+/**
+ * Blocklist a JWT token to prevent reuse after logout.
+ * Stores the jti (JWT ID) in the session blocklist.
+ */
+export async function blocklistJWT(
+  userId: number,
+  jti: string,
+  reason: string = 'USER_LOGOUT'
+): Promise<void> {
+  try {
+    await db.insert(sessionBlocklist).values({
+      jti: jti.slice(0, 100), // Ensure it fits the column limit
+      userId: userId,
+      reason: reason.slice(0, 50),
+    });
+  } catch (error) {
+    // Log the error but don't fail the logout
+    console.error('Failed to blocklist JWT:', error);
+  }
 }
