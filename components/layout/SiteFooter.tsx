@@ -7,7 +7,7 @@ import Image from "next/image";
 export function SiteFooter() {
   return (
     <footer className="mt-8 border-t border-[#1f5f26]/30">
-      <section className="bg-gradient-to-r from-[#2a7a32] via-[#2e7d32] to-[#2f8634] text-white">
+      <section className="bg-gradient-to-r from-[#2a7a32] via-[#2e7d32] to-[#2f8634] text-slate-200">
         <div className="mx-auto flex w-full max-w-[1440px] flex-col items-center gap-5 px-4 py-8 text-center sm:px-6 md:py-9 lg:px-8">
           <div className="flex shrink-0 items-center justify-center">
             <Image
@@ -19,11 +19,12 @@ export function SiteFooter() {
             />
           </div>
 
-          <div className="max-w-[760px] space-y-1 text-white/95">
+          <div className="max-w-[760px] space-y-1 text-slate-200/90">
             <p className="text-sm font-normal leading-snug md:text-base">Dashboard Designed, Developed and Implemented by</p>
-            <p className="text-xs font-normal leading-relaxed md:text-sm">Center for Digital Innovation and Product Development</p>
-            <p className="text-xs font-normal leading-relaxed text-white/90">(A CMMI Level 3 Certified Center of Excellence)</p>
-            <p className="text-xs font-normal leading-relaxed md:text-sm">Digital University Kerala</p>
+            <p className="text-xs font-normal leading-relaxed text-slate-200/70 md:text-sm">Center for Digital Innovation and Product Development</p>
+            <p className="text-xs font-normal leading-relaxed text-slate-200/70">(A CMMI Level 3 Certified Center of Excellence)</p>
+            <p className="text-xs font-normal leading-relaxed text-slate-200/70 md:text-sm">Digital University Kerala</p>
+            <p className="text-xs font-normal leading-relaxed text-slate-200/70 md:text-sm">Hosted and Maintained at State Data Centre, Department of E&amp;IT</p>
           </div>
         </div>
       </section>
