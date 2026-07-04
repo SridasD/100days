@@ -6,6 +6,7 @@ import { Plus, AlertTriangle, FolderOpen } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
 import {
   Table,
   TableBody,
@@ -33,14 +34,19 @@ interface AdminUser {
 const ROLE_NAMES: Record<number, string> = {
   1: 'Verification Officer',
   2: 'Nodal Officer',
+  3: 'Administrator',
+  4: 'OSD Administrator',
+  5: 'Secretary',
   6: 'Head of Department',
-  3: 'Admin',
 };
 
 export default function AdminUsersPage() {
   const [users, setUsers] = useState<AdminUser[] | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [query, setQuery] = useState('');
+  const [roleFilter, setRoleFilter] = useState<'all' | string>('all');
+  const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'inactive'>('all');
 
   useEffect(() => {
     const load = async () => {
@@ -62,6 +68,29 @@ export default function AdminUsersPage() {
     };
     void load();
   }, []);
+
+  const filteredUsers = (users ?? []).filter((user) => {
+    const q = query.trim().toLowerCase();
+    const matchesQuery =
+      q.length === 0 ||
+      user.userName?.toLowerCase().includes(q) ||
+      user.loginName?.toLowerCase().includes(q) ||
+      (user.secretaryName ?? '').toLowerCase().includes(q);
+
+    const matchesRole =
+      roleFilter === 'all' || String(user.roleId) === String(roleFilter);
+
+    const matchesStatus =
+      statusFilter === 'all' ||
+      (statusFilter === 'active' && user.status === 1) ||
+      (statusFilter === 'inactive' && user.status === 0);
+
+    return matchesQuery && matchesRole && matchesStatus;
+  });
+
+  const roleOptions = Array.from(
+    new Set((users ?? []).map((u) => u.roleId).filter((v) => Number.isFinite(v))),
+  ).sort((a, b) => a - b);
 
   return (
     <main className="space-y-8">
@@ -123,62 +152,107 @@ export default function AdminUsersPage() {
       )}
 
       {!loading && !error && users && users.length > 0 && (
-        <div className="overflow-x-auto rounded-lg border">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Name</TableHead>
-                <TableHead>Login</TableHead>
-                <TableHead>Role</TableHead>
-                <TableHead>Secretary</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Last Login</TableHead>
-                <TableHead>Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {users.map((user) => (
-                <TableRow key={user.userId}>
-                  <TableCell className="font-medium">
-                    {user.userName}
-                  </TableCell>
-                  <TableCell className="font-mono text-sm">
-                    {user.loginName}
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant="outline">
-                      {ROLE_NAMES[user.roleId] ?? 'Unknown'}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="text-sm">
-                    {user.secretaryName ?? '—'}
-                  </TableCell>
-                  <TableCell>
-                    <Badge
-                      className={
-                        user.status === 1
-                          ? 'bg-success-green/90 text-white'
-                          : 'bg-muted'
-                      }
-                    >
-                      {user.status === 1 ? 'Active' : 'Inactive'}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="text-sm">
-                    {user.lastLogin
-                      ? new Date(user.lastLogin).toLocaleDateString()
-                      : '—'}
-                  </TableCell>
-                  <TableCell>
-                    <Button asChild variant="outline" size="sm">
-                      <Link href={`/admin/users/${user.userPublicId ?? user.userId}`}>Edit</Link>
-                    </Button>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </div>
+        <>
+          <Card>
+            <CardContent className="grid gap-3 p-4 md:grid-cols-3">
+              <Input
+                placeholder="Search by name, login, or secretary"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+              />
+              <select
+                value={roleFilter}
+                onChange={(e) => setRoleFilter(e.target.value)}
+                className="flex h-10 w-full rounded-md border border-input bg-background px-3 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              >
+                <option value="all">All roles</option>
+                {roleOptions.map((roleId) => (
+                  <option key={roleId} value={String(roleId)}>
+                    {ROLE_NAMES[roleId] ?? `Role ${roleId}`}
+                  </option>
+                ))}
+              </select>
+              <select
+                value={statusFilter}
+                onChange={(e) =>
+                  setStatusFilter(e.target.value as 'all' | 'active' | 'inactive')
+                }
+                className="flex h-10 w-full rounded-md border border-input bg-background px-3 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              >
+                <option value="all">All status</option>
+                <option value="active">Active</option>
+                <option value="inactive">Inactive</option>
+              </select>
+            </CardContent>
+          </Card>
+
+          {filteredUsers.length === 0 && (
+            <Card className="border-dashed">
+              <CardContent className="py-8 text-center text-sm text-muted-foreground">
+                No users match your search/filter.
+              </CardContent>
+            </Card>
+          )}
+
+          {filteredUsers.length > 0 && (
+            <div className="overflow-x-auto rounded-lg border">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Name</TableHead>
+                    <TableHead>Login</TableHead>
+                    <TableHead>Role</TableHead>
+                    <TableHead>Secretary</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Last Login</TableHead>
+                    <TableHead>Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {filteredUsers.map((user) => (
+                    <TableRow key={user.userId}>
+                      <TableCell className="font-medium">
+                        {user.userName}
+                      </TableCell>
+                      <TableCell className="font-mono text-sm">
+                        {user.loginName}
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant="outline">
+                          {ROLE_NAMES[user.roleId] ?? 'Unknown'}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-sm">
+                        {user.secretaryName ?? '—'}
+                      </TableCell>
+                      <TableCell>
+                        <Badge
+                          className={
+                            user.status === 1
+                              ? 'bg-success-green/90 text-white'
+                              : 'bg-muted'
+                          }
+                        >
+                          {user.status === 1 ? 'Active' : 'Inactive'}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-sm">
+                        {user.lastLogin
+                          ? new Date(user.lastLogin).toLocaleDateString()
+                          : '—'}
+                      </TableCell>
+                      <TableCell>
+                        <Button asChild variant="outline" size="sm">
+                          <Link href={`/admin/users/${user.userPublicId ?? user.userId}`}>Edit</Link>
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          )}
+        </>
       )}
     </main>
   );

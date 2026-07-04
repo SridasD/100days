@@ -7,7 +7,7 @@ export const createUserSchema = z.object({
   login_name: z.string().min(3).max(150),
   password: passwordSchema.innerType().shape.password,
   mobile_no: z.string().regex(/^\d{10}$/, "Enter valid 10-digit mobile"),
-  role_id: z.number().int().min(1).max(3),
+  role_id: z.number().int().min(1).max(6),
   sec_id: z.number().int().optional(),
   designation: z.string().max(250).optional(),
 });

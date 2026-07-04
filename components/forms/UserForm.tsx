@@ -46,7 +46,12 @@ const baseFields = {
       (v) => !v || /^\d{10}$/.test(v),
       'Enter a 10-digit mobile if provided',
     ),
-  role_id: z.coerce.number().int().min(1).max(3),
+  role_id: z
+    .coerce
+    .number()
+    .int()
+    .min(1)
+    .max(6),
   sec_id: z.coerce.number().int().optional(),
   designation: z.string().max(250).optional(),
   status: z.coerce.number().int().min(0).max(1),
@@ -117,6 +122,11 @@ export function UserForm({ userId, defaults, redirectTo = '/admin/users' }: Prop
 
   const roleId = Number(watch('role_id'));
   const needsSec = roleId === 1 || roleId === 2;
+  const visibleRoles =
+    master?.roles.filter(
+      (r) =>
+        !/tech\.?\s*administrator/i.test(r.role_description ?? ''),
+    ) ?? [];
 
   useEffect(() => {
     fetch('/api/admin/master', { cache: 'no-store' })
@@ -253,7 +263,7 @@ export function UserForm({ userId, defaults, redirectTo = '/admin/users' }: Prop
           <div className="grid gap-4 sm:grid-cols-3">
             <Field label="Role" required error={errors.role_id?.message}>
               <select {...register('role_id')} className={selectClass}>
-                {master?.roles.map((r) => (
+                {visibleRoles.map((r) => (
                   <option key={r.role_id} value={r.role_id}>
                     {r.role_description}
                   </option>

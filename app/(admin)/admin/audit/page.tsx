@@ -31,22 +31,60 @@ interface AuditLog {
 
 export default function AdminAuditPage() {
   const [logs, setLogs] = useState<AuditLog[] | null>(null);
+  const [actionOptions, setActionOptions] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [filter, setFilter] = useState('');
+  const [search, setSearch] = useState('');
+  const [actionFilter, setActionFilter] = useState('');
+  const [entityFilter, setEntityFilter] = useState('');
+  const [outcomeFilter, setOutcomeFilter] = useState('');
+  const [userIdFilter, setUserIdFilter] = useState('');
   const [limit] = useState(50);
   const [offset, setOffset] = useState(0);
   const [total, setTotal] = useState(0);
+
+  const buildDetails = (meta: unknown) => {
+    if (meta == null) return 'No details';
+    if (typeof meta === 'string') return meta;
+    if (typeof meta === 'number' || typeof meta === 'boolean') {
+      return String(meta);
+    }
+    try {
+      return JSON.stringify(meta, null, 2);
+    } catch {
+      return 'Unable to parse details';
+    }
+  };
+
+  const hasDetails = (meta: unknown, userAgent: string | null) => {
+    const hasUserAgent = Boolean(userAgent && userAgent.trim());
+    if (meta == null) return hasUserAgent;
+    if (typeof meta === 'string') return meta.trim().length > 0 || hasUserAgent;
+    if (typeof meta === 'number' || typeof meta === 'boolean') return true;
+    if (Array.isArray(meta)) return meta.length > 0 || hasUserAgent;
+    if (typeof meta === 'object') return Object.keys(meta as Record<string, unknown>).length > 0 || hasUserAgent;
+    return hasUserAgent;
+  };
 
   useEffect(() => {
     const load = async () => {
       setLoading(true);
       setError(null);
       try {
-        const res = await fetch(
-          `/api/admin/audit?limit=${limit}&offset=${offset}&action=${filter}`,
-          { cache: 'no-store' },
-        );
+        const params = new URLSearchParams({
+          limit: String(limit),
+          offset: String(offset),
+        });
+
+        if (search.trim()) params.set('q', search.trim());
+        if (actionFilter.trim()) params.set('action', actionFilter.trim());
+        if (entityFilter.trim()) params.set('entity', entityFilter.trim());
+        if (outcomeFilter.trim()) params.set('outcome', outcomeFilter.trim());
+        if (userIdFilter.trim()) params.set('userId', userIdFilter.trim());
+
+        const res = await fetch(`/api/admin/audit?${params.toString()}`, {
+          cache: 'no-store',
+        });
         if (!res.ok) {
           const body = await res.json().catch(() => ({}));
           throw new Error(body.error ?? `HTTP ${res.status}`);
@@ -54,9 +92,11 @@ export default function AdminAuditPage() {
         const json = (await res.json()) as {
           logs: AuditLog[];
           total: number;
+          actions?: string[];
         };
         setLogs(json.logs);
         setTotal(json.total);
+        setActionOptions(json.actions ?? []);
       } catch (e) {
         setError(e instanceof Error ? e.message : 'Unknown error');
       } finally {
@@ -64,7 +104,7 @@ export default function AdminAuditPage() {
       }
     };
     void load();
-  }, [filter, limit, offset]);
+  }, [search, actionFilter, entityFilter, outcomeFilter, userIdFilter, limit, offset]);
 
   const pages = Math.ceil(total / limit);
   const currentPage = Math.floor(offset / limit) + 1;
@@ -88,23 +128,104 @@ export default function AdminAuditPage() {
             Audit Log
           </h1>
           <p className="text-sm text-muted-foreground">
-            View system activity and user actions
+            Search, filter, and inspect system activity in detail
           </p>
         </div>
-        <div className="flex flex-col gap-3 md:flex-row md:items-end md:gap-2">
-          <div className="flex-1">
+        <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-5">
+          <div>
             <label className="text-xs font-semibold text-muted-foreground">
-              Filter by Action
+              Search
             </label>
             <Input
-              placeholder="e.g., LOGIN_SUCCESS, INDICATOR_SUBMITTED"
-              value={filter}
+              placeholder="User, action, entity, details"
+              value={search}
               onChange={(e) => {
-                setFilter(e.target.value);
+                setSearch(e.target.value);
                 setOffset(0);
               }}
               className="mt-1"
             />
+          </div>
+          <div>
+            <label className="text-xs font-semibold text-muted-foreground">
+              Action
+            </label>
+            <select
+              value={actionFilter}
+              onChange={(e) => {
+                setActionFilter(e.target.value);
+                setOffset(0);
+              }}
+              className="mt-1 h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+            >
+              <option value="">All</option>
+              {actionOptions.map((action) => (
+                <option key={action} value={action}>
+                  {action}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="text-xs font-semibold text-muted-foreground">
+              Entity
+            </label>
+            <Input
+              placeholder="user_details"
+              value={entityFilter}
+              onChange={(e) => {
+                setEntityFilter(e.target.value);
+                setOffset(0);
+              }}
+              className="mt-1"
+            />
+          </div>
+          <div>
+            <label className="text-xs font-semibold text-muted-foreground">
+              Outcome
+            </label>
+            <select
+              value={outcomeFilter}
+              onChange={(e) => {
+                setOutcomeFilter(e.target.value);
+                setOffset(0);
+              }}
+              className="mt-1 h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+            >
+              <option value="">All</option>
+              <option value="SUCCESS">SUCCESS</option>
+              <option value="FAILURE">FAILURE</option>
+            </select>
+          </div>
+          <div>
+            <label className="text-xs font-semibold text-muted-foreground">
+              User ID
+            </label>
+            <Input
+              placeholder="e.g., 73"
+              value={userIdFilter}
+              onChange={(e) => {
+                setUserIdFilter(e.target.value);
+                setOffset(0);
+              }}
+              className="mt-1"
+            />
+          </div>
+          <div className="md:col-span-2 lg:col-span-5">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                setSearch('');
+                setActionFilter('');
+                setEntityFilter('');
+                setOutcomeFilter('');
+                setUserIdFilter('');
+                setOffset(0);
+              }}
+            >
+              Clear Filters
+            </Button>
           </div>
         </div>
       </div>
@@ -179,9 +300,23 @@ export default function AdminAuditPage() {
                         )}
                       </TableCell>
                       <TableCell className="text-xs text-muted-foreground">
-                        {log.meta
-                          ? JSON.stringify(log.meta).substring(0, 50).concat('...')
-                          : '—'}
+                        {hasDetails(log.meta, log.userAgent) ? (
+                          <details className="group max-w-[360px]">
+                            <summary className="cursor-pointer select-none text-xs font-medium text-foreground">
+                              View details
+                            </summary>
+                            <pre className="mt-2 max-h-48 overflow-auto rounded-md border bg-muted/50 p-2 text-[11px] leading-relaxed text-foreground">
+                              {buildDetails(log.meta)}
+                            </pre>
+                            {log.userAgent && (
+                              <p className="mt-1 text-[11px] text-muted-foreground">
+                                User Agent: {log.userAgent}
+                              </p>
+                            )}
+                          </details>
+                        ) : (
+                          <span>—</span>
+                        )}
                       </TableCell>
                     </TableRow>
                   );

@@ -70,7 +70,7 @@ const updateSchema = z.object({
     .optional()
     .nullable()
     .refine((v) => !v || /^\d{10}$/.test(v), "Must be 10 digits if provided"),
-  role_id: z.coerce.number().int().min(1).max(3),
+  role_id: z.coerce.number().int().min(1).max(6),
   sec_id: z.coerce.number().int().positive().optional().nullable(),
   designation: z.string().max(250).optional().nullable(),
   status: z.coerce.number().int().min(0).max(1),
