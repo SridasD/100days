@@ -92,6 +92,10 @@ export default function PublicSectorPage({
   const [departments, setDepartments] = useState<ApiDepartment[] | null>(null);
   const [error, setError] = useState<string | null>(null);
 
+  // UUID routes are non-numeric, so prefer the resolved sectorId from API
+  // when selecting Malayalam label + icon metadata.
+  const sectorMetaId = sector?.sectorId ?? numericSectorId;
+
   useEffect(() => {
     if (!sectorRef) {
       setError('Invalid sector id');
@@ -155,8 +159,8 @@ export default function PublicSectorPage({
     }
   }, [router, sector?.sectorPublicId, sectorRef]);
 
-  const meta = Number.isFinite(numericSectorId)
-    ? SECTOR_META[numericSectorId]
+  const meta = Number.isFinite(sectorMetaId)
+    ? SECTOR_META[sectorMetaId]
     : undefined;
   const Icon = meta?.icon ?? Building2;
   const nameMal = meta?.nameMal ?? sector?.sectorName ?? 'മേഖല';

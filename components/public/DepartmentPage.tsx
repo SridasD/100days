@@ -126,7 +126,10 @@ export function DepartmentPage({
         />
         <div className="container relative mx-auto grid gap-6 px-4 py-12 md:grid-cols-[1.5fr_1fr]">
           <div>
-            <Breadcrumbs nameMal={nameMal} />
+            <Breadcrumbs
+              nameMal={nameMal}
+              departmentRef={departmentPublicId ?? secId}
+            />
             <p className="font-malayalam mt-4 text-xs font-semibold uppercase tracking-wide text-hdp-gold">
               വകുപ്പുതല ഡാഷ്ബോർഡ്
             </p>
@@ -275,7 +278,10 @@ function ProjectCard({
         </span>
       </div>
 
-      <h3 className="font-malayalam line-clamp-2 px-5 text-base font-bold leading-snug text-foreground">
+      <h3
+        title={project.name}
+        className="font-malayalam line-clamp-2 px-5 text-base font-bold leading-snug text-foreground"
+      >
         {project.name}
       </h3>
 
@@ -476,7 +482,13 @@ function Chip({ children }: { children: React.ReactNode }) {
   );
 }
 
-function Breadcrumbs({ nameMal }: { nameMal: string }) {
+function Breadcrumbs({
+  nameMal,
+  departmentRef,
+}: {
+  nameMal: string;
+  departmentRef: string | number;
+}) {
   return (
     <nav
       aria-label="Breadcrumb"
@@ -486,7 +498,10 @@ function Breadcrumbs({ nameMal }: { nameMal: string }) {
         ഹോം
       </Link>
       <ChevronRight className="h-3 w-3 opacity-50" />
-      <Link href="/public/departments" className="hover:text-white">
+      <Link
+        href={`/public/departments/${departmentRef}`}
+        className="hover:text-white"
+      >
         വകുപ്പുകൾ
       </Link>
       <ChevronRight className="h-3 w-3 opacity-50" />
