@@ -195,7 +195,7 @@ export async function GET() {
           COUNT(*) FILTER (WHERE is_archived = false AND is_completed = 0)::int AS not_started,
           COUNT(*) FILTER (WHERE is_archived = false AND is_completed = 1)::int AS in_progress,
           COUNT(*) FILTER (WHERE is_archived = false AND is_completed = 2)::int AS completed,
-          COUNT(*) FILTER (WHERE is_archived = true)::int AS archived
+          0::int AS archived
         FROM scoped_projects
       `),
       db.execute(sql`
@@ -265,6 +265,7 @@ export async function GET() {
           MAX(COALESCE(i.verified_date, i.submitted_date)) AS last_updated
         FROM scoped_project_rows sp
         LEFT JOIN scoped_indicators i ON i.project_id = sp.project_id
+        WHERE sp.is_archived = false
         GROUP BY
           sp.project_id,
           sp.project_code,

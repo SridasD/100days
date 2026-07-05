@@ -251,6 +251,7 @@ export async function listIndicatorsForProject(
     INNER JOIN hdp.master_projects mp ON i.project_id = mp.project_id
     LEFT JOIN hdp.master_district md ON i.district_id = md.district_id
     WHERE i.project_id = ${projectId}
+      AND COALESCE(mp.is_archived, false) = false
       AND (
         (${scope.roleId} IN (3, 4))
         OR
@@ -284,8 +285,10 @@ export async function officerOwnsIndicator(
   const result = await db.execute(sql`
     SELECT 1
     FROM hdp.indicators i
+    INNER JOIN hdp.master_projects mp ON i.project_id = mp.project_id
     INNER JOIN hdp.project_secretary ps ON i.project_id = ps.project_id
     WHERE i.indicator_id = ${indicatorId}
+      AND COALESCE(mp.is_archived, false) = false
       AND (
         (${scope.roleId} IN (3, 4))
         OR

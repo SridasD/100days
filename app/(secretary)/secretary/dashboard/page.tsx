@@ -249,6 +249,9 @@ export default function SecretaryDashboardPage() {
     const scopedProjects = useMemo(() => {
         const rows = data?.projects ?? [];
         return rows.filter((row) => {
+            if (row.isArchived) {
+                return false;
+            }
             if (filters.sector !== "all" && row.sectorName !== filters.sector) {
                 return false;
             }

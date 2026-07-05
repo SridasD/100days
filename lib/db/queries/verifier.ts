@@ -177,6 +177,7 @@ export async function listVerifierIndicators(
     LEFT JOIN hdp.project_secretary ps ON i.project_id = ps.project_id
     WHERE i.project_id = ${projectId}
       AND i.submitted_date IS NOT NULL
+      AND COALESCE(mp.is_archived, false) = false
       ${isCentral ? sql`` : sql`AND ps.sec_id = ${secId}`}
       ${filter}
     ORDER BY
@@ -243,15 +244,22 @@ export async function verifierOwnsIndicator(
   // Central verifier (sec_id = 0) can act on any indicator.
   if (!secId || secId === 0) {
     const r = await db.execute(sql`
-      SELECT 1 FROM hdp.indicators WHERE indicator_id = ${indicatorId} LIMIT 1
+      SELECT 1
+      FROM hdp.indicators i
+      INNER JOIN hdp.master_projects mp ON i.project_id = mp.project_id
+      WHERE i.indicator_id = ${indicatorId}
+        AND COALESCE(mp.is_archived, false) = false
+      LIMIT 1
     `);
     return r.rows.length > 0;
   }
   const result = await db.execute(sql`
     SELECT 1
     FROM hdp.indicators i
+    INNER JOIN hdp.master_projects mp ON i.project_id = mp.project_id
     INNER JOIN hdp.project_secretary ps ON i.project_id = ps.project_id
     WHERE i.indicator_id = ${indicatorId}
+      AND COALESCE(mp.is_archived, false) = false
       AND ps.sec_id = ${secId}
     LIMIT 1
   `);

@@ -225,6 +225,7 @@ export async function POST(
     SELECT 1
     FROM hdp.master_projects mp
     WHERE mp.project_id = ${id}
+      AND COALESCE(mp.is_archived, false) = false
       AND (
         (${session.roleId} = 2 AND EXISTS (
           SELECT 1
