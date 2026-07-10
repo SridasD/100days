@@ -223,6 +223,7 @@ export default async function OfficerProjectIndicatorsPage({
 
         <IndicatorTable
           projectId={project.public_id ?? pid}
+          canDeleteNonVerified={roleId === 6}
           projectTargets={{
             projectName: project.project_name ?? '',
             directDays: project.no_days_employed_direct ?? 0,

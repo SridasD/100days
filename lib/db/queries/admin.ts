@@ -19,6 +19,8 @@ export interface AdminUserRow {
   designation: string | null;
   last_login: string | null;
   registered_on: string | null;
+  failed_login_attempts: number | null;
+  locked_until: string | null;
 }
 
 /**
@@ -38,7 +40,9 @@ export async function listAllUsers(): Promise<AdminUserRow[]> {
       ms.secretary_name,
       ud.designation,
       ud.last_login,
-      ud.registered_on
+      ud.registered_on,
+      ud.failed_login_attempts,
+      ud.locked_until
     FROM hdp.user_details ud
     LEFT JOIN hdp.master_secretary ms ON ud.sec_id = ms.sec_id
     ORDER BY ud.user_name ASC
@@ -62,7 +66,9 @@ export async function getUser(userId: number) {
       ud.sec_id,
       ud.designation,
       ud.registered_on,
-      ud.last_login
+      ud.last_login,
+      ud.failed_login_attempts,
+      ud.locked_until
     FROM hdp.user_details ud
     WHERE ud.user_id = ${userId}
     LIMIT 1

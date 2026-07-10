@@ -31,7 +31,7 @@ export const userDetails = hdp.table("user_details", {
   passwordResetExpires: timestamp("password_reset_expires"),
   lastLogin: timestamp("last_login"),
   failedLoginAttempts: integer("failed_login_attempts").default(0),
-  lockedUntil: timestamp("locked_until"),
+  lockedUntil: timestamp("locked_until", { withTimezone: true }),
 });
 
 export const masterRole = hdp.table("master_role", {

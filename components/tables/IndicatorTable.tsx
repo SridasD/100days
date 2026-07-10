@@ -96,6 +96,7 @@ export interface IndicatorTableProjectTargets {
 interface Props {
   projectId: string;
   projectTargets: IndicatorTableProjectTargets;
+  canDeleteNonVerified?: boolean;
 }
 
 const PAGE_SIZE_OPTIONS = [
@@ -473,7 +474,11 @@ function SuccessToast({
 // ---------------------------------------------------------------------------
 // Main component
 // ---------------------------------------------------------------------------
-export function IndicatorTable({ projectId, projectTargets }: Props) {
+export function IndicatorTable({
+  projectId,
+  projectTargets,
+  canDeleteNonVerified = false,
+}: Props) {
   const [data, setData] = useState<IndicatorRow[] | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -728,7 +733,7 @@ export function IndicatorTable({ projectId, projectTargets }: Props) {
             serialNo={startIdx + idx + 1}
             i={ind}
             onOpenSheet={openSheet}
-            canDelete={!ind.isVerified}
+            canDelete={canDeleteNonVerified && !ind.isVerified}
             onDelete={handleDeleteIndicator}
           />
         ))}

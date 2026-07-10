@@ -1,4 +1,4 @@
-import NextAuth, { type DefaultSession } from "next-auth";
+import NextAuth, { CredentialsSignin, type DefaultSession } from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 import { eq } from "drizzle-orm";
 import bcrypt from "bcryptjs";
@@ -8,10 +8,18 @@ import { loginSchema } from "@/lib/validations/login";
 import { writeAuditLog } from "@/lib/audit";
 import { AUDIT_ACTIONS } from "@/lib/db/schema/audit";
 import { authConfig } from "@/auth.config";
+import { parseLockoutTimestamp } from "@/lib/auth/lockout";
 
 const LOCKOUT_THRESHOLD = Number(process.env.ACCOUNT_LOCKOUT_THRESHOLD ?? 5);
 const LOCKOUT_MINUTES = Number(process.env.ACCOUNT_LOCKOUT_MINUTES ?? 30);
 const SESSION_TTL_HOURS = Number(process.env.SESSION_TTL_HOURS ?? 8);
+
+class LoginFailureError extends CredentialsSignin {
+  constructor(code: string) {
+    super();
+    this.code = code;
+  }
+}
 
 declare module "next-auth" {
   interface Session {
@@ -52,7 +60,9 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       },
       authorize: async (raw) => {
         const parsed = loginSchema.safeParse(raw);
-        if (!parsed.success) return null;
+        if (!parsed.success) {
+          throw new LoginFailureError("INVALID_INPUT");
+        }
         const { loginName, password } = parsed.data;
 
         const [user] = await db
@@ -67,7 +77,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
             outcome: "FAILURE",
             meta: { loginName, reason: "user_not_found" },
           });
-          return null;
+          throw new LoginFailureError("USER_NOT_FOUND");
         }
 
         // Inactive account
@@ -78,18 +88,23 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
             outcome: "FAILURE",
             meta: { reason: "inactive" },
           });
-          return null;
+          throw new LoginFailureError("INACTIVE_ACCOUNT");
         }
 
         // Lockout check
-        if (user.lockedUntil && user.lockedUntil > new Date()) {
+        const lockedUntil = parseLockoutTimestamp(user.lockedUntil);
+        if (lockedUntil && lockedUntil > new Date()) {
           await writeAuditLog({
             userId: user.userId,
             action: AUDIT_ACTIONS.LOGIN_FAILURE,
             outcome: "FAILURE",
             meta: { reason: "locked" },
           });
-          return null;
+          throw new LoginFailureError(
+            `ACCOUNT_LOCKED|${lockedUntil.getTime()}|${
+              user.failedLoginAttempts ?? 0
+            }`,
+          );
         }
 
         const ok = user.password
@@ -99,13 +114,14 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         if (!ok) {
           const nextAttempts = (user.failedLoginAttempts ?? 0) + 1;
           const shouldLock = nextAttempts >= LOCKOUT_THRESHOLD;
+          const lockUntil = shouldLock
+            ? new Date(Date.now() + LOCKOUT_MINUTES * 60 * 1000)
+            : null;
           await db
             .update(userDetails)
             .set({
               failedLoginAttempts: nextAttempts,
-              lockedUntil: shouldLock
-                ? new Date(Date.now() + LOCKOUT_MINUTES * 60 * 1000)
-                : null,
+              lockedUntil: lockUntil,
             })
             .where(eq(userDetails.userId, user.userId));
 
@@ -117,7 +133,19 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
             outcome: "FAILURE",
             meta: { attempts: nextAttempts },
           });
-          return null;
+
+          if (shouldLock && lockUntil) {
+            throw new LoginFailureError(
+              `ACCOUNT_LOCKED|${lockUntil.getTime()}|${nextAttempts}`,
+            );
+          }
+
+          throw new LoginFailureError(
+            `INVALID_PASSWORD|${nextAttempts}|${Math.max(
+              0,
+              LOCKOUT_THRESHOLD - nextAttempts,
+            )}`,
+          );
         }
 
         // Successful login — reset counters
