@@ -32,7 +32,10 @@ export function IndicatorRow({ indicator, number }: IndicatorRowProps) {
               lang={malayalam ? 'ml' : undefined}
               className={malayalam ? 'font-malayalam text-[0.95rem] leading-relaxed tracking-normal' : 'text-sm leading-relaxed'}
             >
-              {number} {indicator.indicator_name}
+              <span className="mr-1.5 inline-flex shrink-0 items-center rounded-md bg-teal-500/10 px-1.5 py-0.5 font-mono text-xs font-semibold text-teal-700">
+                {number}
+              </span>
+              {indicator.indicator_name}
             </div>
           </div>
         </TableCell>

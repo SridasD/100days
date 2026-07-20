@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Download, AlertTriangle, ArrowLeft, Eye, FileBarChart2, LayoutDashboard } from 'lucide-react';
+import { Download, AlertTriangle, ArrowLeft, FileBarChart2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -33,23 +33,13 @@ const reports = [
     description: 'Indicators and projects by district',
     sections: ['By District', 'Indicator Details', 'Progress Status'],
   },
-  {
-    id: 'lagging-analysis',
-    title: 'Project Progress & Performance Review',
-    description: 'Hierarchical progress and performance view by administrative department, agency, project, and indicator',
-    sections: ['Administrative Department Summary', 'Drill-down View', 'Indicator-level Performance'],
-  },
 ];
 
 export default function AdminReportsPage() {
   const [exporting, setExporting] = useState<string | null>(null);
   const pathname = usePathname();
   const isOsd = pathname.startsWith('/admin/osd');
-  const dashboardPath = isOsd ? '/admin/osd/dashboard' : '/admin/dashboard';
-  const reportViewPath = (reportId: string) =>
-    isOsd ? `/admin/osd/reports/${reportId}/view` : `/admin/reports/${reportId}/view`;
-  const reportTabularPath = (reportId: string) =>
-    isOsd ? `/admin/osd/reports/${reportId}/tabular` : `/admin/reports/${reportId}/tabular`;
+  const dashboardPath = isOsd ? '/admin/osd/project-performance-dashboard' : '/admin/dashboard';
 
   const handleExport = async (reportId: string) => {
     setExporting(reportId);
@@ -73,14 +63,6 @@ export default function AdminReportsPage() {
     } finally {
       setExporting(null);
     }
-  };
-
-  const handleView = (reportId: string) => {
-    window.open(reportViewPath(reportId), '_blank', 'noopener,noreferrer');
-  };
-
-  const handleTabular = (reportId: string) => {
-    window.open(reportTabularPath(reportId), '_blank', 'noopener,noreferrer');
   };
 
   return (
@@ -149,49 +131,16 @@ export default function AdminReportsPage() {
               </div>
 
               <div className="flex gap-2 pt-2">
-                {report.id === 'lagging-analysis' ? (
-                  <>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => handleView(report.id)}
-                      className="cursor-pointer flex-1"
-                    >
-                      <Eye className="h-3 w-3" />
-                      View
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => handleTabular(report.id)}
-                      className="cursor-pointer flex-1"
-                    >
-                      <LayoutDashboard className="h-3 w-3" />
-                      Dashboard
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      disabled={exporting === report.id}
-                      onClick={() => handleExport(report.id)}
-                      className="cursor-pointer flex-1"
-                    >
-                      <Download className="h-3 w-3" />
-                      Download
-                    </Button>
-                  </>
-                ) : (
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    disabled={exporting === report.id}
-                    onClick={() => handleExport(report.id)}
-                    className="cursor-pointer flex-1"
-                  >
-                    <Download className="h-3 w-3" />
-                    Excel
-                  </Button>
-                )}
+                <Button
+                  size="sm"
+                  variant="outline"
+                  disabled={exporting === report.id}
+                  onClick={() => handleExport(report.id)}
+                  className="cursor-pointer flex-1"
+                >
+                  <Download className="h-3 w-3" />
+                  Excel
+                </Button>
               </div>
             </CardContent>
           </Card>

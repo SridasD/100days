@@ -113,7 +113,7 @@ function AdminProjectsPageContent() {
   const pathname = usePathname();
   const isOsd = pathname.startsWith('/admin/osd');
   const projectsBasePath = isOsd ? '/admin/osd/projects' : '/admin/projects';
-  const dashboardPath = isOsd ? '/admin/osd/dashboard' : '/admin/dashboard';
+  const dashboardPath = isOsd ? '/admin/osd/project-performance-dashboard' : '/admin/dashboard';
   const [createdCode, setCreatedCode] = useState<string | null>(null);
   const [archivedCode, setArchivedCode] = useState<string | null>(null);
 

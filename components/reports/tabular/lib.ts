@@ -13,7 +13,7 @@ export function verificationStatus(row: Pick<TabularRow, 'verified_date' | 'subm
 }
 
 export function indicatorStatus(row: Pick<TabularRow, 'is_stale' | 'has_no_progress'>) {
-  return row.is_stale || row.has_no_progress ? 'Lagging' : 'On Track';
+  return row.is_stale || row.has_no_progress ? 'Needs Attention' : 'On Track';
 }
 
 // Physical/financial % are always shown as whole numbers, matching the public site.
@@ -116,7 +116,7 @@ export function rollupVerification(rows: TabularRow[]) {
 }
 
 export function rollupStatus(rows: TabularRow[]) {
-  return rows.some((row) => row.is_stale || row.has_no_progress) ? 'Lagging' : 'On Track';
+  return rows.some((row) => row.is_stale || row.has_no_progress) ? 'Needs Attention' : 'On Track';
 }
 
 export function rollupLastUpdate(rows: TabularRow[]): Date | null {

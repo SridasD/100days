@@ -1,12 +1,11 @@
-import { Building2, Briefcase, Target, Clock, TrendingUp, IndianRupee, Images, Camera, Video, FileText } from 'lucide-react';
+import { Building2, Briefcase, Target, CheckCircle2, ListChecks, Images, Camera, Video, FileText } from 'lucide-react';
 
 type KPISummaryCardsProps = {
   departmentCount: number;
   projectCount: number;
   indicatorCount: number;
-  laggingCount: number;
-  avgPhysical: number;
-  avgFinancial: number | null;
+  completedProjectCount: number;
+  completedIndicatorCount: number;
   images: number;
   videos: number;
   documents: number;
@@ -16,9 +15,8 @@ export function KPISummaryCards({
   departmentCount,
   projectCount,
   indicatorCount,
-  laggingCount,
-  avgPhysical,
-  avgFinancial,
+  completedProjectCount,
+  completedIndicatorCount,
   images,
   videos,
   documents,
@@ -46,26 +44,18 @@ export function KPISummaryCards({
       iconColor: 'text-teal-600',
     },
     {
-      label: 'Lagging Rows',
-      value: laggingCount,
-      icon: Clock,
-      iconBg: 'bg-rose-100',
-      iconColor: 'text-rose-600',
-      valueColor: laggingCount > 0 ? 'text-rose-600' : undefined,
-    },
-    {
-      label: 'Avg Physical Progress',
-      value: `${avgPhysical}%`,
-      icon: TrendingUp,
+      label: 'Projects Completed',
+      value: completedProjectCount,
+      icon: CheckCircle2,
       iconBg: 'bg-emerald-100',
       iconColor: 'text-emerald-600',
     },
     {
-      label: 'Avg Financial Progress',
-      value: avgFinancial === null ? '—' : `${avgFinancial}%`,
-      icon: IndianRupee,
-      iconBg: 'bg-blue-100',
-      iconColor: 'text-blue-600',
+      label: 'Indicators Completed',
+      value: completedIndicatorCount,
+      icon: ListChecks,
+      iconBg: 'bg-emerald-100',
+      iconColor: 'text-emerald-600',
     },
     {
       label: 'Media Uploaded',
@@ -82,7 +72,7 @@ export function KPISummaryCards({
   ];
 
   return (
-    <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-7">
+    <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
       {cards.map((card) => {
         const Icon = card.icon;
         return (
@@ -92,7 +82,7 @@ export function KPISummaryCards({
             </div>
             <div className="min-w-0">
               <div className="text-[11px] font-medium leading-tight text-muted-foreground">{card.label}</div>
-              <div className={`mt-1 text-xl font-bold leading-none ${card.valueColor ?? 'text-foreground'}`}>
+              <div className="mt-1 text-xl font-bold leading-none text-foreground">
                 {card.value}
               </div>
               {card.breakdown && (

@@ -7,6 +7,7 @@ type Props = {
     reportId: string;
     title: string;
     isOsd: boolean;
+    showHierarchyToggle?: boolean;
 };
 
 type TabularRow = {
@@ -90,7 +91,7 @@ function verificationStatus(row: TabularRow) {
 }
 
 function indicatorStatus(row: TabularRow) {
-    return row.is_stale || row.has_no_progress ? 'Lagging' : 'On Track';
+    return row.is_stale || row.has_no_progress ? 'Needs Attention' : 'On Track';
 }
 
 function isIndicatorCompleted(row: TabularRow) {
@@ -222,6 +223,10 @@ async function loadTabularRows(): Promise<TabularRow[]> {
       GROUP BY ud.dept_id
     ),
     dept_map AS (
+      -- Correlated subqueries (not a JOIN) so a project linked to more than
+      -- one hdp.project_department row still produces exactly one row here —
+      -- a plain LEFT JOIN would fan out and double-count that project (and
+      -- every one of its indicators) once per extra department.
       SELECT DISTINCT
         sp.administrative_department,
         sp.project_id,
@@ -230,12 +235,19 @@ async function loadTabularRows(): Promise<TabularRow[]> {
         sp.is_completed,
         sp.completion_date,
         sp.project_cost,
-        COALESCE(md.dept_name, 'Unassigned') AS department_name,
-        COALESCE(dh.hod_names, 'Unassigned') AS hod_names
+        COALESCE((
+          SELECT STRING_AGG(DISTINCT md.dept_name, ', ' ORDER BY md.dept_name)
+          FROM hdp.project_department pd
+          LEFT JOIN hdp.master_department md ON md.dept_id = pd.dept_id
+          WHERE pd.project_id = sp.project_id
+        ), 'Unassigned') AS department_name,
+        COALESCE((
+          SELECT STRING_AGG(DISTINCT dh.hod_names, ', ' ORDER BY dh.hod_names)
+          FROM hdp.project_department pd
+          LEFT JOIN dept_hods dh ON dh.dept_id = pd.dept_id
+          WHERE pd.project_id = sp.project_id
+        ), 'Unassigned') AS hod_names
       FROM secretary_projects sp
-      LEFT JOIN hdp.project_department pd ON pd.project_id = sp.project_id
-      LEFT JOIN hdp.master_department md ON md.dept_id = pd.dept_id
-      LEFT JOIN dept_hods dh ON dh.dept_id = pd.dept_id
     )
     SELECT
       i.indicator_id,
@@ -326,7 +338,7 @@ async function loadTabularRows(): Promise<TabularRow[]> {
     });
 }
 
-export async function ReportTabularPage({ reportId, title, isOsd }: Props) {
+export async function ReportTabularPage({ reportId, title, isOsd, showHierarchyToggle }: Props) {
     const rows = reportId === 'lagging-analysis' ? await loadTabularRows() : [];
     const departments = buildDepartments(rows);
     const reportHref = isOsd ? '/admin/osd/reports' : '/admin/reports';
@@ -338,6 +350,7 @@ export async function ReportTabularPage({ reportId, title, isOsd }: Props) {
         financial: financialRollup(allProjects),
     };
     const projectCount = allProjects.length;
+    const completedProjectCount = allProjects.filter((project) => project.isCompleted).length;
     const generatedAt = formatDateTime();
 
     return (
@@ -345,11 +358,13 @@ export async function ReportTabularPage({ reportId, title, isOsd }: Props) {
             departments={departments}
             summary={summary}
             projectCount={projectCount}
+            completedProjectCount={completedProjectCount}
             generatedAt={generatedAt}
             reportId={reportId}
             title={title}
             reportHref={reportHref}
             viewHref={viewHref}
+            showHierarchyToggle={showHierarchyToggle}
         />
     );
 }

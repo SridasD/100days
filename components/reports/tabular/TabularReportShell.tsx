@@ -28,22 +28,28 @@ type TabularReportShellProps = {
   departments: DepartmentGroup[];
   summary: Summary;
   projectCount: number;
+  completedProjectCount: number;
   reportId: string;
   title: string;
   reportHref: string;
   viewHref: string;
   generatedAt: string;
+  /** Hides the Hierarchy/Tabular view-switcher — used on the dashboard page,
+   * which only ever renders the tabular view. Defaults to true. */
+  showHierarchyToggle?: boolean;
 };
 
 export function TabularReportShell({
   departments,
   summary,
   projectCount,
+  completedProjectCount,
   reportId,
   title,
   reportHref,
   viewHref,
   generatedAt,
+  showHierarchyToggle = true,
 }: TabularReportShellProps) {
   const router = useRouter();
   const [applied, setApplied] = useState<ReportFilters>(DEFAULT_FILTERS);
@@ -187,12 +193,14 @@ export function TabularReportShell({
               Back to Reports
             </Link>
           </Button>
-          <div className="inline-flex items-center gap-1 rounded-lg border bg-white p-1 text-xs font-medium shadow-sm">
-            <Link href={viewHref} className="rounded-md px-3 py-1.5 text-muted-foreground hover:bg-muted">
-              Hierarchy
-            </Link>
-            <span className="rounded-md bg-kerala-blue px-3 py-1.5 text-white">Tabular</span>
-          </div>
+          {showHierarchyToggle && (
+            <div className="inline-flex items-center gap-1 rounded-lg border bg-white p-1 text-xs font-medium shadow-sm">
+              <Link href={viewHref} className="rounded-md px-3 py-1.5 text-muted-foreground hover:bg-muted">
+                Hierarchy
+              </Link>
+              <span className="rounded-md bg-kerala-blue px-3 py-1.5 text-white">Tabular</span>
+            </div>
+          )}
         </div>
       </section>
 
@@ -200,9 +208,8 @@ export function TabularReportShell({
         departmentCount={departments.length}
         projectCount={projectCount}
         indicatorCount={summary.totalIndicators}
-        laggingCount={summary.lagging}
-        avgPhysical={summary.physical}
-        avgFinancial={summary.financial}
+        completedProjectCount={completedProjectCount}
+        completedIndicatorCount={summary.completedIndicators}
         images={summary.images}
         videos={summary.videos}
         documents={summary.documents}
@@ -219,7 +226,7 @@ export function TabularReportShell({
 
       <Card className="overflow-hidden border-slate-200">
         <CardHeader className="border-b bg-white">
-          <CardTitle className="text-base">Tabular Report</CardTitle>
+          <CardTitle className="text-base">Project Progress & Performance - Tabular Report</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4 p-4">
           {filteredDepartments.length === 0 ? (

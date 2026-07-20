@@ -39,9 +39,7 @@ type NavItem = {
 };
 
 const OSD_NAV_ITEMS: NavItem[] = [
-    { href: '/admin/osd/dashboard', label: 'Classic Dashboard', icon: LayoutDashboard },
-    { href: '/admin/osd/dashboard/v2', label: 'Analytical Dashboard', icon: LayoutDashboard },
-    { href: '/admin/osd/analytics/exceptions', label: 'Exception Monitor', icon: ClipboardList },
+    { href: '/admin/osd/project-performance-dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { href: '/admin/osd/projects', label: 'Projects', icon: FolderKanban },
     { href: '/admin/osd/reports', label: 'Reports', icon: BarChart3 },
 ];
@@ -78,11 +76,7 @@ function AdminNav({
             {navItems.map((item) => {
                 const Icon = item.icon;
                 const active = isOsd
-                    ? item.href === '/admin/osd/dashboard/v2'
-                        ? pathname === '/admin/osd/dashboard/v2' || pathname.startsWith('/admin/osd/dashboard/v2/')
-                        : item.href === '/admin/osd/dashboard'
-                            ? pathname === '/admin/osd/dashboard' && !pathname.startsWith('/admin/osd/dashboard/v2')
-                            : pathname === item.href || pathname.startsWith(`${item.href}/`)
+                    ? pathname === item.href || pathname.startsWith(`${item.href}/`)
                     : pathname === item.href ||
                     (item.href !== '/admin/dashboard' && pathname.startsWith(item.href));
 
@@ -156,7 +150,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
     useEffect(() => {
         if (!profile) return;
         if (profile.roleId === 4 && !pathname.startsWith('/admin/osd')) {
-            router.replace('/admin/osd/dashboard');
+            router.replace('/admin/osd/project-performance-dashboard');
             return;
         }
         if (profile.roleId === 3 && pathname.startsWith('/admin/osd')) {
@@ -167,7 +161,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
     return (
         <div className="flex min-h-screen flex-col bg-muted/30">
             <KeralaHeader
-                homeHref={profile?.roleId === 4 ? '/admin/osd/dashboard' : '/admin/dashboard'}
+                homeHref={profile?.roleId === 4 ? '/admin/osd/project-performance-dashboard' : '/admin/dashboard'}
                 right={<OfficerUserMenu roleLabel={roleLabel} departmentLabel={departmentLabel} />}
             />
 

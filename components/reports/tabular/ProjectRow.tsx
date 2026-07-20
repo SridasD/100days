@@ -31,7 +31,10 @@ export function ProjectRow({ project, number, expanded, onToggle }: ProjectRowPr
           />
           <Folder className="mt-0.5 h-3.5 w-3.5 shrink-0 text-amber-500" />
           <span className="text-sm font-medium text-foreground">
-            {number} {project.projectName}
+            <span className="mr-1.5 inline-flex shrink-0 items-center rounded-md bg-amber-500/10 px-1.5 py-0.5 font-mono text-xs font-semibold text-amber-700">
+              {number}
+            </span>
+            {project.projectName}
           </span>
         </button>
       </TableCell>
@@ -53,7 +56,10 @@ export function ProjectRow({ project, number, expanded, onToggle }: ProjectRowPr
         <StatusBadge status={verification} />
       </TableCell>
       <TableCell className="align-top">
-        <StatusBadge status={status} />
+        <StatusBadge
+          status={status}
+          ratio={summary.lagging > 0 ? `${summary.lagging}/${summary.totalIndicators}` : undefined}
+        />
       </TableCell>
       <TableCell className="align-top text-xs text-muted-foreground">
         {lastUpdate ? formatDateTime(lastUpdate) : '-'}

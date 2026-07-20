@@ -69,7 +69,7 @@ function csvToHtmlTable(headers: string[], rows: unknown[][], title: string) {
   ).size;
   const indicatorCount = uniqueValues(5).size;
   const laggingCount = rows.filter(
-    (row) => String(row[10] ?? "") === "Lagging",
+    (row) => String(row[10] ?? "") === "Needs Attention",
   ).length;
   const pendingVerificationCount = rows.filter(
     (row) => String(row[8] ?? "") === "Pending Verification",
@@ -423,7 +423,7 @@ function csvToHtmlTable(headers: string[], rows: unknown[][], title: string) {
         <div class="stat"><div class="label">Implementing Agencies</div><div class="value">${numberFormatter.format(agencyCount)}</div><div class="meta">Unique agencies</div></div>
         <div class="stat"><div class="label">Projects</div><div class="value">${numberFormatter.format(projectCount)}</div><div class="meta">Project records</div></div>
         <div class="stat"><div class="label">Indicators</div><div class="value">${numberFormatter.format(indicatorCount)}</div><div class="meta">Indicator records</div></div>
-        <div class="stat"><div class="label">Lagging Rows</div><div class="value">${numberFormatter.format(laggingCount)}</div><div class="meta">Need attention</div></div>
+        <div class="stat"><div class="label">Needs Attention</div><div class="value">${numberFormatter.format(laggingCount)}</div><div class="meta">Rows needing attention</div></div>
         <div class="stat"><div class="label">Pending Verification</div><div class="value">${numberFormatter.format(pendingVerificationCount)}</div><div class="meta">Awaiting review</div></div>
       </div>
 
@@ -448,7 +448,7 @@ function csvToHtmlTable(headers: string[], rows: unknown[][], title: string) {
         <div class="pill-row">
           <span class="pill success">On Track</span>
           <span class="pill warning">Pending Verification</span>
-          <span class="pill danger">Lagging</span>
+          <span class="pill danger">Needs Attention</span>
         </div>
       </div>
     </div>
@@ -611,6 +611,16 @@ function toText(value: unknown, fallback = "") {
     : fallback;
 }
 
+// Mirrors the on-screen tabular report's ratio display: "Needs Attention"
+// rollup rows show how many of the scope's indicators actually need
+// attention rather than a bare status word, so one bad indicator out of
+// 20 doesn't read as the whole department being in trouble.
+function statusCellText(status: string, summary: { lagging: number; totalIndicators: number }) {
+  return status === "Needs Attention"
+    ? `${summary.lagging}/${summary.totalIndicators} Needs Attention`
+    : status;
+}
+
 function buildLaggingWorkbook(rows: LaggingFlatRow[]) {
   const byAdmin = new Map<string, Map<string, LaggingDepartment>>();
 
@@ -764,7 +774,7 @@ function buildLaggingWorkbook(rows: LaggingFlatRow[]) {
       physicalRollup(adminProjects),
       financialRollup(adminProjects),
       rollupVerification(adminIndicators),
-      rollupStatus(adminIndicators),
+      statusCellText(rollupStatus(adminIndicators), adminSummary),
       adminLastUpdate ? formatDateTime(adminLastUpdate) : "-",
       adminSummary.images,
       adminSummary.videos,
@@ -796,7 +806,7 @@ function buildLaggingWorkbook(rows: LaggingFlatRow[]) {
         physicalRollup(projects),
         financialRollup(projects),
         rollupVerification(deptIndicators),
-        rollupStatus(deptIndicators),
+        statusCellText(rollupStatus(deptIndicators), deptSummary),
         deptLastUpdate ? formatDateTime(deptLastUpdate) : "-",
         deptSummary.images,
         deptSummary.videos,
@@ -822,7 +832,7 @@ function buildLaggingWorkbook(rows: LaggingFlatRow[]) {
           summary.physical,
           financialRollup([project]),
           rollupVerification(project.indicators),
-          rollupStatus(project.indicators),
+          statusCellText(rollupStatus(project.indicators), summary),
           lastUpdate ? formatDateTime(lastUpdate) : "-",
           summary.images,
           summary.videos,
@@ -849,7 +859,7 @@ function buildLaggingWorkbook(rows: LaggingFlatRow[]) {
             indicator.physical_progress,
             indicator.financial_progress,
             verification,
-            isLagging ? "Lagging" : "On Track",
+            isLagging ? "Needs Attention" : "On Track",
             indicator.last_progress_update
               ? formatDateTime(indicator.last_progress_update)
               : "-",
@@ -903,18 +913,29 @@ async function buildAdminLaggingAnalysisExport() {
       GROUP BY ud.dept_id
     ),
     dept_map AS (
+      -- Correlated subqueries (not a JOIN) so a project linked to more than
+      -- one hdp.project_department row still produces exactly one row here —
+      -- a plain LEFT JOIN would fan out and double-count that project (and
+      -- every one of its indicators) once per extra department.
       SELECT DISTINCT
         sp.administrative_department,
         sp.project_id,
         sp.project_code,
         sp.project_name,
         sp.project_cost,
-        COALESCE(md.dept_name, 'Unassigned') AS department_name,
-        COALESCE(dh.hod_names, 'Unassigned') AS hod_names
+        COALESCE((
+          SELECT STRING_AGG(DISTINCT md.dept_name, ', ' ORDER BY md.dept_name)
+          FROM hdp.project_department pd
+          LEFT JOIN hdp.master_department md ON md.dept_id = pd.dept_id
+          WHERE pd.project_id = sp.project_id
+        ), 'Unassigned') AS department_name,
+        COALESCE((
+          SELECT STRING_AGG(DISTINCT dh.hod_names, ', ' ORDER BY dh.hod_names)
+          FROM hdp.project_department pd
+          LEFT JOIN dept_hods dh ON dh.dept_id = pd.dept_id
+          WHERE pd.project_id = sp.project_id
+        ), 'Unassigned') AS hod_names
       FROM secretary_projects sp
-      LEFT JOIN hdp.project_department pd ON pd.project_id = sp.project_id
-      LEFT JOIN hdp.master_department md ON md.dept_id = pd.dept_id
-      LEFT JOIN dept_hods dh ON dh.dept_id = pd.dept_id
     )
     SELECT
       dm.administrative_department,
@@ -1001,17 +1022,28 @@ async function generateLaggingAnalysisTable() {
       GROUP BY ud.dept_id
     ),
     dept_map AS (
+      -- Correlated subqueries (not a JOIN) so a project linked to more than
+      -- one hdp.project_department row still produces exactly one row here —
+      -- a plain LEFT JOIN would fan out and double-count that project (and
+      -- every one of its indicators) once per extra department.
       SELECT DISTINCT
         sp.administrative_department,
         sp.project_id,
         sp.project_code,
         sp.project_name,
-        COALESCE(md.dept_name, 'Unassigned') AS department_name,
-        COALESCE(dh.hod_names, 'Unassigned') AS hod_names
+        COALESCE((
+          SELECT STRING_AGG(DISTINCT md.dept_name, ', ' ORDER BY md.dept_name)
+          FROM hdp.project_department pd
+          LEFT JOIN hdp.master_department md ON md.dept_id = pd.dept_id
+          WHERE pd.project_id = sp.project_id
+        ), 'Unassigned') AS department_name,
+        COALESCE((
+          SELECT STRING_AGG(DISTINCT dh.hod_names, ', ' ORDER BY dh.hod_names)
+          FROM hdp.project_department pd
+          LEFT JOIN dept_hods dh ON dh.dept_id = pd.dept_id
+          WHERE pd.project_id = sp.project_id
+        ), 'Unassigned') AS hod_names
       FROM secretary_projects sp
-      LEFT JOIN hdp.project_department pd ON pd.project_id = sp.project_id
-      LEFT JOIN hdp.master_department md ON md.dept_id = pd.dept_id
-      LEFT JOIN dept_hods dh ON dh.dept_id = pd.dept_id
     )
     SELECT
       dm.administrative_department,
@@ -1081,7 +1113,7 @@ async function generateLaggingAnalysisTable() {
       r.financial_progress == null ? "" : toNumber(r.financial_progress),
       verification,
       lastUpdate ? formatDateTime(lastUpdate) : "-",
-      isLagging ? "Lagging" : "On Track",
+      isLagging ? "Needs Attention" : "On Track",
     ];
   });
 

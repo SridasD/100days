@@ -147,7 +147,7 @@ function getVerification(row: LaggingRow) {
 }
 
 function getStatus(row: LaggingRow) {
-    return row.is_stale || row.has_no_progress ? 'Lagging' : 'On Track';
+    return row.is_stale || row.has_no_progress ? 'Needs Attention' : 'On Track';
 }
 
 function summarizeRows(rows: LaggingRow[]) {
@@ -206,8 +206,8 @@ function containsMalayalam(value: string) {
     return /[\u0D00-\u0D7F]/.test(value);
 }
 
-function StatusBadge({ status }: { status: string }) {
-    const classes = status === 'Lagging'
+function StatusBadge({ status, ratio }: { status: string; ratio?: string }) {
+    const classes = status === 'Needs Attention'
         ? 'border-rose-200 bg-rose-50 text-rose-700'
         : status === 'Pending Verification'
             ? 'border-amber-200 bg-amber-50 text-amber-700'
@@ -217,7 +217,7 @@ function StatusBadge({ status }: { status: string }) {
 
     return (
         <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-semibold ${classes}`}>
-            {status}
+            {ratio ? `${ratio} ` : ''}{status}
         </span>
     );
 }
@@ -257,18 +257,29 @@ async function loadLaggingAnalysisRows(): Promise<LaggingRow[]> {
         GROUP BY ud.dept_id
       ),
       dept_map AS (
+        -- Correlated subqueries (not a JOIN) so a project linked to more than
+        -- one hdp.project_department row still produces exactly one row here
+        -- — a plain LEFT JOIN would fan out and double-count that project
+        -- (and every one of its indicators) once per extra department.
         SELECT DISTINCT
           sp.administrative_department,
           sp.project_id,
           sp.project_code,
           sp.project_name,
           sp.project_cost,
-          COALESCE(md.dept_name, 'Unassigned') AS department_name,
-          COALESCE(dh.hod_names, 'Unassigned') AS hod_names
+          COALESCE((
+            SELECT STRING_AGG(DISTINCT md.dept_name, ', ' ORDER BY md.dept_name)
+            FROM hdp.project_department pd
+            LEFT JOIN hdp.master_department md ON md.dept_id = pd.dept_id
+            WHERE pd.project_id = sp.project_id
+          ), 'Unassigned') AS department_name,
+          COALESCE((
+            SELECT STRING_AGG(DISTINCT dh.hod_names, ', ' ORDER BY dh.hod_names)
+            FROM hdp.project_department pd
+            LEFT JOIN dept_hods dh ON dh.dept_id = pd.dept_id
+            WHERE pd.project_id = sp.project_id
+          ), 'Unassigned') AS hod_names
         FROM secretary_projects sp
-        LEFT JOIN hdp.project_department pd ON pd.project_id = sp.project_id
-        LEFT JOIN hdp.master_department md ON md.dept_id = pd.dept_id
-        LEFT JOIN dept_hods dh ON dh.dept_id = pd.dept_id
       )
       SELECT
                 i.indicator_id,
@@ -392,6 +403,7 @@ export async function ReportViewerPage({ reportId, title, isOsd, searchQuery: ra
             return {
                 name: admin.administrative_department,
                 lagging: summary.laggingRows,
+                total: summary.totalIndicators,
                 pending: summary.pendingVerification,
             };
         })
@@ -455,7 +467,7 @@ export async function ReportViewerPage({ reportId, title, isOsd, searchQuery: ra
                         <div className="flex flex-wrap items-center gap-2">
                             {([
                                 ['all', 'All'],
-                                ['lagging', 'Lagging only'],
+                                ['lagging', 'Needs Attention only'],
                                 ['pending', 'Pending only'],
                                 ['noupdate', 'No update only'],
                             ] as Array<[RiskFilter, string]>).map(([value, label]) => {
@@ -496,7 +508,7 @@ export async function ReportViewerPage({ reportId, title, isOsd, searchQuery: ra
                                 ['Administrative Departments', adminCount],
                                 ['Projects', projectCount],
                                 ['Indicators', indicatorCount],
-                                ['Lagging Rows', laggingCount],
+                                ['Needs Attention', laggingCount],
                             ].map(([label, value]) => (
                                 <div key={label as string} className="rounded-lg border bg-slate-50/70 p-3">
                                     <div className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
@@ -525,7 +537,7 @@ export async function ReportViewerPage({ reportId, title, isOsd, searchQuery: ra
                             {riskFilter !== 'all' ? (
                                 <span className="ml-2 font-medium">Risk filter: {riskFilter}</span>
                             ) : null}
-                            <span className="ml-2">Lagging means no progress update or last update older than {indicatorStaleDays} days.</span>
+                            <span className="ml-2">Needs Attention means no progress update or last update older than {indicatorStaleDays} days.</span>
                         </div>
 
                         {searchQuery && rows.length === 0 ? (
@@ -545,8 +557,7 @@ export async function ReportViewerPage({ reportId, title, isOsd, searchQuery: ra
                                         <div key={item.name} className="rounded-md border border-amber-100 bg-white px-3 py-2 text-xs">
                                             <div className="font-semibold text-slate-800">{item.name}</div>
                                             <div className="mt-1 flex gap-2">
-                                                <StatusBadge status="Lagging" />
-                                                <span className="text-rose-700 font-semibold">{item.lagging}</span>
+                                                <StatusBadge status="Needs Attention" ratio={`${item.lagging}/${item.total}`} />
                                                 <StatusBadge status="Pending Verification" />
                                                 <span className="text-amber-700 font-semibold">{item.pending}</span>
                                             </div>
@@ -593,7 +604,7 @@ export async function ReportViewerPage({ reportId, title, isOsd, searchQuery: ra
                                                 <div className="grid grid-cols-2 gap-2 text-xs sm:grid-cols-3 xl:grid-cols-4">
                                                     <div className="rounded-md border bg-slate-50 px-2 py-1">Projects: {adminSummary.totalProjects}</div>
                                                     <div className="rounded-md border bg-slate-50 px-2 py-1">Indicators: {adminSummary.totalIndicators}</div>
-                                                    <div className="rounded-md border bg-rose-50 px-2 py-1 text-rose-700">Lagging: {adminSummary.laggingRows}</div>
+                                                    <div className="rounded-md border bg-rose-50 px-2 py-1 text-rose-700">Needs Attention: {adminSummary.laggingRows}/{adminSummary.totalIndicators}</div>
                                                     <div className="rounded-md border bg-amber-50 px-2 py-1 text-amber-700">Pending: {adminSummary.pendingVerification}</div>
                                                 </div>
                                             </div>
@@ -637,7 +648,7 @@ export async function ReportViewerPage({ reportId, title, isOsd, searchQuery: ra
                                                                 <div className="grid grid-cols-2 gap-2 text-xs sm:grid-cols-4">
                                                                     <div className="rounded-md border bg-white px-2 py-1">Projects: {agencySummary.totalProjects}</div>
                                                                     <div className="rounded-md border bg-white px-2 py-1">Indicators: {agencySummary.totalIndicators}</div>
-                                                                    <div className="rounded-md border bg-rose-50 px-2 py-1 text-rose-700">Lagging: {agencySummary.laggingRows}</div>
+                                                                    <div className="rounded-md border bg-rose-50 px-2 py-1 text-rose-700">Needs Attention: {agencySummary.laggingRows}/{agencySummary.totalIndicators}</div>
                                                                     <div className="rounded-md border bg-amber-50 px-2 py-1 text-amber-700">Pending: {agencySummary.pendingVerification}</div>
                                                                 </div>
                                                             </div>
@@ -671,7 +682,7 @@ export async function ReportViewerPage({ reportId, title, isOsd, searchQuery: ra
                                                                                 </div>
                                                                                 <div className="grid grid-cols-2 gap-2 text-xs sm:grid-cols-3">
                                                                                     <div className="rounded-md border bg-muted/20 px-2 py-1">Indicators: {projectSummary.totalIndicators}</div>
-                                                                                    <div className="rounded-md border bg-rose-50 px-2 py-1 text-rose-700">Lagging: {projectSummary.laggingRows}</div>
+                                                                                    <div className="rounded-md border bg-rose-50 px-2 py-1 text-rose-700">Needs Attention: {projectSummary.laggingRows}/{projectSummary.totalIndicators}</div>
                                                                                     <div className="rounded-md border bg-amber-50 px-2 py-1 text-amber-700">Pending: {projectSummary.pendingVerification}</div>
                                                                                 </div>
                                                                             </div>

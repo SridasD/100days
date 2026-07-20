@@ -17,7 +17,7 @@ const VERIFICATION_OPTIONS = [
 const STATUS_OPTIONS = [
   { value: 'All', label: 'All Status' },
   { value: 'On Track', label: 'On Track' },
-  { value: 'Lagging', label: 'Lagging' },
+  { value: 'Needs Attention', label: 'Needs Attention' },
 ];
 
 type FilterToolbarProps = {

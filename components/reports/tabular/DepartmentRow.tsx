@@ -32,7 +32,10 @@ export function DepartmentRow({ department, number, expanded, onToggle }: Depart
           />
           <Building2 className="mt-0.5 h-4 w-4 shrink-0 text-kerala-blue" />
           <span className="text-sm text-foreground">
-            {number}. {department.name}
+            <span className="mr-1.5 inline-flex shrink-0 items-center rounded-md bg-kerala-blue/10 px-1.5 py-0.5 font-mono text-xs font-semibold text-kerala-blue">
+              {number}
+            </span>
+            {department.name}
           </span>
         </button>
       </TableCell>
@@ -51,7 +54,10 @@ export function DepartmentRow({ department, number, expanded, onToggle }: Depart
         <StatusBadge status={verification} />
       </TableCell>
       <TableCell className="align-top">
-        <StatusBadge status={status} />
+        <StatusBadge
+          status={status}
+          ratio={summary.lagging > 0 ? `${summary.lagging}/${summary.totalIndicators}` : undefined}
+        />
       </TableCell>
       <TableCell className="align-top text-xs text-muted-foreground">
         {lastUpdate ? formatDateTime(lastUpdate) : '-'}
