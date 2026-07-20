@@ -6,7 +6,7 @@ Do not create a new role.
 
 Create a dedicated user:
 
-- Username: `osd.admin`
+- Username: `seccm`
 - Role: Administrator (`role_id = 4`)
 - Access model: customized permissions
 
@@ -28,6 +28,7 @@ Administrator should only see:
 - Verification Officers
 - Nodal Officers
 - Administrators
+- HOD
 
 ---
 
@@ -159,6 +160,131 @@ Buttons:
 - Manage Users
 - Reports
 - Department Summary
+
+---
+
+## Positive Momentum Dashboard
+
+### Purpose
+
+This view is for celebrating progress, reinforcing execution quality, and turning good outcomes into reusable patterns.
+
+### Core questions answered
+
+1. Which projects were completed on time?
+2. Which departments are consistently exceeding targets?
+3. Which districts have the strongest verified outcomes?
+4. Where is employment growth strongest?
+5. Which sectors are producing the most success stories?
+6. What milestones were achieved this week?
+
+### Dashboard layout
+
+#### 1) Success Summary Cards
+
+Display:
+
+- Completed Projects
+- Verified Projects
+- On-Time Completion Rate
+- Top Performing Department
+- Top Performing District
+- Employment Generated
+- Milestones Achieved
+
+Use bright green and blue KPI cards with upward trend indicators.
+
+#### 2) Top Performers Board
+
+Display rankings by:
+
+- Department
+- District
+- Sector
+- Officer / Team
+
+Highlight:
+
+- Highest composite score
+- Best verification completion
+- Best employment contribution
+- Fastest completion turnaround
+
+#### 3) Achievement Timeline
+
+Display:
+
+- Weekly completed projects
+- Weekly verified outputs
+- Weekly employment growth
+- Milestones closed
+
+Use a clean trend chart with positive deltas.
+
+#### 4) Success Stories Panel
+
+Display:
+
+- Short narrative of completed work
+- Before/after status
+- Photo or evidence preview
+- Link to project detail
+
+Keep this section focused on proof of impact, not commentary.
+
+#### 5) Replicable Practices Panel
+
+Display:
+
+- What worked
+- Which department delivered it
+- Which district reproduced it fastest
+- Recommended pattern for other teams
+
+This turns positive performance into a playbook.
+
+#### 6) Recognition and Action Panel
+
+Display:
+
+- Recognize top performers
+- Pin best projects to leadership view
+- Share success to public dashboard
+- Export positive summary report
+
+### Positive dashboard wireframe
+
+- Row 1: Success Summary Cards
+- Row 2: Top Performers Board + Achievement Timeline
+- Row 3: Success Stories Panel + Replicable Practices Panel
+- Row 4: Recognition and Action Panel
+
+### Visual guidance
+
+- Green: achieved
+- Blue: momentum
+- Gold: top performer
+- Teal: high confidence
+
+Avoid warning-heavy language in this view.
+
+### Filters
+
+- Phase
+- Date range
+- Department
+- District
+- Sector
+- Verification status
+
+### Mobile priority order
+
+1. Success Summary Cards
+2. Top Performers Board
+3. Achievement Timeline
+4. Success Stories Panel
+5. Replicable Practices Panel
+6. Recognition and Action Panel
 
 ---
 
@@ -334,36 +460,36 @@ Risk tags:
 
 ---
 
-## Permission Matrix for `osd.admin`
+## Permission Matrix for `seccm`
 
-| Module                 | Capability                          | osd.admin |
-| ---------------------- | ----------------------------------- | --------- |
-| Dashboard              | View executive project KPIs         | Allow     |
-| Dashboard              | View technical/system metrics       | Deny      |
-| Users                  | View Verification/Nodal/Admin users | Allow     |
-| Users                  | View Tech Administrator users       | Deny      |
-| Users                  | Search Tech Administrator users     | Deny      |
-| Users                  | Activate/Deactivate allowed users   | Allow     |
-| Users                  | Reset password for allowed users    | Allow     |
-| Projects               | Create                              | Allow     |
-| Projects               | Edit                                | Allow     |
-| Projects               | Archive                             | Allow     |
-| Projects               | Permanent Delete                    | Deny      |
-| Departments            | View rankings and detail            | Allow     |
-| Sectors                | View performance                    | Allow     |
-| Districts              | View rankings and detail            | Allow     |
-| Verification           | View pending/recent/workload        | Allow     |
-| Reports                | Generate executive reports          | Allow     |
-| Reports                | Tech Administrator reports          | Deny      |
-| Security/System Config | Access configuration                | Deny      |
-| Infra/App Health       | Access monitoring pages             | Deny      |
+| Module                 | Capability                          | seccm |
+| ---------------------- | ----------------------------------- | ----- |
+| Dashboard              | View executive project KPIs         | Allow |
+| Dashboard              | View technical/system metrics       | Deny  |
+| Users                  | View Verification/Nodal/Admin users | Allow |
+| Users                  | View Tech Administrator users       | Deny  |
+| Users                  | Search Tech Administrator users     | Deny  |
+| Users                  | Activate/Deactivate allowed users   | Allow |
+| Users                  | Reset password for allowed users    | Allow |
+| Projects               | Create                              | Allow |
+| Projects               | Edit                                | Allow |
+| Projects               | Archive                             | Allow |
+| Projects               | Permanent Delete                    | Deny  |
+| Departments            | View rankings and detail            | Allow |
+| Sectors                | View performance                    | Allow |
+| Districts              | View rankings and detail            | Allow |
+| Verification           | View pending/recent/workload        | Allow |
+| Reports                | Generate executive reports          | Allow |
+| Reports                | Tech Administrator reports          | Deny  |
+| Security/System Config | Access configuration                | Deny  |
+| Infra/App Health       | Access monitoring pages             | Deny  |
 
 ---
 
 ## Final Production-Ready Dashboard Specification
 
 1. Identity and access
-   - Create dedicated user `osd.admin` with `role_id = 4`.
+   - Create dedicated user `seccm` with `role_id = 4`.
    - Apply restricted permission profile above.
 2. Visibility policy
    - Hide Tech Administrator entities across UI, API, search, and reports.

@@ -68,7 +68,7 @@ export interface DepartmentProject {
   imageCount: number;
   videoCount: number;
   physicalPct: number;
-  financialPct: number;
+  financialPct: number | null;
   verified: boolean;
   status: Status;
 }
@@ -429,17 +429,17 @@ function Bar({
   color,
 }: {
   labelMal: string;
-  pct: number;
+  pct: number | null;
   color: string;
 }) {
-  const clamped = Math.max(0, Math.min(100, pct));
+  const clamped = pct === null ? 0 : Math.max(0, Math.min(100, pct));
   return (
     <div className="space-y-1">
       <div className="flex items-center justify-between text-[11px]">
         <span className="font-malayalam text-muted-foreground">{labelMal}</span>
         <VerifiedDataBadge />
         <span className="font-mono font-semibold text-foreground">
-          {clamped}%
+          {pct === null ? '—' : `${clamped}%`}
         </span>
       </div>
       <div className="h-1.5 overflow-hidden rounded-full bg-white">

@@ -24,6 +24,32 @@ type SqlExecutor = {
   execute: typeof db.execute;
 };
 
+// Archiving is destructive: every gallery image, document, and indicator
+// belonging to the project is permanently removed. Only the summary counts
+// captured in project_archive_repository survive — there is no way to bring
+// this data back via Restore. Order matters: gallery/documents reference
+// indicator_id, so they must be deleted before the indicators themselves.
+async function deleteProjectIndicatorData(
+  tx: SqlExecutor,
+  projectId: number,
+) {
+  await tx.execute(sql`
+    DELETE FROM hdp.gallery
+    WHERE indicator_id IN (
+      SELECT indicator_id FROM hdp.indicators WHERE project_id = ${projectId}
+    )
+  `);
+  await tx.execute(sql`
+    DELETE FROM hdp.documents
+    WHERE indicator_id IN (
+      SELECT indicator_id FROM hdp.indicators WHERE project_id = ${projectId}
+    )
+  `);
+  await tx.execute(sql`
+    DELETE FROM hdp.indicators WHERE project_id = ${projectId}
+  `);
+}
+
 async function getArchivePreview(
   projectId: number,
   executor: SqlExecutor = db,
@@ -268,6 +294,8 @@ export async function POST(
         | undefined;
 
       if (existingArchive) {
+        await deleteProjectIndicatorData(tx, projectId);
+
         await tx.execute(sql`
           UPDATE hdp.master_projects
           SET
@@ -348,6 +376,8 @@ export async function POST(
           ${sessionIdentifier.slice(0, 150)}
         )
       `);
+
+      await deleteProjectIndicatorData(tx, projectId);
 
       await tx.execute(sql`
         UPDATE hdp.master_projects
@@ -437,7 +467,7 @@ export async function POST(
     return NextResponse.json({
       ok: true,
       message:
-        "Project archived successfully. The project has been removed from the active project list and preserved in the Project Archive.",
+        "Project archived successfully. The project has been removed from the active project list; its indicators, images, and documents have been permanently deleted. Only the summary snapshot remains in the Project Archive.",
       projectCode: out.projectCode,
       projectName: out.projectName,
     });

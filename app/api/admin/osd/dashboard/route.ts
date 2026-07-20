@@ -26,6 +26,8 @@ export async function GET(_req: NextRequest) {
       verificationTrendResult,
       employmentDistrictResult,
       employmentTrendResult,
+      evidenceSnapshotResult,
+      evidenceHighlightsResult,
     ] = await Promise.all([
       db.execute(sql`
                 SELECT
@@ -219,6 +221,55 @@ export async function GET(_req: NextRequest) {
                 GROUP BY DATE_TRUNC('month', COALESCE(i.verified_date, i.submitted_date))
                 ORDER BY month_start ASC
             `),
+      db.execute(sql`
+                SELECT
+                  COUNT(*) FILTER (WHERE g.gallery_type = 1 AND g.is_verified = true)::int AS verified_images,
+                  COUNT(*) FILTER (WHERE g.gallery_type = 2 AND g.is_verified = true)::int AS verified_videos,
+                  COUNT(*) FILTER (WHERE g.gallery_type = 3 AND g.is_verified = true)::int AS verified_documents,
+                  COUNT(*) FILTER (WHERE g.gallery_type = 1)::int AS total_images,
+                  COUNT(*) FILTER (WHERE g.gallery_type = 2)::int AS total_videos,
+                  COUNT(*) FILTER (WHERE g.gallery_type = 3)::int AS total_documents,
+                  COUNT(DISTINCT CASE
+                    WHEN g.is_verified = true THEN i.project_id
+                  END)::int AS projects_with_verified_evidence,
+                  COALESCE(ROUND(
+                    AVG(
+                      CASE
+                        WHEN i.submitted_date IS NOT NULL AND i.verified_date IS NOT NULL
+                        THEN EXTRACT(EPOCH FROM (i.verified_date - i.submitted_date)) / 86400
+                      END
+                    )::numeric, 1
+                  ), 0) AS avg_verification_turnaround_days
+                FROM hdp.gallery g
+                INNER JOIN hdp.indicators i ON i.indicator_id = g.indicator_id
+                INNER JOIN hdp.master_projects mp ON mp.project_id = i.project_id
+                WHERE COALESCE((to_jsonb(mp)->>'is_archived')::boolean, false) = false
+            `),
+      db.execute(sql`
+                SELECT
+                  g.gallery_id,
+                  g.gallery_type,
+                  g.image_path,
+                  g.description,
+                  g.uploaded_on,
+                  g.is_verified,
+                  COALESCE(i.indicator_name, 'Untitled indicator') AS indicator_name,
+                  COALESCE(mp.project_name, 'Untitled project') AS project_name,
+                  COALESCE(mp.project_code, '-') AS project_code,
+                  COALESCE(ms.secretary_name, 'Unassigned') AS department_name,
+                  COALESCE(md.district_name, 'Unknown') AS district_name,
+                  i.verified_date
+                FROM hdp.gallery g
+                INNER JOIN hdp.indicators i ON i.indicator_id = g.indicator_id
+                INNER JOIN hdp.master_projects mp ON mp.project_id = i.project_id
+                LEFT JOIN hdp.project_secretary ps ON ps.project_id = mp.project_id
+                LEFT JOIN hdp.master_secretary ms ON ms.sec_id = ps.sec_id
+                LEFT JOIN hdp.master_district md ON md.district_id = i.district_id
+                WHERE g.is_verified = true
+                  AND COALESCE((to_jsonb(mp)->>'is_archived')::boolean, false) = false
+                ORDER BY g.uploaded_on DESC
+                LIMIT 8
+            `),
     ]);
 
     const stats = (statsResult.rows[0] as any) ?? {};
@@ -257,6 +308,50 @@ export async function GET(_req: NextRequest) {
         recentVerified: recentResult.rows,
         byDistrict: employmentDistrictResult.rows,
         trend: employmentTrendResult.rows,
+      },
+      evidence: {
+        snapshot: {
+          verifiedImages:
+            Number((evidenceSnapshotResult.rows[0] as any)?.verified_images) ||
+            0,
+          verifiedVideos:
+            Number((evidenceSnapshotResult.rows[0] as any)?.verified_videos) ||
+            0,
+          verifiedDocuments:
+            Number(
+              (evidenceSnapshotResult.rows[0] as any)?.verified_documents,
+            ) || 0,
+          totalImages:
+            Number((evidenceSnapshotResult.rows[0] as any)?.total_images) || 0,
+          totalVideos:
+            Number((evidenceSnapshotResult.rows[0] as any)?.total_videos) || 0,
+          totalDocuments:
+            Number((evidenceSnapshotResult.rows[0] as any)?.total_documents) ||
+            0,
+          projectsWithVerifiedEvidence:
+            Number(
+              (evidenceSnapshotResult.rows[0] as any)
+                ?.projects_with_verified_evidence,
+            ) || 0,
+          avgVerificationTurnaroundDays:
+            Number(
+              (evidenceSnapshotResult.rows[0] as any)
+                ?.avg_verification_turnaround_days,
+            ) || 0,
+        },
+        highlights: evidenceHighlightsResult.rows.map((row: any) => ({
+          galleryId: Number(row.gallery_id),
+          galleryType: Number(row.gallery_type) as 1 | 2 | 3,
+          imagePath: row.image_path as string | null,
+          description: row.description as string | null,
+          uploadedOn: row.uploaded_on as string | null,
+          indicatorName: String(row.indicator_name ?? "Untitled indicator"),
+          projectName: String(row.project_name ?? "Untitled project"),
+          projectCode: String(row.project_code ?? "-"),
+          departmentName: String(row.department_name ?? "Unassigned"),
+          districtName: String(row.district_name ?? "Unknown"),
+          verifiedDate: row.verified_date as string | null,
+        })),
       },
     });
   } catch (err) {

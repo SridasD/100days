@@ -187,6 +187,11 @@ function SecretaryProjectsPageContent() {
                         </div>
                         <div className="flex gap-2">
                             <Button asChild variant="outline" size="sm" className="gap-1">
+                                <Link href="/api/secretary/reports/lagging-analysis?format=xlsx" target="_blank">
+                                    <FileSpreadsheet className="h-4 w-4" /> Lagging Analysis Excel
+                                </Link>
+                            </Button>
+                            <Button asChild variant="outline" size="sm" className="gap-1">
                                 <Link href="/api/secretary/reports/project-summary?format=xlsx" target="_blank">
                                     <FileSpreadsheet className="h-4 w-4" /> Export Excel
                                 </Link>

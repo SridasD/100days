@@ -63,8 +63,8 @@ export interface DepartmentProgressCardProps {
   costInLakhs: number;
   /** 0-100, verifier-confirmed physical progress */
   physicalPct: number;
-  /** 0-100, financial progress (achieved / target) */
-  financialPct: number;
+  /** 0-100, financial progress (achieved / project cost); null when no project has a recorded cost */
+  financialPct: number | null;
   status: Status;
   /** Kept for API compatibility; ignored — card always renders fully expanded */
   defaultOpen?: boolean;
@@ -86,7 +86,6 @@ export function DepartmentProgressCard({
   videoCount = 0,
 }: DepartmentProgressCardProps) {
   const tone = STATUS_META[status];
-  const overallPct = Math.round((physicalPct + financialPct) / 2);
   const indicatorsCompleted = Math.round((physicalPct / 100) * indicators);
 
   return (
@@ -154,7 +153,7 @@ export function DepartmentProgressCard({
                 startAngle={90}
                 endAngle={-270}
                 data={[
-                  { name: 'pct', value: overallPct, fill: tone.ringColor },
+                  { name: 'pct', value: physicalPct, fill: tone.ringColor },
                 ]}
               >
                 <PolarAngleAxis
@@ -173,16 +172,13 @@ export function DepartmentProgressCard({
             </ResponsiveContainer>
             <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
               <span className="font-mono text-xl font-extrabold text-foreground">
-                {overallPct}%
+                {physicalPct}%
               </span>
               <span className="font-malayalam mt-0.5 text-[9px] uppercase text-muted-foreground">
-                മൊത്തം പുരോഗതി
+                ഭൗതിക പുരോഗതി
               </span>
             </div>
           </div>
-          <span className="font-malayalam text-[10px] text-muted-foreground">
-            ഭൗതിക പുരോഗതി
-          </span>
         </div>
 
         {/* MIDDLE — 4 stat cells + progress strip */}
@@ -229,29 +225,18 @@ export function DepartmentProgressCard({
               </span>
             </div>
             <div className="relative h-2 overflow-hidden rounded-full bg-muted">
-              {/* completed (verified) */}
               <div
-                className="absolute inset-y-0 left-0 rounded-full bg-hdp-success transition-all duration-700"
-                style={{ width: `${Math.max(0, Math.min(100, physicalPct))}%` }}
-              />
-              {/* financial overlay shown as a thinner top stripe */}
-              <div
-                className="absolute inset-x-0 top-0 h-0.5 bg-kerala-blue/70 transition-all duration-700"
+                className="absolute inset-y-0 left-0 rounded-full bg-kerala-blue transition-all duration-700"
                 style={{
-                  width: `${Math.max(0, Math.min(100, financialPct))}%`,
+                  width: `${financialPct === null ? 0 : Math.max(0, Math.min(100, financialPct))}%`,
                 }}
               />
             </div>
             <div className="flex flex-wrap items-center gap-3 text-[10px] text-muted-foreground">
               <span className="inline-flex items-center gap-1">
-                <span className="h-2 w-2 rounded-full bg-hdp-success" />
-                <span className="font-malayalam">ഭൗതിക</span>
-                <span className="font-mono font-semibold">{physicalPct}%</span>
-              </span>
-              <span className="inline-flex items-center gap-1">
                 <span className="h-2 w-2 rounded-full bg-kerala-blue" />
                 <span className="font-malayalam">സാമ്പത്തിക</span>
-                <span className="font-mono font-semibold">{financialPct}%</span>
+                <span className="font-mono font-semibold">{financialPct === null ? '—' : `${financialPct}%`}</span>
               </span>
             </div>
           </div>

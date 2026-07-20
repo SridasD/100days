@@ -32,37 +32,59 @@ interface SessionProfile {
     roleId: number;
 }
 
+type NavItem = {
+    href: string;
+    label: string;
+    icon: typeof LayoutDashboard;
+};
+
+const OSD_NAV_ITEMS: NavItem[] = [
+    { href: '/admin/osd/dashboard', label: 'Classic Dashboard', icon: LayoutDashboard },
+    { href: '/admin/osd/dashboard/v2', label: 'Analytical Dashboard', icon: LayoutDashboard },
+    { href: '/admin/osd/analytics/exceptions', label: 'Exception Monitor', icon: ClipboardList },
+    { href: '/admin/osd/projects', label: 'Projects', icon: FolderKanban },
+    { href: '/admin/osd/reports', label: 'Reports', icon: BarChart3 },
+];
+
+const ADMIN_NAV_ITEMS: NavItem[] = [
+    { href: '/admin/dashboard', label: 'Dashboard', icon: LayoutDashboard },
+    { href: '/admin/projects', label: 'Projects', icon: FolderKanban },
+    { href: '/admin/projects/archive', label: 'Project Archive', icon: FolderKanban },
+    { href: '/admin/users', label: 'Users', icon: Users },
+    { href: '/admin/audit', label: 'Audit Log', icon: ClipboardList },
+    { href: '/admin/reports', label: 'Reports', icon: BarChart3 },
+];
+
 function AdminNav({
     closeOnNavigate = false,
     collapsed = false,
+    mode = 'sidebar',
 }: {
     closeOnNavigate?: boolean;
     collapsed?: boolean;
+    mode?: 'sidebar' | 'topbar';
 }) {
     const pathname = usePathname();
     const isOsd = pathname.startsWith('/admin/osd');
-    const navItems = isOsd
-        ? [
-            { href: '/admin/osd/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-            { href: '/admin/osd/projects', label: 'Projects', icon: FolderKanban },
-            { href: '/admin/osd/reports', label: 'Reports', icon: BarChart3 },
-        ]
-        : [
-            { href: '/admin/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-            { href: '/admin/projects', label: 'Projects', icon: FolderKanban },
-            { href: '/admin/projects/archive', label: 'Project Archive', icon: FolderKanban },
-            { href: '/admin/users', label: 'Users', icon: Users },
-            { href: '/admin/audit', label: 'Audit Log', icon: ClipboardList },
-            { href: '/admin/reports', label: 'Reports', icon: BarChart3 },
-        ];
+    const navItems = isOsd ? OSD_NAV_ITEMS : ADMIN_NAV_ITEMS;
+
+    const navClass =
+        mode === 'topbar'
+            ? 'flex items-center gap-2 overflow-x-auto pb-1'
+            : 'space-y-1';
 
     return (
-        <nav className="space-y-1" aria-label="Admin navigation">
+        <nav className={navClass} aria-label="Admin navigation">
             {navItems.map((item) => {
                 const Icon = item.icon;
-                const active =
-                    pathname === item.href ||
-                    (!isOsd && item.href !== '/admin/dashboard' && pathname.startsWith(item.href));
+                const active = isOsd
+                    ? item.href === '/admin/osd/dashboard/v2'
+                        ? pathname === '/admin/osd/dashboard/v2' || pathname.startsWith('/admin/osd/dashboard/v2/')
+                        : item.href === '/admin/osd/dashboard'
+                            ? pathname === '/admin/osd/dashboard' && !pathname.startsWith('/admin/osd/dashboard/v2')
+                            : pathname === item.href || pathname.startsWith(`${item.href}/`)
+                    : pathname === item.href ||
+                    (item.href !== '/admin/dashboard' && pathname.startsWith(item.href));
 
                 const link = (
                     <Link
@@ -70,14 +92,22 @@ function AdminNav({
                         href={item.href}
                         title={item.label}
                         className={cn(
-                            'flex items-center rounded-lg text-sm font-medium transition-colors',
-                            collapsed ? 'justify-center gap-0 px-2 py-2.5' : 'gap-3 px-3 py-2.5',
+                            'group flex items-center text-sm font-medium transition-all duration-200',
+                            mode === 'topbar'
+                                ? 'shrink-0 gap-2 rounded-full border px-3 py-1.5'
+                                : 'rounded-lg',
+                            mode !== 'topbar' &&
+                            (collapsed ? 'justify-center gap-0 px-2 py-2.5' : 'gap-3 px-3 py-2.5'),
                             active
-                                ? 'bg-kerala-blue text-white shadow-sm'
-                                : 'text-muted-foreground hover:bg-muted hover:text-foreground',
+                                ? mode === 'topbar'
+                                    ? 'border-kerala-blue bg-kerala-blue text-white shadow-sm'
+                                    : 'bg-kerala-blue text-white shadow-sm'
+                                : mode === 'topbar'
+                                    ? 'border-border bg-background text-muted-foreground hover:border-kerala-blue/40 hover:bg-muted hover:text-foreground'
+                                    : 'text-muted-foreground hover:bg-muted hover:text-foreground',
                         )}
                     >
-                        <Icon className="h-4 w-4" />
+                        <Icon className={cn('h-4 w-4', active ? 'text-current' : 'text-muted-foreground group-hover:text-foreground')} />
                         {!collapsed ? <span>{item.label}</span> : <span className="sr-only">{item.label}</span>}
                     </Link>
                 );
@@ -100,8 +130,8 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
     const isOsd = pathname.startsWith('/admin/osd');
     const [profile, setProfile] = useState<SessionProfile | null>(null);
     const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
-    const roleLabel = isOsd ? 'OSD Administrator' : 'Admin';
-    const departmentLabel = isOsd ? 'OSD / CMO' : 'CMO';
+    const roleLabel = isOsd ? 'Executive Administrator' : 'Admin';
+    const departmentLabel = isOsd ? 'CMO Executive' : 'CMO';
 
     useEffect(() => {
         let cancelled = false;
@@ -179,6 +209,20 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
                                 <Menu className="h-4 w-4" />
                                 {sidebarCollapsed ? 'Show menu' : 'Hide menu'}
                             </Button>
+                        </div>
+                    ) : null}
+
+                    {isOsd ? (
+                        <div className="mb-4 rounded-xl border bg-background p-3 shadow-sm">
+                            <div className="mb-2 flex items-center justify-between gap-3">
+                                <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                                    Executive Console
+                                </p>
+                                <span className="rounded-full bg-muted px-2 py-0.5 text-[11px] font-medium text-muted-foreground">
+                                    Executive Navigation
+                                </span>
+                            </div>
+                            <AdminNav mode="topbar" />
                         </div>
                     ) : null}
 

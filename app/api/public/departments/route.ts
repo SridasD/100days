@@ -4,14 +4,50 @@ import { sql } from "drizzle-orm";
 import { db } from "@/lib/db/client";
 
 // One row per department that has at least one project. Returns project /
-// indicator counts, total project cost, physical + financial progress %
-// (averages of verified_percentage and financial_achievement/target), media
+// indicator counts, total project cost, physical + financial progress %, media
 // counts, and an overall status.
+// Physical %: average of each project's own physical % (avg of its indicators'
+// verified_percentage, unverified/no-progress indicators counting as 0), every
+// project weighted equally. Financial %: sum of verified_financial_achievement
+// across projects with a recorded project_cost > 0, divided by the sum of those
+// project_cost values — never an average of per-indicator percentages. financialPct
+// is null when no project in the department has a usable cost.
 export const runtime = "nodejs";
 
 export async function GET() {
   try {
     const r = await db.execute(sql`
+      WITH dept_projects AS (
+        SELECT ms.sec_id, mp.project_id, COALESCE(mp.project_cost, 0) AS project_cost
+        FROM hdp.master_secretary ms
+        INNER JOIN hdp.project_secretary ps ON ps.sec_id = ms.sec_id
+        INNER JOIN hdp.master_projects mp ON mp.project_id = ps.project_id
+        WHERE COALESCE(mp.is_archived, false) = false
+      ),
+      project_rollup AS (
+        SELECT
+          dp.sec_id,
+          dp.project_id,
+          dp.project_cost,
+          COALESCE(AVG(COALESCE(i.verified_percentage, 0)), 0) AS project_physical_pct,
+          COALESCE(SUM(COALESCE(i.verified_financial_achievement, 0)), 0) AS project_achievement
+        FROM dept_projects dp
+        LEFT JOIN hdp.indicators i ON i.project_id = dp.project_id
+        GROUP BY dp.sec_id, dp.project_id, dp.project_cost
+      ),
+      dept_rollup AS (
+        SELECT
+          sec_id,
+          COALESCE(AVG(project_physical_pct), 0) AS physical_pct,
+          CASE
+            WHEN SUM(project_cost) FILTER (WHERE project_cost > 0) > 0
+            THEN (SUM(project_achievement) FILTER (WHERE project_cost > 0)
+                  / SUM(project_cost) FILTER (WHERE project_cost > 0) * 100)
+            ELSE NULL
+          END AS financial_pct
+        FROM project_rollup
+        GROUP BY sec_id
+      )
       SELECT
         ms.sec_id,
         ms.public_id,
@@ -62,31 +98,8 @@ export async function GET() {
             AND COALESCE(mp.is_archived, false) = false
         ), 0) AS total_cost,
 
-        COALESCE((
-          SELECT AVG(COALESCE(i.verified_percentage, 0))::numeric(5,2)
-          FROM hdp.indicators i
-          INNER JOIN hdp.master_projects mp ON i.project_id = mp.project_id
-          INNER JOIN hdp.project_secretary ps ON i.project_id = ps.project_id
-          WHERE ps.sec_id = ms.sec_id
-            AND COALESCE(mp.is_archived, false) = false
-            AND i.verified_date IS NOT NULL
-        ), 0) AS physical_pct,
-
-        COALESCE((
-          SELECT
-            CASE
-              WHEN SUM(COALESCE(i.financial_target, 0)) > 0
-              THEN (SUM(COALESCE(i.verified_financial_achievement, 0))
-                    / SUM(i.financial_target) * 100)::numeric(5,2)
-              ELSE 0
-            END
-          FROM hdp.indicators i
-          INNER JOIN hdp.master_projects mp ON i.project_id = mp.project_id
-          INNER JOIN hdp.project_secretary ps ON i.project_id = ps.project_id
-          WHERE ps.sec_id = ms.sec_id
-            AND COALESCE(mp.is_archived, false) = false
-            AND i.verified_date IS NOT NULL
-        ), 0) AS financial_pct,
+        COALESCE(dr.physical_pct, 0)::numeric(5,2) AS physical_pct,
+        dr.financial_pct::numeric(5,2) AS financial_pct,
 
         COALESCE((
           SELECT COUNT(*)::int FROM hdp.gallery g
@@ -111,6 +124,7 @@ export async function GET() {
         ), 0) AS video_count
 
       FROM hdp.master_secretary ms
+      LEFT JOIN dept_rollup dr ON dr.sec_id = ms.sec_id
       WHERE EXISTS (
         SELECT 1 FROM hdp.project_secretary ps
         INNER JOIN hdp.master_projects mp ON mp.project_id = ps.project_id
@@ -122,7 +136,7 @@ export async function GET() {
 
     const departments = (r.rows as Array<any>).map((row) => {
       const physicalPct = Number(row.physical_pct) || 0;
-      const financialPct = Number(row.financial_pct) || 0;
+      const financialPct = row.financial_pct == null ? null : Number(row.financial_pct);
       const projects = Number(row.projects) || 0;
       const projectsCompleted = Number(row.projects_completed) || 0;
       const projectsInProgress = Number(row.projects_in_progress) || 0;
@@ -153,7 +167,7 @@ export async function GET() {
         indicators,
         costInLakhs: Number(row.total_cost) || 0,
         physicalPct: Math.round(physicalPct),
-        financialPct: Math.round(financialPct),
+        financialPct: financialPct === null ? null : Math.round(financialPct),
         status,
         imageCount: Number(row.image_count) || 0,
         videoCount: Number(row.video_count) || 0,

@@ -119,19 +119,17 @@ export async function GET(
           SELECT AVG(COALESCE(i.verified_percentage, 0))::numeric(5,2)
           FROM hdp.indicators i
           WHERE i.project_id = mp.project_id
-            AND i.verified_date IS NOT NULL
         ), 0) AS physical_pct,
-        COALESCE((
-          SELECT CASE
-            WHEN SUM(COALESCE(i.financial_target, 0)) > 0
-            THEN (SUM(COALESCE(i.verified_financial_achievement, 0))
-                  / SUM(i.financial_target) * 100)::numeric(5,2)
-            ELSE 0
-          END
-          FROM hdp.indicators i
-          WHERE i.project_id = mp.project_id
-            AND i.verified_date IS NOT NULL
-        ), 0) AS financial_pct,
+        CASE
+          WHEN COALESCE(mp.project_cost, 0) <= 0 THEN NULL
+          ELSE (
+            COALESCE((
+              SELECT SUM(COALESCE(i.verified_financial_achievement, 0))
+              FROM hdp.indicators i
+              WHERE i.project_id = mp.project_id
+            ), 0) / mp.project_cost * 100
+          )::numeric(5,2)
+        END AS financial_pct,
         COALESCE((
           SELECT COUNT(*)::int FROM hdp.indicators i
           WHERE i.project_id = mp.project_id
@@ -162,7 +160,7 @@ export async function GET(
         imageCount: Number(r.image_count) || 0,
         videoCount: Number(r.video_count) || 0,
         physicalPct: Math.round(Number(r.physical_pct) || 0),
-        financialPct: Math.round(Number(r.financial_pct) || 0),
+        financialPct: r.financial_pct == null ? null : Math.round(Number(r.financial_pct)),
         verified: Boolean(r.verified),
         status,
       };

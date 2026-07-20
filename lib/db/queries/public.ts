@@ -58,7 +58,17 @@ export async function getPublicDashboardStats() {
 }
 
 /**
- * Get public progress by district
+ * Get public progress by district.
+ *
+ * Physical %: average of every district indicator's verified_percentage
+ * (unverified indicators count as 0) — indicators are the natural rollup
+ * unit here since a single project's indicators can span multiple
+ * districts, unlike the department rollup where project_cost cleanly
+ * apportions to one secretary.
+ * Financial %: SUM(verified_financial_achievement) / SUM(financial_target)
+ * across the district's indicators — never an average of per-indicator
+ * percentages. Null when the district has no indicator with a usable
+ * financial target.
  */
 export async function getPublicDistrictProgress() {
   const result = await db.execute(sql`
@@ -93,7 +103,22 @@ export async function getPublicDistrictProgress() {
             WHERE mp.project_id = i.project_id
               AND COALESCE(mp.is_archived, false) = false
           )
-      ), 0) AS avg_progress
+      ), 0) AS avg_progress,
+      (
+        SELECT CASE
+          WHEN SUM(COALESCE(i.financial_target, 0)) > 0
+          THEN (SUM(COALESCE(i.verified_financial_achievement, 0))
+                / SUM(COALESCE(i.financial_target, 0)) * 100)
+          ELSE NULL
+        END
+        FROM hdp.indicators i
+        WHERE i.district_id = md.district_id
+          AND EXISTS (
+            SELECT 1 FROM hdp.master_projects mp
+            WHERE mp.project_id = i.project_id
+              AND COALESCE(mp.is_archived, false) = false
+          )
+      )::numeric(5,2) AS financial_pct
     FROM hdp.master_district md
     ORDER BY md.district_name ASC
   `);
@@ -104,6 +129,7 @@ export async function getPublicDistrictProgress() {
     totalIndicators: r.total_indicators as number,
     verifiedIndicators: r.verified_indicators as number,
     averageProgress: parseFloat(r.avg_progress as string) || 0,
+    financialPct: r.financial_pct == null ? null : parseFloat(r.financial_pct as string),
   }));
 }
 

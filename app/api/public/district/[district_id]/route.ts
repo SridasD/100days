@@ -48,7 +48,6 @@ export async function GET(
       JOIN hdp.master_projects mp ON i.project_id = mp.project_id
       WHERE i.district_id = ${districtId}
         AND COALESCE(mp.is_archived, false) = false
-        AND i.verified_date IS NOT NULL
       ORDER BY mp.project_name, i.indicator_name
     `);
 

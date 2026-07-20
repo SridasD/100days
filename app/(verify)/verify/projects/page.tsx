@@ -13,6 +13,7 @@ import { Card, CardContent } from '@/components/ui/card';
 interface VerifierProject {
   projectId: number;
   projectPublicId: string | null;
+  projectCode: string | null;
   projectName: string;
   department: string;
   indicatorsPending: number;
@@ -132,6 +133,11 @@ export default function VerifyProjectsPage() {
                       <h3 className="text-lg font-bold text-kerala-blue">
                         {p.projectName}
                       </h3>
+                      {p.projectCode && (
+                        <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                          Code: {p.projectCode}
+                        </p>
+                      )}
                       <p className="text-sm text-muted-foreground">
                         {p.department}
                       </p>

@@ -1,7 +1,7 @@
 ﻿/* eslint-disable @typescript-eslint/no-explicit-any */
 import { NextRequest, NextResponse } from "next/server";
 import { sql } from "drizzle-orm";
-import { mkdir, unlink, writeFile } from "node:fs/promises";
+import { mkdir, stat, unlink, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
 import {
@@ -10,7 +10,7 @@ import {
 } from "@/lib/auth/verifier-session";
 import { db } from "@/lib/db/client";
 import { resolveIndicatorId } from "@/lib/db/public-id";
-import { listGallery } from "@/lib/db/queries/officer";
+import { listDocuments, listGallery } from "@/lib/db/queries/officer";
 import { verifierOwnsIndicator } from "@/lib/db/queries/verifier";
 import { writeAudit } from "@/lib/audit/writeAudit";
 import { AUDIT_ACTIONS } from "@/lib/db/schema/audit";
@@ -60,7 +60,10 @@ export async function GET(
   const typeParam = req.nextUrl.searchParams.get("type");
   const galleryType = typeParam === "1" ? 1 : typeParam === "2" ? 2 : undefined;
 
-  const rows = await listGallery(id, galleryType);
+  const [rows, documents] = await Promise.all([
+    listGallery(id, galleryType),
+    listDocuments(id),
+  ]);
   return NextResponse.json({
     items: rows.map((r) => ({
       galleryId: r.gallery_id,
@@ -71,6 +74,31 @@ export async function GET(
       uploadedOn: r.uploaded_on,
       isVerified: r.is_verified,
     })),
+    documents: await Promise.all(
+      documents.map(async (doc) => {
+        const relPath = doc.document_path;
+        const filename = relPath
+          ? path.posix.basename(relPath)
+          : "document.pdf";
+        let size: number | null = null;
+        if (relPath) {
+          try {
+            size = (await stat(path.join(UPLOAD_ROOT, relPath))).size;
+          } catch {
+            size = null;
+          }
+        }
+        return {
+          documentId: doc.document_id,
+          indicatorId: doc.indicator_id,
+          filename,
+          path: relPath,
+          description: doc.description,
+          uploadedOn: doc.uploaded_on,
+          size,
+        };
+      }),
+    ),
   });
 }
 
@@ -361,9 +389,10 @@ export async function DELETE(
   const { indicatorId } = await params;
   const id = await resolveIndicatorId(indicatorId);
   const galleryId = Number(req.nextUrl.searchParams.get("galleryId"));
-  if (!id || !Number.isFinite(galleryId)) {
+  const documentId = Number(req.nextUrl.searchParams.get("documentId"));
+  if (!id || (!Number.isFinite(galleryId) && !Number.isFinite(documentId))) {
     return NextResponse.json(
-      { error: "Invalid indicatorId or galleryId" },
+      { error: "Invalid indicatorId or delete target" },
       { status: 400 },
     );
   }
@@ -374,6 +403,46 @@ export async function DELETE(
   }
 
   try {
+    if (Number.isFinite(documentId)) {
+      const found = await db.execute(sql`
+        SELECT document_path FROM hdp.documents
+        WHERE document_id = ${documentId} AND indicator_id = ${id}
+        LIMIT 1
+      `);
+      const row = found.rows[0] as { document_path: string | null } | undefined;
+      if (!row) {
+        return NextResponse.json({ error: "Not found" }, { status: 404 });
+      }
+
+      await db.execute(
+        sql`DELETE FROM hdp.documents WHERE document_id = ${documentId}`,
+      );
+
+      if (row.document_path) {
+        try {
+          await unlink(path.join(UPLOAD_ROOT, row.document_path));
+        } catch {
+          /* swallow */
+        }
+      }
+
+      await writeAudit({
+        userId: session.userId,
+        action: AUDIT_ACTIONS.MEDIA_DELETED,
+        entity: "documents",
+        entityId: documentId,
+        request: req,
+        secId: session.secId,
+        meta: {
+          indicatorId: id,
+          kind: "document",
+          source: "verifier",
+        },
+      });
+
+      return NextResponse.json({ ok: true });
+    }
+
     const found = await db.execute(sql`
       SELECT gallery_type, image_path FROM hdp.gallery
       WHERE gallery_id = ${galleryId} AND indicator_id = ${id}
