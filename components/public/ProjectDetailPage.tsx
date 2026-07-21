@@ -51,7 +51,8 @@ export interface PublicProjectIndicator {
   financialTarget: number;
   financialAchievement: number;
   physicalPct: number;
-  financialPct: number;
+  /** null when the indicator has no financial target to measure against */
+  financialPct: number | null;
   description: string;
   verified: boolean;
   imageCount: number;
@@ -90,7 +91,8 @@ export interface PublicProject {
   primarySecPublicId?: string | null;
   primaryDeptName: string;
   overallPhysicalPct: number;
-  overallFinancialPct: number;
+  /** null when the project has no usable cost to measure achievement against */
+  overallFinancialPct: number | null;
   indicators: PublicProjectIndicator[];
   images: PublicProjectImage[];
   videos: PublicProjectVideo[];
@@ -214,7 +216,11 @@ export function ProjectDetailPage({ project }: { project: PublicProject }) {
                 verified
               />
               <HeroStat
-                value={`${project.overallFinancialPct}%`}
+                value={
+                  project.overallFinancialPct === null
+                    ? '—'
+                    : `${project.overallFinancialPct}%`
+                }
                 labelMal="സാമ്പത്തിക"
                 icon={ShieldCheck}
                 verified
@@ -400,11 +406,11 @@ function Stat({
 }: {
   labelMal: string;
   primary: string;
-  pct: number;
+  pct: number | null;
   color: string;
   verified?: boolean;
 }) {
-  const clamped = Math.max(0, Math.min(100, pct));
+  const clamped = pct === null ? 0 : Math.max(0, Math.min(100, pct));
   return (
     <div className="rounded-xl border bg-white p-2">
       <div className="flex items-center justify-between gap-1">
@@ -423,7 +429,7 @@ function Stat({
         />
       </div>
       <p className="mt-0.5 text-right font-mono text-[10px] text-muted-foreground">
-        {clamped}%
+        {pct === null ? '—' : `${clamped}%`}
       </p>
     </div>
   );

@@ -73,6 +73,7 @@ export async function PUT(
     SELECT
       unit,
       physical_target,
+      financial_target,
       verified_date,
       verified_physical_achievement,
       verified_financial_achievement,
@@ -85,6 +86,7 @@ export async function PUT(
     | {
         unit: string | null;
         physical_target: number | string | null;
+        financial_target: number | string | null;
         verified_date: string | null;
         verified_physical_achievement: number | null;
         verified_financial_achievement: number | string | null;
@@ -98,6 +100,8 @@ export async function PUT(
   const unit = (metaRow.unit ?? "").trim().toLowerCase();
   const targetNum =
     metaRow.physical_target != null ? Number(metaRow.physical_target) : 0;
+  const financialTargetNum =
+    metaRow.financial_target != null ? Number(metaRow.financial_target) : 0;
   const isPercentage = unit === "percentage";
   const cap = isPercentage
     ? 100
@@ -115,6 +119,29 @@ export async function PUT(
             message: isPercentage
               ? "Percentage cannot exceed 100."
               : `Cannot exceed the physical target (${targetNum}).`,
+          },
+        ],
+      },
+      { status: 400 },
+    );
+  }
+
+  // Financial achievement can never exceed the financial target. When no
+  // financial target is set (null or 0), there is nothing to measure
+  // achievement against, so achievement must be 0 — unlike physical, a
+  // missing target does not lift the cap.
+  const financialCap = financialTargetNum > 0 ? financialTargetNum : 0;
+  if (d.financial_achievement > financialCap) {
+    return NextResponse.json(
+      {
+        error: "Validation failed",
+        issues: [
+          {
+            path: ["financial_achievement"],
+            message:
+              financialCap > 0
+                ? `Cannot exceed the financial target (${financialTargetNum}).`
+                : "No financial target is set for this indicator — financial achievement must be 0.",
           },
         ],
       },

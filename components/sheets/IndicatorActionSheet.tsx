@@ -27,7 +27,6 @@ import {
   ExternalLink,
   Facebook,
   FileText,
-  ImageIcon,
   Images,
   IndianRupee,
   Info,
@@ -83,6 +82,16 @@ interface ApiGalleryItem {
   platform?: 'youtube' | 'facebook';
   embedSrc?: string;
   originalUrl?: string;
+}
+
+interface ApiDocumentItem {
+  documentId: number;
+  indicatorId: number;
+  filename: string;
+  path: string | null;
+  size: number | null;
+  uploadedOn: string | null;
+  description: string | null;
 }
 
 export interface ProgressSavePatch {
@@ -144,7 +153,6 @@ const inrFormat = new Intl.NumberFormat('en-IN', {
 });
 
 const ACCEPTED_IMAGE_EXTS = ['jpg', 'jpeg', 'png'] as const;
-const ACCEPTED_DOC_EXTS = ['pdf'] as const;
 const MAX_SIZE_BYTES = 5 * 1024 * 1024;
 
 function nowStamp() {
@@ -206,7 +214,7 @@ function derivePlatform(item: ApiGalleryItem): 'youtube' | 'facebook' {
 // ===========================================================================
 /**
  * Returns a Zod schema for the progress form tailored to the indicator's
- * unit + physical target.
+ * unit + physical target, and its financial target.
  *
  *   unit === "Percentage"  → physical_achievement is hard-capped at 100
  *   unit anything else     → capped at the indicator's physical_target so
@@ -215,14 +223,24 @@ function derivePlatform(item: ApiGalleryItem): 'youtube' | 'facebook' {
  *
  * `unit === "" / null` is treated as "no cap" so the form still works for
  * legacy rows where the unit was never set.
+ *
+ * financial_achievement is capped at the indicator's financial_target. When
+ * no financial_target is set (null or 0), financial_achievement must be 0 —
+ * unlike physical, a missing financial target blocks entry rather than
+ * lifting the cap, since there is nothing to measure achievement against.
  */
-function makeProgressSchema(unit: string | undefined, target: number) {
+function makeProgressSchema(
+  unit: string | undefined,
+  target: number,
+  financialTarget: number,
+) {
   const isPercentage = (unit ?? '').trim().toLowerCase() === 'percentage';
   const maxAllowed = isPercentage
     ? 100
     : target > 0
       ? target
       : Number.POSITIVE_INFINITY;
+  const financialCap = financialTarget > 0 ? financialTarget : 0;
 
   return z
     .object({
@@ -234,7 +252,15 @@ function makeProgressSchema(unit: string | undefined, target: number) {
             ? 'Percentage cannot exceed 100.'
             : `Cannot exceed the physical target (${target}).`,
         }),
-      financial_achievement: z.coerce.number().min(0),
+      financial_achievement: z.coerce
+        .number()
+        .min(0, 'Cannot be negative')
+        .max(financialCap, {
+          message:
+            financialCap > 0
+              ? `Cannot exceed the financial target (₹${financialTarget} L).`
+              : 'No financial target is set for this indicator — financial achievement must be 0.',
+        }),
       completed_date: z.string().optional().nullable().default(''),
       description: z.string().max(2000).optional().default(''),
       achieved_direct_days: z.coerce.number().int().min(0).default(0),
@@ -300,9 +326,7 @@ export function IndicatorActionSheet({
 
   // Gallery state — SINGLE source of truth, populated from GET /api/.../gallery
   const [images, setImages] = useState<ApiGalleryItem[]>([]);
-  const [documents, setDocuments] = useState<
-    { documentId: number; filename: string; size: number; uploadedOn: string; description: string | null }[]
-  >([]);
+  const [documents, setDocuments] = useState<ApiDocumentItem[]>([]);
   const [videos, setVideos] = useState<ApiGalleryItem[]>([]);
   const [galleryLoading, setGalleryLoading] = useState(false);
   const [galleryError, setGalleryError] = useState<string | null>(null);
@@ -329,16 +353,17 @@ export function IndicatorActionSheet({
           const b = await r.json().catch(() => ({}));
           throw new Error(b.error ?? `HTTP ${r.status}`);
         }
-        return r.json() as Promise<{ items: ApiGalleryItem[] }>;
+        return r.json() as Promise<{
+          items: ApiGalleryItem[];
+          documents: ApiDocumentItem[];
+        }>;
       })
       .then((j) => {
         const imgs = j.items.filter((i) => i.galleryType === 1);
         const vids = j.items.filter((i) => i.galleryType === 2);
         setImages(imgs);
         setVideos(vids);
-        // Documents currently come via hdp.documents — not part of this endpoint.
-        // Sheet only mutates gallery for now; document listing is a follow-up
-        // endpoint. Keep documents from any prior state.
+        setDocuments(j.documents ?? []);
       })
       .catch((e) => {
         setGalleryError(e instanceof Error ? e.message : 'Failed to load');
@@ -363,8 +388,12 @@ export function IndicatorActionSheet({
   // across renders of the same indicator.
   const progressSchema = useMemo(
     () =>
-      makeProgressSchema(indicator?.unit, indicator?.physicalTarget ?? 0),
-    [indicator?.unit, indicator?.physicalTarget],
+      makeProgressSchema(
+        indicator?.unit,
+        indicator?.physicalTarget ?? 0,
+        indicator?.financialTarget ?? 0,
+      ),
+    [indicator?.unit, indicator?.physicalTarget, indicator?.financialTarget],
   );
   const form = useForm<ProgressFormValues>({
     resolver: zodResolver(progressSchema),
@@ -853,6 +882,7 @@ function ProgressTabContent({
                   inputMode="decimal"
                   step="0.01"
                   min={0}
+                  max={financialTarget > 0 ? financialTarget : 0}
                   placeholder="0.00"
                   aria-invalid={!!errors.financial_achievement}
                   className={cn(
@@ -1039,29 +1069,10 @@ function MediaTabContent({
   error: string | null;
   images: ApiGalleryItem[];
   setImages: React.Dispatch<React.SetStateAction<ApiGalleryItem[]>>;
-  documents: {
-    documentId: number;
-    filename: string;
-    size: number;
-    uploadedOn: string;
-    description: string | null;
-  }[];
-  setDocuments: React.Dispatch<
-    React.SetStateAction<
-      {
-        documentId: number;
-        filename: string;
-        size: number;
-        uploadedOn: string;
-        description: string | null;
-      }[]
-    >
-  >;
+  documents: ApiDocumentItem[];
+  setDocuments: React.Dispatch<React.SetStateAction<ApiDocumentItem[]>>;
   onToast: (msg: string) => void;
 }) {
-  type Kind = 'images' | 'documents';
-  const [kind, setKind] = useState<Kind>('images');
-
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [file, setFile] = useState<File | null>(null);
   const [description, setDescription] = useState('');
@@ -1098,17 +1109,16 @@ function MediaTabContent({
     return () => window.removeEventListener('keydown', onKey);
   }, [lightboxIndex, images.length]);
 
-  const acceptedExts =
-    kind === 'images' ? ACCEPTED_IMAGE_EXTS : ACCEPTED_DOC_EXTS;
-  const acceptAttr =
-    kind === 'images'
-      ? ACCEPTED_IMAGE_EXTS.map((e) => `.${e}`).join(',')
-      : ACCEPTED_DOC_EXTS.map((e) => `.${e}`).join(',');
+  // PDF upload has been removed from this sheet — only images can be
+  // uploaded here. Already-uploaded documents (if any) still show below,
+  // read/delete only.
+  const acceptedExts = ACCEPTED_IMAGE_EXTS;
+  const acceptAttr = ACCEPTED_IMAGE_EXTS.map((e) => `.${e}`).join(',');
 
   function validate(f: File): string | null {
     const ext = extOf(f.name);
     if (!acceptedExts.includes(ext as never)) {
-      return `Only ${acceptedExts.join(', ')} files are allowed for ${kind}.`;
+      return `Only ${acceptedExts.join(', ')} files are allowed.`;
     }
     if (f.size > MAX_SIZE_BYTES) return 'File size exceeds 5MB limit.';
     return null;
@@ -1145,24 +1155,12 @@ function MediaTabContent({
     xhr.onload = () => {
       if (xhr.status >= 200 && xhr.status < 300) {
         try {
-          const json = JSON.parse(xhr.responseText) as { item: ApiGalleryItem };
+          const json = JSON.parse(xhr.responseText) as {
+            item: ApiGalleryItem;
+          };
           // SINGLE source of truth — add ONCE from the server response
-          if (json.item.galleryType === 1 || kind === 'images') {
-            setImages((prev) => dedupe([json.item, ...prev], (x) => x.galleryId));
-          } else {
-            // Document — different response shape
-            const doc = json.item as unknown as {
-              documentId: number;
-              filename: string;
-              size: number;
-              uploadedOn: string;
-              description: string | null;
-            };
-            setDocuments((prev) =>
-              dedupe([doc, ...prev], (x) => x.documentId),
-            );
-          }
-          onToast(kind === 'images' ? 'Image uploaded' : 'Document uploaded');
+          setImages((prev) => dedupe([json.item, ...prev], (x) => x.galleryId));
+          onToast('Image uploaded');
         } catch (e) {
           console.error('Bad upload response', e);
           setValidationError('Upload succeeded but server response was unreadable.');
@@ -1203,6 +1201,20 @@ function MediaTabContent({
     }
   }
 
+  async function removeDocument(documentId: number) {
+    try {
+      const res = await fetch(
+        `/api/officer/indicators/${indicatorId}/gallery?documentId=${documentId}`,
+        { method: 'DELETE' },
+      );
+      if (!res.ok) throw new Error('Delete failed');
+      setDocuments((prev) => prev.filter((x) => x.documentId !== documentId));
+      onToast('Document removed');
+    } catch (e) {
+      console.error(e);
+    }
+  }
+
   if (loading) {
     return (
       <div className="flex flex-1 items-center justify-center py-12 text-muted-foreground">
@@ -1222,56 +1234,6 @@ function MediaTabContent({
   return (
     <div className="flex flex-1 flex-col overflow-hidden">
       <div className="flex-1 space-y-5 overflow-y-auto px-6 py-5">
-        {/* Sub-tab toggle */}
-        <div
-          role="radiogroup"
-          aria-label="Media type"
-          className="inline-flex rounded-full border bg-muted/30 p-0.5 text-xs font-medium"
-        >
-          {(['images', 'documents'] as Kind[]).map((k) => (
-            <button
-              type="button"
-              key={k}
-              role="radio"
-              aria-checked={kind === k}
-              onClick={() => {
-                setKind(k);
-                setFile(null);
-                setValidationError(null);
-                setDescription('');
-              }}
-              className={cn(
-                'cursor-pointer rounded-full px-3 py-1 transition-colors duration-200',
-                kind === k
-                  ? 'bg-[#2E7D32] text-white shadow'
-                  : 'text-muted-foreground hover:text-foreground',
-              )}
-            >
-              {k === 'images' ? (
-                <span className="flex items-center gap-1.5">
-                  <ImageIcon className="h-3.5 w-3.5" aria-hidden />
-                  Images
-                  {images.length > 0 && (
-                    <span className="ml-1 rounded-full bg-white/20 px-1.5 text-[10px]">
-                      {images.length}
-                    </span>
-                  )}
-                </span>
-              ) : (
-                <span className="flex items-center gap-1.5">
-                  <FileText className="h-3.5 w-3.5" aria-hidden />
-                  Documents
-                  {documents.length > 0 && (
-                    <span className="ml-1 rounded-full bg-white/20 px-1.5 text-[10px]">
-                      {documents.length}
-                    </span>
-                  )}
-                </span>
-              )}
-            </button>
-          ))}
-        </div>
-
         {/* Drop zone / preview */}
         {!file ? (
           <div
@@ -1415,38 +1377,74 @@ function MediaTabContent({
           </div>
         )}
 
-        {/* Gallery */}
-        {kind === 'images' ? (
-          images.length === 0 ? (
-            <EmptyHint text="No images uploaded yet" />
-          ) : (
-            <div className="grid gap-3 sm:grid-cols-2">
-              {images.map((img, idx) => (
-                <ImageThumb
-                  key={img.galleryId}
-                  img={img}
-                  onView={() => setLightboxIndex(idx)}
-                  onDelete={() => removeImage(img.galleryId)}
-                />
-              ))}
-            </div>
-          )
-        ) : documents.length === 0 ? (
-          <EmptyHint text="No documents uploaded yet" />
+        {/* Images gallery */}
+        {images.length === 0 ? (
+          <EmptyHint text="No images uploaded yet" />
         ) : (
-          <ul className="divide-y rounded-lg border">
-            {documents.map((d) => (
+          <div className="grid gap-3 sm:grid-cols-2">
+            {images.map((img, idx) => (
+              <ImageThumb
+                key={img.galleryId}
+                img={img}
+                onView={() => setLightboxIndex(idx)}
+                onDelete={() => removeImage(img.galleryId)}
+              />
+            ))}
+          </div>
+        )}
+
+        {/* Previously uploaded documents — view/delete only; PDF upload has
+            been removed from this sheet. */}
+        {documents.length > 0 && (
+          <div className="space-y-2">
+            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              Uploaded Documents
+            </p>
+            <ul className="divide-y rounded-lg border">
+              {documents.map((d) => (
               <li key={d.documentId} className="flex items-center gap-3 p-3">
                 <FileText className="h-4 w-4 text-[#2E7D32]" aria-hidden />
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-sm font-semibold">{d.filename}</p>
                   <p className="font-mono text-[11px] text-muted-foreground">
-                    {formatBytes(d.size)} · {d.uploadedOn}
+                    {d.size != null ? formatBytes(d.size) : 'Size unavailable'}
+                    {' · '}
+                    {d.uploadedOn ?? '-'}
                   </p>
+                  {d.description && (
+                    <p className="truncate text-[11px] text-muted-foreground">
+                      {d.description}
+                    </p>
+                  )}
                 </div>
+                {d.path && (
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="secondary"
+                    asChild
+                    className="cursor-pointer"
+                  >
+                    <a href={`/api/uploads/${d.path}`} target="_blank" rel="noreferrer">
+                      <FileText className="h-3.5 w-3.5" />
+                      Open
+                    </a>
+                  </Button>
+                )}
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="destructive"
+                  onClick={() => removeDocument(d.documentId)}
+                  className="cursor-pointer"
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                  Delete
+                </Button>
               </li>
             ))}
-          </ul>
+            </ul>
+          </div>
         )}
       </div>
 

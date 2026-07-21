@@ -12,6 +12,7 @@ import { getUser } from "@/lib/db/queries/admin";
 import { resolveUserId } from "@/lib/db/public-id";
 import { writeAudit } from "@/lib/audit/writeAudit";
 import { AUDIT_ACTIONS } from "@/lib/db/schema/audit";
+import { formatLockoutTimestampIso, isLockoutActive } from "@/lib/auth/lockout";
 
 export const runtime = "nodejs";
 
@@ -39,6 +40,9 @@ export async function GET(
     if (!row) {
       return NextResponse.json({ error: "Not found" }, { status: 404 });
     }
+    const lockedUntil = formatLockoutTimestampIso(row.locked_until);
+    const isLocked = isLockoutActive(row.locked_until);
+
     return NextResponse.json({
       user: {
         userId: Number(row.user_id),
@@ -52,6 +56,9 @@ export async function GET(
         designation: row.designation ?? "",
         lastLogin: row.last_login ?? null,
         registeredOn: row.registered_on ?? null,
+        failedLoginAttempts: Number(row.failed_login_attempts ?? 0),
+        lockedUntil,
+        isLocked,
       },
     });
   } catch (err) {
@@ -75,6 +82,7 @@ const updateSchema = z.object({
   designation: z.string().max(250).optional().nullable(),
   status: z.coerce.number().int().min(0).max(1),
   password: z.string().min(8).optional().nullable(),
+  unlock_account: z.boolean().optional(),
 });
 
 export async function PATCH(
@@ -103,6 +111,7 @@ export async function PATCH(
 
   try {
     const passwordHash = d.password ? await bcrypt.hash(d.password, 12) : null;
+    const unlockAccount = d.unlock_account === true;
 
     const result = await db.execute(sql`
       UPDATE hdp.user_details SET
@@ -115,9 +124,11 @@ export async function PATCH(
         password = COALESCE(${passwordHash}, password),
         failed_login_attempts = CASE
           WHEN ${passwordHash}::text IS NOT NULL THEN 0
+          WHEN ${unlockAccount} THEN 0
           ELSE failed_login_attempts END,
         locked_until = CASE
           WHEN ${passwordHash}::text IS NOT NULL THEN NULL
+          WHEN ${unlockAccount} THEN NULL
           ELSE locked_until END
       WHERE user_id = ${userId}
       RETURNING user_id
@@ -130,13 +141,16 @@ export async function PATCH(
       userId: session.userId,
       action: passwordHash
         ? AUDIT_ACTIONS.ADMIN_PASSWORD_RESET
-        : AUDIT_ACTIONS.USER_UPDATED,
+        : unlockAccount
+          ? AUDIT_ACTIONS.ACCOUNT_UNLOCKED
+          : AUDIT_ACTIONS.USER_UPDATED,
       entity: "user_details",
       entityId: userId,
       request: req,
       meta: {
         target_user_id: userId,
         password_changed: !!passwordHash,
+        account_unlocked: unlockAccount,
         status: d.status,
       },
     });

@@ -5,22 +5,24 @@ import Link from 'next/link';
 import {
     AlertTriangle,
     ArrowUpRight,
+    Bell,
     CheckCircle2,
-    Clock3,
+    ChevronsUpDown,
+    FileText,
     FolderOpen,
+    Image,
     Layers3,
-    MapPinned,
-    ShieldAlert,
+    PlayCircle,
     ShieldCheck,
     Siren,
-    Target,
     TrendingDown,
     TrendingUp,
-    Users,
+    X,
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Sheet, SheetContent, SheetDescription, SheetTitle } from '@/components/ui/sheet';
 import {
     Table,
     TableBody,
@@ -95,6 +97,31 @@ type EmploymentTrendRow = {
     employment_persons: number;
 };
 
+type EvidenceHighlightRow = {
+    galleryId: number;
+    galleryType: 1 | 2 | 3;
+    imagePath: string | null;
+    description: string | null;
+    uploadedOn: string | null;
+    indicatorName: string;
+    projectName: string;
+    projectCode: string;
+    departmentName: string;
+    districtName: string;
+    verifiedDate: string | null;
+};
+
+type EvidenceSnapshot = {
+    verifiedImages: number;
+    verifiedVideos: number;
+    verifiedDocuments: number;
+    totalImages: number;
+    totalVideos: number;
+    totalDocuments: number;
+    projectsWithVerifiedEvidence: number;
+    avgVerificationTurnaroundDays: number;
+};
+
 type DashboardData = {
     timestamp: string;
     stats: DashboardStats;
@@ -120,6 +147,10 @@ type DashboardData = {
         recentVerified: RecentVerifiedRow[];
         byDistrict: EmploymentDistrictRow[];
         trend: EmploymentTrendRow[];
+    };
+    evidence: {
+        snapshot: EvidenceSnapshot;
+        highlights: EvidenceHighlightRow[];
     };
 };
 
@@ -220,10 +251,15 @@ function InsightCard({ insight }: { insight: Insight }) {
     );
 }
 
+type SheetType = 'completed' | 'verified' | 'evidence' | null;
+
 export default function OsdDashboardPage() {
     const [data, setData] = useState<DashboardData | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    const [activeSheet, setActiveSheet] = useState<SheetType>(null);
+    const [isActionPanelOpen, setIsActionPanelOpen] = useState(false);
+    const [isActionPanelExpanded, setIsActionPanelExpanded] = useState(false);
 
     useEffect(() => {
         const controller = new AbortController();
@@ -460,14 +496,64 @@ export default function OsdDashboardPage() {
         ];
     }, [data, departmentWithRisk, health.trendPercent]);
 
+    const floatingActionItems = useMemo(() => {
+        if (!data) {
+            return [] as Array<{
+                title: string;
+                detail: string;
+                href: string;
+                tone: 'warning' | 'normal' | 'info';
+            }>;
+        }
+
+        return [
+            {
+                title: 'Recognize top performers',
+                detail: `Share wins from ${topPerformers[0]?.department_name ?? 'leading departments'} and ${data.districtRanking[0]?.district_name ?? 'top district'} in leadership review.`,
+                href: '#department-leaderboard',
+                tone: 'normal' as const,
+            },
+            {
+                title: 'Open Attention Center',
+                detail: `${formatNumber(attention.critical.length)} critical and ${formatNumber(attention.warning.length)} warning signals need follow-up.`,
+                href: '#attention-center',
+                tone: attention.critical.length > 0 ? ('warning' as const) : ('info' as const),
+            },
+            {
+                title: 'Run verification command',
+                detail: `${formatNumber(data.stats.pendingVerification)} pending verification items are in queue.`,
+                href: '#verification-command',
+                tone: data.stats.pendingVerification > 0 ? ('warning' as const) : ('normal' as const),
+            },
+            {
+                title: 'Open District Intelligence',
+                detail: `${formatNumber(health.districtsRequiringAttention)} districts currently need attention.`,
+                href: '#district-intelligence',
+                tone: 'info' as const,
+            },
+            {
+                title: 'Review Employment Impact',
+                detail: `Employment generated: ${formatNumber(data.stats.employmentGenerated)} persons.`,
+                href: '#employment-impact',
+                tone: 'normal' as const,
+            },
+            {
+                title: 'View Evidence of Delivery',
+                detail: `${formatNumber(data.evidence.snapshot.verifiedImages + data.evidence.snapshot.verifiedVideos + data.evidence.snapshot.verifiedDocuments)} verified items across images, videos, and documents.`,
+                href: '#evidence-of-delivery',
+                tone: 'normal' as const,
+            },
+        ];
+    }, [data, topPerformers, attention.critical.length, attention.warning.length, health.districtsRequiringAttention]);
+
     return (
-        <main className="space-y-6 bg-[radial-gradient(circle_at_top_left,_rgba(46,125,50,0.16),_transparent_28%),radial-gradient(circle_at_top_right,_rgba(200,169,81,0.12),_transparent_24%)]">
+        <main className="space-y-6 overflow-hidden rounded-[1.25rem] bg-[radial-gradient(circle_at_top_left,_rgba(46,125,50,0.16),_transparent_28%),radial-gradient(circle_at_top_right,_rgba(200,169,81,0.12),_transparent_24%)]">
             <section className="overflow-hidden rounded-[2rem] border border-kerala-blue/15 bg-gradient-to-br from-kerala-blue/10 via-background to-success-green/5 shadow-[0_18px_50px_rgba(14,23,38,0.09)]">
                 <div className="grid gap-4 p-5 sm:p-6 lg:grid-cols-[1.5fr_1fr] xl:grid-cols-[1.65fr_0.95fr]">
                     <div className="space-y-4">
                         <div className="inline-flex items-center gap-2 rounded-full border border-kerala-blue/20 bg-background/80 px-3 py-1 text-xs font-semibold uppercase tracking-[0.28em] text-kerala-blue shadow-sm">
                             <ShieldCheck className="h-3.5 w-3.5" aria-hidden="true" />
-                            OSD Executive Command Center
+                            Executive Command Center
                         </div>
 
                         <div>
@@ -587,6 +673,260 @@ export default function OsdDashboardPage() {
                                 <p className="text-[11px] uppercase tracking-[0.24em] text-muted-foreground">Employment Generated</p>
                                 <p className="mt-2 text-3xl font-semibold text-foreground">{formatNumber(data.stats.employmentGenerated)}</p>
                                 <p className="mt-1 text-xs text-muted-foreground">Direct + indirect persons</p>
+                            </CardContent>
+                        </Card>
+                    </section>
+
+                    <section id="positive-momentum" className="scroll-mt-24 grid gap-6">
+                        <Card className="overflow-hidden border shadow-sm">
+                            <div className="h-1 bg-gradient-to-r from-success-green via-kerala-blue to-warning-amber" />
+                            <CardHeader>
+                                <CardTitle className="text-xl">Positive Momentum</CardTitle>
+                                <CardDescription>
+                                    Success-first view for completed work, verified outcomes, and reusable execution patterns.
+                                </CardDescription>
+                            </CardHeader>
+                            <CardContent className="space-y-4">
+                                <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                                    <button
+                                        type="button"
+                                        onClick={() => setActiveSheet('completed')}
+                                        className="rounded-xl border border-success-green/25 bg-success-green/5 p-3 text-left transition-colors hover:bg-success-green/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                                    >
+                                        <p className="text-xs uppercase tracking-[0.2em] text-success-green">Completed Projects</p>
+                                        <p className="mt-1 text-2xl font-semibold text-foreground">{formatNumber(data.stats.completedProjects)}</p>
+                                        <p className="text-xs text-muted-foreground">Work fully closed and ready to showcase</p>
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => setActiveSheet('verified')}
+                                        className="rounded-xl border border-kerala-blue/25 bg-kerala-blue/5 p-3 text-left transition-colors hover:bg-kerala-blue/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                                    >
+                                        <p className="text-xs uppercase tracking-[0.2em] text-kerala-blue">Verified Outcomes</p>
+                                        <p className="mt-1 text-2xl font-semibold text-foreground">{formatNumber(data.riskSignals.verifiedLast7)}</p>
+                                        <p className="text-xs text-muted-foreground">Successfully verified in the last 7 days</p>
+                                    </button>
+                                    <div className="rounded-xl border border-warning-amber/25 bg-warning-amber/8 p-3">
+                                        <p className="text-xs uppercase tracking-[0.2em] text-warning-amber">Top District</p>
+                                        <p className="mt-1 text-2xl font-semibold text-foreground">
+                                            {data.districtRanking[0]?.district_name ?? '—'}
+                                        </p>
+                                        <p className="text-xs text-muted-foreground">
+                                            {data.districtRanking[0]
+                                                ? `${formatPercent(data.districtRanking[0].physical_achievement)} physical · ${formatPercent(data.districtRanking[0].financial_achievement)} financial`
+                                                : 'No district data available'}
+                                        </p>
+                                    </div>
+                                    <div className="rounded-xl border border-warning-amber/25 bg-warning-amber/8 p-3">
+                                        <p className="text-xs uppercase tracking-[0.2em] text-warning-amber">Top Department</p>
+                                        <p className="mt-1 text-2xl font-semibold text-foreground">
+                                            {topPerformers[0]?.department_name ?? '—'}
+                                        </p>
+                                        <p className="text-xs text-muted-foreground">
+                                            {topPerformers[0]
+                                                ? `Composite ${formatPercent(topPerformers[0].composite_score)} with ${formatPercent(topPerformers[0].verificationPercent)} verification`
+                                                : 'No department ranking available'}
+                                        </p>
+                                    </div>
+                                </div>
+
+                                <div className="grid gap-4 lg:grid-cols-[1.05fr_0.95fr]">
+                                    <div className="rounded-xl border bg-background p-4">
+                                        <div className="flex items-center justify-between gap-2">
+                                            <div>
+                                                <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Achievement Timeline</p>
+                                                <p className="mt-1 text-sm font-semibold text-foreground">Last 6 months employment growth</p>
+                                            </div>
+                                            <Badge variant={health.trendPercent >= 0 ? 'success' : 'warning'}>
+                                                {health.trendPercent >= 0 ? '+' : '-'}{formatPercent(Math.abs(health.trendPercent))}
+                                            </Badge>
+                                        </div>
+                                        <div className="mt-3 flex items-end justify-between gap-3">
+                                            <div className="min-w-0">
+                                                <p className="text-xs text-muted-foreground">
+                                                    {data.employment.trend.map((t) => `${t.month_label}: ${formatNumber(t.employment_persons)}`).join(' · ')}
+                                                </p>
+                                            </div>
+                                            <SparkBars values={data.employment.trend.map((t) => t.employment_persons)} />
+                                        </div>
+                                        <div className="mt-4 grid gap-2 sm:grid-cols-2">
+                                            <div className="rounded-lg border bg-muted/20 p-3">
+                                                <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">Direct Employment</p>
+                                                <p className="mt-1 text-lg font-semibold text-foreground">{formatNumber(data.employment.summary.direct_persons)}</p>
+                                            </div>
+                                            <div className="rounded-lg border bg-muted/20 p-3">
+                                                <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">Indirect Employment</p>
+                                                <p className="mt-1 text-lg font-semibold text-foreground">{formatNumber(data.employment.summary.indirect_persons)}</p>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div className="rounded-xl border bg-background p-4">
+                                        <div className="flex items-center justify-between gap-2">
+                                            <div>
+                                                <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Success Stories</p>
+                                                <p className="mt-1 text-sm font-semibold text-foreground">Recently verified projects</p>
+                                            </div>
+                                            <Badge variant="info">{formatNumber(data.employment.recentVerified.length)}</Badge>
+                                        </div>
+                                        <div className="mt-3 space-y-2">
+                                            {data.employment.recentVerified.slice(0, 4).map((row) => (
+                                                <div key={`${row.project_name}-${row.verified_date ?? 'na'}`} className="rounded-lg border bg-muted/20 p-3">
+                                                    <div className="flex items-center justify-between gap-2">
+                                                        <p className="text-sm font-medium text-foreground">{row.project_name}</p>
+                                                        <Badge variant="success">{formatPercent(row.progress)}</Badge>
+                                                    </div>
+                                                    <p className="mt-1 text-xs text-muted-foreground">
+                                                        {row.department_name} · {row.district_name}
+                                                    </p>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+                                    {topPerformers.slice(0, 3).map((row, index) => (
+                                        <div key={`positive-top-${row.department_name}`} className="rounded-xl border bg-background p-3 shadow-sm">
+                                            <div className="flex items-center justify-between gap-2">
+                                                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">Rank {index + 1}</p>
+                                                <Badge variant={index === 0 ? 'success' : 'info'}>{formatPercent(row.composite_score)}</Badge>
+                                            </div>
+                                            <p className="mt-2 text-sm font-semibold text-foreground">{row.department_name}</p>
+                                            <p className="mt-1 text-xs text-muted-foreground">
+                                                {formatPercent(row.physical_achievement)} physical · {formatPercent(row.financial_achievement)} financial · {formatPercent(row.verificationPercent)} verification
+                                            </p>
+                                        </div>
+                                    ))}
+                                </div>
+                            </CardContent>
+                        </Card>
+
+                        <Card id="evidence-of-delivery" className="scroll-mt-24 overflow-hidden border shadow-sm">
+                            <div className="h-1 bg-gradient-to-r from-kerala-blue via-success-green to-warning-amber" />
+                            <CardHeader>
+                                <CardTitle className="text-xl">Evidence of Delivery</CardTitle>
+                                <CardDescription>
+                                    Verified images, videos, and documents that prove real-world programme outcomes.
+                                </CardDescription>
+                            </CardHeader>
+                            <CardContent className="space-y-5">
+                                {/* Snapshot KPI row */}
+                                <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                                    <div className="rounded-xl border border-kerala-blue/25 bg-kerala-blue/5 p-3">
+                                        <div className="flex items-center gap-2">
+                                            <Image className="h-4 w-4 text-kerala-blue" aria-hidden="true" />
+                                            <p className="text-xs uppercase tracking-[0.2em] text-kerala-blue">Verified Images</p>
+                                        </div>
+                                        <p className="mt-1 text-2xl font-semibold text-foreground">{formatNumber(data.evidence.snapshot.verifiedImages)}</p>
+                                        <p className="text-xs text-muted-foreground">of {formatNumber(data.evidence.snapshot.totalImages)} uploaded</p>
+                                    </div>
+                                    <div className="rounded-xl border border-success-green/25 bg-success-green/5 p-3">
+                                        <div className="flex items-center gap-2">
+                                            <PlayCircle className="h-4 w-4 text-success-green" aria-hidden="true" />
+                                            <p className="text-xs uppercase tracking-[0.2em] text-success-green">Verified Videos</p>
+                                        </div>
+                                        <p className="mt-1 text-2xl font-semibold text-foreground">{formatNumber(data.evidence.snapshot.verifiedVideos)}</p>
+                                        <p className="text-xs text-muted-foreground">of {formatNumber(data.evidence.snapshot.totalVideos)} uploaded</p>
+                                    </div>
+                                    <div className="rounded-xl border border-warning-amber/25 bg-warning-amber/8 p-3">
+                                        <div className="flex items-center gap-2">
+                                            <FileText className="h-4 w-4 text-warning-amber" aria-hidden="true" />
+                                            <p className="text-xs uppercase tracking-[0.2em] text-warning-amber">Verified Documents</p>
+                                        </div>
+                                        <p className="mt-1 text-2xl font-semibold text-foreground">{formatNumber(data.evidence.snapshot.verifiedDocuments)}</p>
+                                        <p className="text-xs text-muted-foreground">of {formatNumber(data.evidence.snapshot.totalDocuments)} uploaded</p>
+                                    </div>
+                                    <div className="rounded-xl border bg-muted/20 p-3">
+                                        <div className="flex items-center gap-2">
+                                            <CheckCircle2 className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
+                                            <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Projects with Evidence</p>
+                                        </div>
+                                        <p className="mt-1 text-2xl font-semibold text-foreground">{formatNumber(data.evidence.snapshot.projectsWithVerifiedEvidence)}</p>
+                                        <p className="text-xs text-muted-foreground">Avg turnaround {Number(data.evidence.snapshot.avgVerificationTurnaroundDays).toFixed(1)} days</p>
+                                    </div>
+                                </div>
+
+                                {/* Verified highlight cards */}
+                                {data.evidence.highlights.length > 0 ? (
+                                    <div>
+                                        <div className="mb-3 flex items-center justify-between gap-2">
+                                            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">Recent Verified Highlights</p>
+                                            <Button
+                                                type="button"
+                                                variant="ghost"
+                                                size="sm"
+                                                onClick={() => setActiveSheet('evidence')}
+                                                className="text-xs font-semibold text-kerala-blue hover:text-kerala-blue"
+                                            >
+                                                View All →
+                                            </Button>
+                                        </div>
+                                        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                                            {data.evidence.highlights.map((item) => {
+                                                const typeLabel = item.galleryType === 1 ? 'Image' : item.galleryType === 2 ? 'Video' : 'Document';
+                                                const typeColor = item.galleryType === 1
+                                                    ? 'border-kerala-blue/30 bg-kerala-blue/5'
+                                                    : item.galleryType === 2
+                                                        ? 'border-success-green/30 bg-success-green/5'
+                                                        : 'border-warning-amber/30 bg-warning-amber/8';
+                                                const TypeIcon = item.galleryType === 2 ? PlayCircle : item.galleryType === 3 ? FileText : Image;
+                                                const typeIconColor = item.galleryType === 1 ? 'text-kerala-blue' : item.galleryType === 2 ? 'text-success-green' : 'text-warning-amber';
+
+                                                return (
+                                                    <div key={item.galleryId} className={cn('rounded-xl border p-3 shadow-sm', typeColor)}>
+                                                        <div className="flex items-start justify-between gap-2">
+                                                            <TypeIcon className={cn('mt-0.5 h-4 w-4 shrink-0', typeIconColor)} aria-hidden="true" />
+                                                            <Badge variant="success" className="shrink-0 text-[10px]">Verified</Badge>
+                                                        </div>
+                                                        <p className="mt-2 line-clamp-2 text-sm font-semibold text-foreground">{item.projectName}</p>
+                                                        <p className="mt-1 text-xs text-muted-foreground">{item.departmentName}</p>
+                                                        <p className="text-xs text-muted-foreground">{item.districtName}</p>
+                                                        {item.description && (
+                                                            <p className="mt-2 line-clamp-2 text-xs italic text-muted-foreground">{item.description}</p>
+                                                        )}
+                                                        <div className="mt-3 flex items-center justify-between gap-1">
+                                                            <Badge variant="neutral" className="text-[10px]">{typeLabel}</Badge>
+                                                            <span className="text-[10px] text-muted-foreground">
+                                                                {item.verifiedDate ? new Date(item.verifiedDate).toLocaleDateString('en-IN') : '—'}
+                                                            </span>
+                                                        </div>
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <div className="rounded-xl border border-muted bg-muted/20 px-4 py-6 text-center text-sm text-muted-foreground">
+                                        No verified evidence items yet. Evidence appears here once gallery uploads are verified.
+                                    </div>
+                                )}
+
+                                {/* Quality signals strip */}
+                                {(() => {
+                                    const totalUploaded = data.evidence.snapshot.totalImages + data.evidence.snapshot.totalVideos + data.evidence.snapshot.totalDocuments;
+                                    const totalVerified = data.evidence.snapshot.verifiedImages + data.evidence.snapshot.verifiedVideos + data.evidence.snapshot.verifiedDocuments;
+                                    const coveragePct = totalUploaded > 0 ? (totalVerified / totalUploaded) * 100 : 0;
+                                    return (
+                                        <div className="grid gap-3 rounded-xl border bg-muted/20 p-3 sm:grid-cols-3">
+                                            <div className="text-center">
+                                                <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">Verification Coverage</p>
+                                                <p className="mt-1 text-xl font-semibold text-foreground">{formatPercent(coveragePct)}</p>
+                                                <p className="text-xs text-muted-foreground">{formatNumber(totalVerified)} of {formatNumber(totalUploaded)} items verified</p>
+                                            </div>
+                                            <div className="text-center">
+                                                <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">Avg Turnaround</p>
+                                                <p className="mt-1 text-xl font-semibold text-foreground">{Number(data.evidence.snapshot.avgVerificationTurnaroundDays).toFixed(1)} days</p>
+                                                <p className="text-xs text-muted-foreground">Submission to verification</p>
+                                            </div>
+                                            <div className="text-center">
+                                                <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">Projects Covered</p>
+                                                <p className="mt-1 text-xl font-semibold text-foreground">{formatNumber(data.evidence.snapshot.projectsWithVerifiedEvidence)}</p>
+                                                <p className="text-xs text-muted-foreground">Have at least 1 verified item</p>
+                                            </div>
+                                        </div>
+                                    );
+                                })()}
                             </CardContent>
                         </Card>
                     </section>
@@ -915,90 +1255,267 @@ export default function OsdDashboardPage() {
                         </Card>
                     </section>
 
-                    <section className="grid gap-6 xl:grid-cols-[1.2fr_0.8fr]">
-                        <Card className="overflow-hidden border shadow-sm">
-                            <div className="h-1 bg-warning-amber" />
-                            <CardHeader>
-                                <CardTitle className="text-xl">Intervention Recommendations</CardTitle>
-                                <CardDescription>Decision support recommendations generated from live risk and trend signals.</CardDescription>
-                            </CardHeader>
-                            <CardContent className="space-y-3">
-                                <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-3">
-                                    <p className="text-sm font-semibold text-foreground">Critical: Clear verification backlog in next 48 hours</p>
-                                    <p className="mt-1 text-xs leading-5 text-muted-foreground">
-                                        {formatNumber(data.stats.pendingVerification)} pending items and {formatNumber(data.riskSignals.delayedProjects)} delayed projects are reducing programme health.
-                                    </p>
-                                </div>
-                                <div className="rounded-xl border border-warning-amber/30 bg-warning-amber/8 p-3">
-                                    <p className="text-sm font-semibold text-foreground">Warning: Financial utilization intervention</p>
-                                    <p className="mt-1 text-xs leading-5 text-muted-foreground">
-                                        Financial achievement at {formatPercent(data.stats.financialAchievement)} is lagging physical progress. Trigger department-level utilization review.
-                                    </p>
-                                </div>
-                                <div className="rounded-xl border border-success-green/30 bg-success-green/5 p-3">
-                                    <p className="text-sm font-semibold text-foreground">Normal: Sustain high-performing districts</p>
-                                    <p className="mt-1 text-xs leading-5 text-muted-foreground">
-                                        Replicate execution patterns from top districts to improve lagging regions.
-                                    </p>
-                                </div>
-                            </CardContent>
-                        </Card>
+                </>
+            )}
 
-                        <Card className="overflow-hidden border shadow-sm">
-                            <div className="h-1 bg-kerala-blue" />
-                            <CardHeader>
-                                <CardTitle className="text-xl">Command Actions</CardTitle>
-                                <CardDescription>Direct navigation for rapid executive workflow.</CardDescription>
-                            </CardHeader>
-                            <CardContent className="grid gap-3">
-                                <Button asChild className="h-12 justify-between rounded-2xl px-4">
-                                    <Link href="#attention-center">
-                                        <span className="flex items-center gap-2">
-                                            <ShieldAlert className="h-4 w-4" aria-hidden="true" />
-                                            Open Attention Center
-                                        </span>
-                                        <ArrowUpRight className="h-4 w-4" aria-hidden="true" />
+            {/* Drill-down sheets */}
+            {data && (
+                <>
+                    {/* Completed Projects sheet */}
+                    <Sheet open={activeSheet === 'completed'} onOpenChange={(open) => !open && setActiveSheet(null)}>
+                        <SheetContent side="right" className="flex w-full flex-col sm:max-w-3xl">
+                            <div className="mb-6 space-y-1 border-b border-slate-100 pb-6">
+                                <SheetTitle className="text-xl font-bold text-slate-900">Completed Projects</SheetTitle>
+                                <SheetDescription className="text-sm text-slate-600">
+                                    <span className="font-semibold text-slate-900">{formatNumber(data.stats.completedProjects)}</span> projects marked as completed and ready to showcase
+                                </SheetDescription>
+                            </div>
+                            <div className="flex-1 overflow-y-auto pr-3">
+                                {data.departmentRanking.length > 0 ? (
+                                    <div className="rounded-xl border border-slate-200 bg-white shadow-xs">
+                                        <Table>
+                                            <TableHeader>
+                                                <TableRow className="border-b border-slate-100 bg-gradient-to-r from-slate-50 to-slate-50 hover:bg-slate-50">
+                                                    <TableHead className="h-11 px-4 py-2 font-semibold text-slate-700">Department</TableHead>
+                                                    <TableHead className="h-11 px-4 py-2 text-center font-semibold text-slate-700">Count</TableHead>
+                                                    <TableHead className="h-11 px-4 py-2 text-center font-semibold text-slate-700">Physical</TableHead>
+                                                    <TableHead className="h-11 px-4 py-2 text-center font-semibold text-slate-700">Financial</TableHead>
+                                                </TableRow>
+                                            </TableHeader>
+                                            <TableBody>
+                                                {data.departmentRanking.map((dept, idx) => (
+                                                    <TableRow
+                                                        key={dept.department_name}
+                                                        className={cn(
+                                                            'border-b border-slate-100 transition-colors hover:bg-slate-50/50',
+                                                            idx % 2 === 0 ? 'bg-white' : 'bg-slate-50/30',
+                                                        )}
+                                                    >
+                                                        <TableCell className="px-4 py-3 font-medium text-slate-900">{dept.department_name}</TableCell>
+                                                        <TableCell className="px-4 py-3 text-center">
+                                                            <Badge variant="secondary" className="font-semibold">{formatNumber(dept.completed_projects)}</Badge>
+                                                        </TableCell>
+                                                        <TableCell className="px-4 py-3 text-center">
+                                                            <span className="text-sm font-semibold text-success-green">{formatPercent(dept.physical_achievement)}</span>
+                                                        </TableCell>
+                                                        <TableCell className="px-4 py-3 text-center">
+                                                            <span className="text-sm font-semibold text-kerala-blue">{formatPercent(dept.financial_achievement)}</span>
+                                                        </TableCell>
+                                                    </TableRow>
+                                                ))}
+                                            </TableBody>
+                                        </Table>
+                                    </div>
+                                ) : (
+                                    <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-slate-200 bg-slate-50/50 px-4 py-12">
+                                        <FolderOpen className="mb-3 h-10 w-10 text-slate-400" aria-hidden="true" />
+                                        <p className="text-center text-sm font-medium text-slate-600">No completed projects</p>
+                                        <p className="mt-1 text-center text-xs text-slate-500">Projects will appear here once marked as completed</p>
+                                    </div>
+                                )}
+                            </div>
+                        </SheetContent>
+                    </Sheet>
+
+                    {/* Verified Outcomes sheet */}
+                    <Sheet open={activeSheet === 'verified'} onOpenChange={(open) => !open && setActiveSheet(null)}>
+                        <SheetContent side="right" className="flex w-full flex-col sm:max-w-3xl">
+                            <div className="mb-6 space-y-1 border-b border-slate-100 pb-6">
+                                <SheetTitle className="text-xl font-bold text-slate-900">Recently Verified Projects</SheetTitle>
+                                <SheetDescription className="text-sm text-slate-600">
+                                    <span className="font-semibold text-slate-900">{formatNumber(data.riskSignals.verifiedLast7)}</span> outcomes verified in the last 7 days
+                                </SheetDescription>
+                            </div>
+                            <div className="flex-1 overflow-y-auto pr-3">
+                                {data.employment.recentVerified.length > 0 ? (
+                                    <div className="space-y-3">
+                                        {data.employment.recentVerified.map((row, idx) => (
+                                            <div
+                                                key={`${row.project_name}-${row.verified_date}`}
+                                                className="group rounded-xl border border-slate-200 bg-white p-4 shadow-xs transition-all hover:border-kerala-blue/30 hover:bg-kerala-blue/2 hover:shadow-sm"
+                                            >
+                                                <div className="flex items-start justify-between gap-3">
+                                                    <div className="min-w-0 flex-1">
+                                                        <p className="font-semibold text-slate-900 group-hover:text-kerala-blue">{row.project_name}</p>
+                                                        <p className="mt-1 text-xs text-slate-600">
+                                                            <span className="font-medium text-slate-700">{row.department_name}</span>
+                                                            <span className="mx-1.5 text-slate-400">·</span>
+                                                            <span className="text-slate-600">{row.district_name}</span>
+                                                        </p>
+                                                    </div>
+                                                    <div className="flex shrink-0 flex-col items-end gap-2">
+                                                        <Badge variant="success" className="whitespace-nowrap font-semibold">
+                                                            {formatPercent(row.progress)}
+                                                        </Badge>
+                                                    </div>
+                                                </div>
+                                                <div className="mt-3 flex items-center gap-1.5 text-xs text-slate-500">
+                                                    <CheckCircle2 className="h-3.5 w-3.5 text-success-green" aria-hidden="true" />
+                                                    <span>Verified {row.verified_date ? new Date(row.verified_date).toLocaleDateString('en-IN', { month: 'short', day: 'numeric', year: 'numeric' }) : '—'}</span>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                ) : (
+                                    <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-slate-200 bg-slate-50/50 px-4 py-12">
+                                        <CheckCircle2 className="mb-3 h-10 w-10 text-slate-400" aria-hidden="true" />
+                                        <p className="text-center text-sm font-medium text-slate-600">No verified outcomes</p>
+                                        <p className="mt-1 text-center text-xs text-slate-500">Recent verifications will appear here</p>
+                                    </div>
+                                )}
+                            </div>
+                        </SheetContent>
+                    </Sheet>
+
+                    {/* Evidence drill-down sheet */}
+                    <Sheet open={activeSheet === 'evidence'} onOpenChange={(open) => !open && setActiveSheet(null)}>
+                        <SheetContent side="right" className="flex w-full flex-col sm:max-w-4xl">
+                            <div className="mb-6 space-y-1 border-b border-slate-100 pb-6">
+                                <SheetTitle className="text-xl font-bold text-slate-900">Verified Evidence Gallery</SheetTitle>
+                                <SheetDescription className="text-sm text-slate-600">
+                                    Coverage: <span className="font-semibold text-slate-900">{(() => {
+                                        const totalUploaded = data.evidence.snapshot.totalImages + data.evidence.snapshot.totalVideos + data.evidence.snapshot.totalDocuments;
+                                        const totalVerified = data.evidence.snapshot.verifiedImages + data.evidence.snapshot.verifiedVideos + data.evidence.snapshot.verifiedDocuments;
+                                        const coveragePct = totalUploaded > 0 ? (totalVerified / totalUploaded) * 100 : 0;
+                                        return formatPercent(coveragePct);
+                                    })()}</span> verified
+                                </SheetDescription>
+                            </div>
+                            <div className="flex-1 overflow-y-auto pr-3">
+                                {data.evidence.highlights.length > 0 ? (
+                                    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                                        {data.evidence.highlights.map((item) => {
+                                            const typeLabel = item.galleryType === 1 ? 'Image' : item.galleryType === 2 ? 'Video' : 'Document';
+                                            const typeColor = item.galleryType === 1
+                                                ? 'border-kerala-blue/25 bg-gradient-to-br from-kerala-blue/8 to-kerala-blue/4 hover:border-kerala-blue/40 hover:from-kerala-blue/12'
+                                                : item.galleryType === 2
+                                                    ? 'border-success-green/25 bg-gradient-to-br from-success-green/8 to-success-green/4 hover:border-success-green/40 hover:from-success-green/12'
+                                                    : 'border-warning-amber/25 bg-gradient-to-br from-warning-amber/8 to-warning-amber/4 hover:border-warning-amber/40 hover:from-warning-amber/12';
+                                            const TypeIcon = item.galleryType === 2 ? PlayCircle : item.galleryType === 3 ? FileText : Image;
+                                            const typeIconColor = item.galleryType === 1 ? 'text-kerala-blue' : item.galleryType === 2 ? 'text-success-green' : 'text-warning-amber';
+
+                                            return (
+                                                <div
+                                                    key={item.galleryId}
+                                                    className={cn(
+                                                        'group rounded-lg border p-3 shadow-xs transition-all hover:shadow-sm',
+                                                        typeColor,
+                                                    )}
+                                                >
+                                                    <div className="flex items-start justify-between gap-2">
+                                                        <TypeIcon className={cn('mt-0.5 h-4 w-4 shrink-0', typeIconColor)} aria-hidden="true" />
+                                                        <Badge variant="success" className="shrink-0 text-[10px] font-semibold">
+                                                            <CheckCircle2 className="mr-1 h-3 w-3" />
+                                                            Verified
+                                                        </Badge>
+                                                    </div>
+                                                    <p className="mt-3 line-clamp-2 text-sm font-semibold text-slate-900 group-hover:text-slate-700">{item.projectName}</p>
+                                                    <p className="mt-1 line-clamp-1 text-xs font-medium text-slate-700">{item.departmentName}</p>
+                                                    <p className="text-xs text-slate-600">{item.districtName}</p>
+                                                    {item.description && (
+                                                        <p className="mt-2 line-clamp-2 text-xs italic text-slate-600">{item.description}</p>
+                                                    )}
+                                                    <div className="mt-3 flex items-center justify-between gap-1 border-t border-slate-200/50 pt-2">
+                                                        <Badge variant="outline" className="text-[10px] font-medium">{typeLabel}</Badge>
+                                                        <span className="text-[10px] font-medium text-slate-500">
+                                                            {item.verifiedDate ? new Date(item.verifiedDate).toLocaleDateString('en-IN', { month: 'short', day: 'numeric' }) : '—'}
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                ) : (
+                                    <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-slate-200 bg-slate-50/50 px-4 py-12">
+                                        <Image className="mb-3 h-10 w-10 text-slate-400" aria-hidden="true" />
+                                        <p className="text-center text-sm font-medium text-slate-600">No verified evidence</p>
+                                        <p className="mt-1 text-center text-xs text-slate-500">Verified images, videos, and documents will appear here</p>
+                                    </div>
+                                )}
+                            </div>
+                        </SheetContent>
+                    </Sheet>
+                </>
+            )}
+
+            {!loading && !error && data && (
+                <>
+                    <div className="fixed bottom-4 right-4 z-40">
+                        <Button
+                            type="button"
+                            onClick={() => setIsActionPanelOpen((prev) => !prev)}
+                            className="h-12 rounded-full px-4 shadow-xl"
+                            aria-expanded={isActionPanelOpen}
+                            aria-controls="executive-recognition-command-panel"
+                        >
+                            <Bell className="mr-2 h-4 w-4" />
+                            Recognition & Command Actions
+                            <Badge variant="outline" className="ml-2 bg-white/95 text-foreground">
+                                {formatNumber(floatingActionItems.length)}
+                            </Badge>
+                        </Button>
+                    </div>
+
+                    {isActionPanelOpen && (
+                        <section
+                            id="executive-recognition-command-panel"
+                            className={cn(
+                                'fixed bottom-20 right-4 z-40 rounded-2xl border border-kerala-blue/20 bg-background shadow-2xl',
+                                isActionPanelExpanded ? 'h-[34rem] w-[min(92vw,36rem)]' : 'h-[24rem] w-[min(92vw,30rem)]',
+                            )}
+                            aria-label="Recognition and Command Actions panel"
+                        >
+                            <div className="flex items-center justify-between gap-2 border-b border-kerala-blue/10 bg-kerala-blue/5 px-4 py-3">
+                                <div>
+                                    <h2 className="text-sm font-semibold uppercase tracking-[0.16em] text-kerala-blue">Recognition & Command Actions</h2>
+                                    <p className="text-xs text-muted-foreground">Floating command window for quick executive follow-up.</p>
+                                </div>
+                                <div className="flex items-center gap-1">
+                                    <Button
+                                        type="button"
+                                        size="icon"
+                                        variant="ghost"
+                                        onClick={() => setIsActionPanelExpanded((prev) => !prev)}
+                                        aria-label={isActionPanelExpanded ? 'Collapse panel' : 'Expand panel'}
+                                    >
+                                        <ChevronsUpDown className="h-4 w-4" />
+                                    </Button>
+                                    <Button
+                                        type="button"
+                                        size="icon"
+                                        variant="ghost"
+                                        onClick={() => setIsActionPanelOpen(false)}
+                                        aria-label="Close panel"
+                                    >
+                                        <X className="h-4 w-4" />
+                                    </Button>
+                                </div>
+                            </div>
+
+                            <div className="h-[calc(100%-4rem)] space-y-2 overflow-y-auto p-3">
+                                {floatingActionItems.map((item) => (
+                                    <Link
+                                        key={item.title}
+                                        href={item.href}
+                                        className={cn(
+                                            'block rounded-xl border p-3 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                                            item.tone === 'warning'
+                                                ? 'border-warning-amber/35 bg-warning-amber/10'
+                                                : item.tone === 'normal'
+                                                    ? 'border-success-green/30 bg-success-green/5'
+                                                    : 'border-kerala-blue/25 bg-kerala-blue/5',
+                                        )}
+                                    >
+                                        <div className="flex items-start justify-between gap-2">
+                                            <p className="text-sm font-semibold text-foreground">{item.title}</p>
+                                            <ArrowUpRight className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
+                                        </div>
+                                        <p className="mt-1 text-xs leading-5 text-muted-foreground">{item.detail}</p>
                                     </Link>
-                                </Button>
-                                <Button asChild variant="outline" className="h-12 justify-between rounded-2xl px-4">
-                                    <Link href="#verification-command">
-                                        <span className="flex items-center gap-2">
-                                            <Clock3 className="h-4 w-4" aria-hidden="true" />
-                                            Verification Command
-                                        </span>
-                                        <ArrowUpRight className="h-4 w-4" aria-hidden="true" />
-                                    </Link>
-                                </Button>
-                                <Button asChild variant="outline" className="h-12 justify-between rounded-2xl px-4">
-                                    <Link href="#district-intelligence">
-                                        <span className="flex items-center gap-2">
-                                            <MapPinned className="h-4 w-4" aria-hidden="true" />
-                                            District Intelligence
-                                        </span>
-                                        <ArrowUpRight className="h-4 w-4" aria-hidden="true" />
-                                    </Link>
-                                </Button>
-                                <Button asChild variant="outline" className="h-12 justify-between rounded-2xl px-4">
-                                    <Link href="#department-leaderboard">
-                                        <span className="flex items-center gap-2">
-                                            <Users className="h-4 w-4" aria-hidden="true" />
-                                            Department Leaderboard
-                                        </span>
-                                        <ArrowUpRight className="h-4 w-4" aria-hidden="true" />
-                                    </Link>
-                                </Button>
-                                <Button asChild variant="outline" className="h-12 justify-between rounded-2xl px-4">
-                                    <Link href="#employment-impact">
-                                        <span className="flex items-center gap-2">
-                                            <Target className="h-4 w-4" aria-hidden="true" />
-                                            Employment Impact
-                                        </span>
-                                        <ArrowUpRight className="h-4 w-4" aria-hidden="true" />
-                                    </Link>
-                                </Button>
-                            </CardContent>
-                        </Card>
-                    </section>
+                                ))}
+                            </div>
+                        </section>
+                    )}
                 </>
             )}
         </main>

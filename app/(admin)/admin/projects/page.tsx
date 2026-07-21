@@ -113,7 +113,7 @@ function AdminProjectsPageContent() {
   const pathname = usePathname();
   const isOsd = pathname.startsWith('/admin/osd');
   const projectsBasePath = isOsd ? '/admin/osd/projects' : '/admin/projects';
-  const dashboardPath = isOsd ? '/admin/osd/dashboard' : '/admin/dashboard';
+  const dashboardPath = isOsd ? '/admin/osd/project-performance-dashboard' : '/admin/dashboard';
   const [createdCode, setCreatedCode] = useState<string | null>(null);
   const [archivedCode, setArchivedCode] = useState<string | null>(null);
 
@@ -723,11 +723,13 @@ function AdminProjectsPageContent() {
                 </CardContent>
               </Card>
 
-              <div className="rounded-md border border-warning-amber/40 bg-warning-amber/10 p-3 text-sm text-warning-amber">
-                All associated project history, indicators, progress updates,
-                uploaded documents, media files, and audit records will be
-                preserved. Archived projects can only be viewed or restored by
-                authorized users.
+              <div className="rounded-md border border-error-red/40 bg-error-red/10 p-3 text-sm text-error-red">
+                This action is permanent. All indicators, uploaded images, and
+                documents for this project will be deleted and cannot be
+                recovered — only the summary counts shown above are kept in
+                the Project Archive. The project itself can still be restored
+                to the active list, but its indicator data will not come
+                back.
               </div>
 
               <div className="space-y-2">

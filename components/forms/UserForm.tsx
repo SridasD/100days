@@ -11,6 +11,8 @@ import {
   Eye,
   EyeOff,
   KeyRound,
+  LockKeyhole,
+  LockKeyholeOpen,
   Loader2,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -86,9 +88,19 @@ interface Props {
   userId?: string | number;
   defaults?: Partial<UserCreateValues>;
   redirectTo?: string;
+  lockState?: {
+    failedLoginAttempts: number;
+    lockedUntil: string | null;
+    isLocked: boolean;
+  };
 }
 
-export function UserForm({ userId, defaults, redirectTo = '/admin/users' }: Props) {
+export function UserForm({
+  userId,
+  defaults,
+  redirectTo = '/admin/users',
+  lockState,
+}: Props) {
   const router = useRouter();
   const userRef = userId == null ? '' : String(userId).trim();
   const isEdit = userRef.length > 0;
@@ -97,12 +109,14 @@ export function UserForm({ userId, defaults, redirectTo = '/admin/users' }: Prop
   const [master, setMaster] = useState<MasterData | null>(null);
   const [masterError, setMasterError] = useState<string | null>(null);
   const [serverError, setServerError] = useState<string | null>(null);
+  const [actionMessage, setActionMessage] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
   const [showPwd, setShowPwd] = useState(false);
 
   const {
     register,
     handleSubmit,
+    getValues,
     watch,
     formState: { errors },
   } = useForm<UserCreateValues | UserEditValues>({
@@ -127,6 +141,17 @@ export function UserForm({ userId, defaults, redirectTo = '/admin/users' }: Prop
       (r) =>
         !/tech\.?\s*administrator/i.test(r.role_description ?? ''),
     ) ?? [];
+  const lockedUntilDate = lockState?.lockedUntil
+    ? new Date(lockState.lockedUntil)
+    : null;
+  const isLocked = lockState?.isLocked === true;
+  const lockedUntilText =
+    isLocked && lockedUntilDate
+      ? lockedUntilDate.toLocaleString('en-IN', {
+        dateStyle: 'medium',
+        timeStyle: 'short',
+      })
+      : null;
 
   useEffect(() => {
     fetch('/api/admin/master', { cache: 'no-store' })
@@ -140,6 +165,7 @@ export function UserForm({ userId, defaults, redirectTo = '/admin/users' }: Prop
 
   const onValid = (values: UserCreateValues | UserEditValues) => {
     setServerError(null);
+    setActionMessage(null);
     startTransition(async () => {
       try {
         let url: string;
@@ -184,6 +210,43 @@ export function UserForm({ userId, defaults, redirectTo = '/admin/users' }: Prop
     });
   };
 
+  const handleReleaseLock = () => {
+    if (!isEdit || !isLocked) return;
+
+    setServerError(null);
+    setActionMessage(null);
+    startTransition(async () => {
+      try {
+        const values = getValues();
+        const payload: Record<string, unknown> = {
+          ...values,
+          unlock_account: true,
+        };
+
+        delete payload.login_name;
+        delete payload.password;
+
+        if (!needsSec) payload.sec_id = null;
+
+        const res = await fetch(`/api/admin/users/${userRef}`, {
+          method: 'PATCH',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+
+        if (!res.ok) {
+          const body = await res.json().catch(() => ({}));
+          throw new Error(body.error ?? `HTTP ${res.status}`);
+        }
+
+        setActionMessage('Account lock released.');
+        router.refresh();
+      } catch (e) {
+        setServerError(e instanceof Error ? e.message : 'Unlock failed');
+      }
+    });
+  };
+
   if (!master && !masterError) {
     return (
       <div className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -214,6 +277,51 @@ export function UserForm({ userId, defaults, redirectTo = '/admin/users' }: Prop
           <AlertTriangle className="h-4 w-4" />
           {serverError}
         </div>
+      )}
+
+      {actionMessage && (
+        <div className="flex items-center gap-2 rounded-lg border border-[#2E7D32]/20 bg-[#2E7D32]/5 p-3 text-sm text-[#256328]">
+          <CheckCircle2 className="h-4 w-4" />
+          {actionMessage}
+        </div>
+      )}
+
+      {isEdit && lockState && (
+        <Card>
+          <CardContent className="flex flex-col gap-4 p-6 sm:flex-row sm:items-center sm:justify-between">
+            <div className="space-y-1">
+              <h2 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+                {isLocked ? (
+                  <LockKeyhole className="h-4 w-4" />
+                ) : (
+                  <LockKeyholeOpen className="h-4 w-4" />
+                )}
+                Login lock status
+              </h2>
+              <p className="text-sm text-foreground">
+                {isLocked
+                  ? `Locked until ${lockedUntilText ?? 'later'}`
+                  : 'This account is not currently locked.'}
+              </p>
+              <p className="text-[11px] text-muted-foreground">
+                Failed attempts recorded: {lockState.failedLoginAttempts}
+              </p>
+            </div>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={handleReleaseLock}
+              disabled={pending || !isLocked}
+              className="cursor-pointer"
+            >
+              {pending ? (
+                <><Loader2 className="h-4 w-4 animate-spin" /> Releasing…</>
+              ) : (
+                <><LockKeyholeOpen className="h-4 w-4" /> Release lock</>
+              )}
+            </Button>
+          </CardContent>
+        </Card>
       )}
 
       <Card>

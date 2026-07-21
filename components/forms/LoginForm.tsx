@@ -52,7 +52,7 @@ export function LoginForm() {
           user?: { roleId?: number };
         };
         const roleId = session.user?.roleId;
-        if (roleId === 4) return '/admin/osd/dashboard';
+        if (roleId === 4) return '/admin/osd/project-performance-dashboard';
         if (roleId === 3) return '/admin/dashboard';
         if (roleId === 5) return '/secretary/dashboard';
         if (roleId === 2 || roleId === 6) return '/officer/projects';
@@ -65,6 +65,61 @@ export function LoginForm() {
     return '/';
   };
 
+  const formatLoginError = (code?: string) => {
+    if (!code) {
+      return 'Login failed. Please try again.';
+    }
+
+    const [kind, p1, p2] = code.split('|');
+
+    if (kind === 'INVALID_INPUT') {
+      return 'Please enter a valid login name and password.';
+    }
+
+    if (kind === 'USER_NOT_FOUND') {
+      return 'Login failed: user not found.';
+    }
+
+    if (kind === 'INACTIVE_ACCOUNT') {
+      return 'Login failed: this account is inactive. Contact administrator.';
+    }
+
+    if (kind === 'INVALID_PASSWORD') {
+      const failed = Number(p1);
+      const left = Number(p2);
+      if (Number.isFinite(failed) && Number.isFinite(left)) {
+        return `Invalid password. Failed attempts: ${failed}. Attempts left before lock: ${left}.`;
+      }
+      return 'Invalid password.';
+    }
+
+    if (kind === 'ACCOUNT_LOCKED') {
+      const lockUntilMs = Number(p1);
+      const failed = Number(p2);
+      const lockUntil = Number.isFinite(lockUntilMs)
+        ? new Date(lockUntilMs)
+        : null;
+      const lockUntilText =
+        lockUntil && !Number.isNaN(lockUntil.getTime())
+          ? lockUntil.toLocaleString('en-IN', {
+            dateStyle: 'medium',
+            timeStyle: 'short',
+          })
+          : 'later';
+      const failedText = Number.isFinite(failed)
+        ? ` Failed attempts: ${failed}.`
+        : '';
+
+      return `Account is locked until ${lockUntilText}.${failedText}`;
+    }
+
+    if (kind === 'CredentialsSignin') {
+      return 'Invalid credentials.';
+    }
+
+    return 'Login failed. Please try again.';
+  };
+
   const onSubmit = (values: LoginInput) => {
     setServerError(null);
     startTransition(async () => {
@@ -74,8 +129,7 @@ export function LoginForm() {
       });
 
       if (!res || res.error) {
-        // Generic message — never reveal which field was wrong (Section 7.1)
-        setServerError('Invalid credentials. If you have tried 5 times, your account is locked for 30 minutes.');
+        setServerError(formatLoginError(res?.code));
         return;
       }
 

@@ -95,6 +95,16 @@ interface GalleryItem {
   isVerified: boolean | null;
 }
 
+interface DocumentItem {
+  documentId: number;
+  indicatorId: number;
+  filename: string;
+  path: string | null;
+  size: number | null;
+  uploadedOn: string | null;
+  description: string | null;
+}
+
 interface HistoryEvent {
   eventId: number;
   userId: number | null;
@@ -168,6 +178,7 @@ export function VerifierIndicatorSheet({
 
   // Gallery state
   const [images, setImages] = useState<GalleryItem[]>([]);
+  const [documents, setDocuments] = useState<DocumentItem[]>([]);
   const [videos, setVideos] = useState<GalleryItem[]>([]);
   const [galleryLoading, setGalleryLoading] = useState(false);
   const [galleryError, setGalleryError] = useState<string | null>(null);
@@ -224,10 +235,14 @@ export function VerifierIndicatorSheet({
           const b = await r.json().catch(() => ({}));
           throw new Error(b.error ?? `HTTP ${r.status}`);
         }
-        return r.json() as Promise<{ items: GalleryItem[] }>;
+        return r.json() as Promise<{
+          items: GalleryItem[];
+          documents: DocumentItem[];
+        }>;
       })
       .then((j) => {
         setImages(j.items.filter((i) => i.galleryType === 1));
+        setDocuments(j.documents ?? []);
         setVideos(j.items.filter((i) => i.galleryType === 2));
       })
       .catch((e) =>
@@ -354,8 +369,12 @@ export function VerifierIndicatorSheet({
       { cache: 'no-store' },
     );
     if (!res.ok) return;
-    const j = (await res.json()) as { items: GalleryItem[] };
+    const j = (await res.json()) as {
+      items: GalleryItem[];
+      documents: DocumentItem[];
+    };
     setImages(j.items.filter((i) => i.galleryType === 1));
+    setDocuments(j.documents ?? []);
     setVideos(j.items.filter((i) => i.galleryType === 2));
     // Reset history so the new events show up next tab visit
     setEvents(null);
@@ -445,9 +464,9 @@ export function VerifierIndicatorSheet({
               <TabsTrigger value="media">
                 <Images className="h-4 w-4" />
                 Media
-                {images.length > 0 && (
+                {images.length + documents.length > 0 && (
                   <Badge variant="info" className="ml-1 h-5 px-1.5 text-[10px]">
-                    {images.length}
+                    {images.length + documents.length}
                   </Badge>
                 )}
               </TabsTrigger>
@@ -690,12 +709,17 @@ export function VerifierIndicatorSheet({
               </div>
 
               <footer className="border-t bg-background px-6 py-3">
-                {(images.length > 0 || videos.length > 0) && (
+                {(images.length > 0 || documents.length > 0 || videos.length > 0) && (
                   <p className="mb-2 text-[11px] text-muted-foreground">
                     Approving this indicator will also verify attached evidence:
                     {' '}
                     <span className="font-medium text-foreground">
                       {images.length} image{images.length === 1 ? '' : 's'}
+                    </span>
+                    ,
+                    {' '}
+                    <span className="font-medium text-foreground">
+                      {documents.length} document{documents.length === 1 ? '' : 's'}
                     </span>
                     {' '}
                     and
@@ -736,6 +760,7 @@ export function VerifierIndicatorSheet({
               <MediaTab
                 indicatorId={indicator.indicatorPublicId ?? indicator.indicatorId}
                 images={images}
+                documents={documents}
                 loading={galleryLoading}
                 error={galleryError}
                 onChange={refreshGallery}
@@ -801,6 +826,7 @@ export function VerifierIndicatorSheet({
 function MediaTab({
   indicatorId,
   images,
+  documents,
   loading,
   error,
   onChange,
@@ -808,11 +834,14 @@ function MediaTab({
 }: {
   indicatorId: string | number;
   images: GalleryItem[];
+  documents: DocumentItem[];
   loading: boolean;
   error: string | null;
   onChange: () => void;
   onToast: (s: string) => void;
 }) {
+  type Kind = 'images' | 'documents';
+  const [kind, setKind] = useState<Kind>('images');
   const [file, setFile] = useState<File | null>(null);
   const [description, setDescription] = useState('');
   const [uploading, setUploading] = useState(false);
@@ -833,7 +862,10 @@ function MediaTab({
 
   function validate(f: File): string | null {
     const ext = extOf(f.name);
-    const allowed = [...ACCEPTED_IMAGE_EXTS, ...ACCEPTED_DOC_EXTS] as readonly string[];
+    const allowed: readonly string[] =
+      kind === 'images'
+        ? ACCEPTED_IMAGE_EXTS
+        : ACCEPTED_DOC_EXTS;
     if (!allowed.includes(ext))
       return `Only ${allowed.join(', ')} files allowed.`;
     if (f.size > MAX_SIZE_BYTES) return 'File size exceeds 5MB limit.';
@@ -893,6 +925,21 @@ function MediaTab({
     }
   }
 
+  async function removeDocument(documentId: number) {
+    if (!confirm('Delete this document? Logged in audit trail.')) return;
+    try {
+      const res = await fetch(
+        `/api/verify/indicators/${indicatorId}/gallery?documentId=${documentId}`,
+        { method: 'DELETE' },
+      );
+      if (!res.ok) throw new Error();
+      onToast('Removed');
+      onChange();
+    } catch {
+      onToast('Delete failed');
+    }
+  }
+
   if (loading) {
     return (
       <div className="flex flex-1 items-center justify-center text-muted-foreground">
@@ -917,6 +964,55 @@ function MediaTab({
           verified evidence; deletes are recorded in the audit trail.
         </p>
 
+        <div
+          role="radiogroup"
+          aria-label="Media type"
+          className="inline-flex rounded-full border bg-muted/30 p-0.5 text-xs font-medium"
+        >
+          {(['images', 'documents'] as Kind[]).map((value) => (
+            <button
+              type="button"
+              key={value}
+              role="radio"
+              aria-checked={kind === value}
+              onClick={() => {
+                setKind(value);
+                setFile(null);
+                setDescription('');
+                setValidationError(null);
+              }}
+              className={cn(
+                'cursor-pointer rounded-full px-3 py-1 transition-colors duration-200',
+                kind === value
+                  ? 'bg-[#2E7D32] text-white shadow'
+                  : 'text-muted-foreground hover:text-foreground',
+              )}
+            >
+              {value === 'images' ? (
+                <span className="flex items-center gap-1.5">
+                  <ImageIcon className="h-3.5 w-3.5" aria-hidden />
+                  Images
+                  {images.length > 0 && (
+                    <span className="ml-1 rounded-full bg-white/20 px-1.5 text-[10px]">
+                      {images.length}
+                    </span>
+                  )}
+                </span>
+              ) : (
+                <span className="flex items-center gap-1.5">
+                  <FileText className="h-3.5 w-3.5" aria-hidden />
+                  Documents
+                  {documents.length > 0 && (
+                    <span className="ml-1 rounded-full bg-white/20 px-1.5 text-[10px]">
+                      {documents.length}
+                    </span>
+                  )}
+                </span>
+              )}
+            </button>
+          ))}
+        </div>
+
         {/* Upload */}
         {!file ? (
           <div
@@ -932,12 +1028,12 @@ function MediaTab({
             <CloudUpload className="h-7 w-7 text-[#2E7D32]" />
             <p className="text-sm font-medium">Drop or click to upload</p>
             <p className="text-[11px] text-muted-foreground">
-              .jpg .jpeg .png .pdf | max 5 MB
+              {kind === 'images' ? '.jpg .jpeg .png' : '.pdf'} | max 5 MB
             </p>
             <input
               ref={fileInputRef}
               type="file"
-              accept=".jpg,.jpeg,.png,.pdf"
+              accept={kind === 'images' ? '.jpg,.jpeg,.png' : '.pdf'}
               className="hidden"
               onChange={(e) => {
                 const f = e.target.files?.[0];
@@ -1014,75 +1110,126 @@ function MediaTab({
         )}
 
         {/* Gallery */}
-        {images.length === 0 ? (
+        {kind === 'images' ? (
+          images.length === 0 ? (
+            <p className="rounded-lg border border-dashed bg-muted/20 p-3 text-center text-xs text-muted-foreground">
+              No images uploaded for this indicator yet.
+            </p>
+          ) : (
+            <div className="grid gap-3 sm:grid-cols-2">
+              {images.map((img, idx) => {
+                const src = img.imagePath?.startsWith('http')
+                  ? img.imagePath
+                  : `/api/uploads/${img.imagePath}`;
+                return (
+                  <div
+                    key={img.galleryId}
+                    className="group relative overflow-hidden rounded-lg border bg-card shadow-sm transition-all duration-200 hover:shadow-md"
+                  >
+                    <div className="relative aspect-[4/3] overflow-hidden bg-muted">
+                      <img
+                        src={src ?? ''}
+                        alt={img.description ?? 'Indicator evidence'}
+                        className="h-full w-full object-cover transition-transform duration-200 group-hover:scale-[1.03]"
+                      />
+                      <div className="absolute right-1.5 top-1.5 flex gap-1">
+                        {img.isVerified ? (
+                          <Badge className="bg-success-green/90 text-[10px] text-white">
+                            <ShieldCheck className="h-3 w-3" />
+                            Verifier
+                          </Badge>
+                        ) : (
+                          <Badge variant="outline" className="bg-white text-[10px]">
+                            <ImageIcon className="h-3 w-3" />
+                            Nodal
+                          </Badge>
+                        )}
+                      </div>
+                      <div className="absolute inset-0 flex items-center justify-center gap-2 bg-black/40 opacity-0 transition-opacity duration-200 group-hover:opacity-100">
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="secondary"
+                          onClick={() => setLightboxIndex(idx)}
+                          className="cursor-pointer bg-white text-foreground hover:bg-white/90"
+                        >
+                          <ZoomIn className="h-3.5 w-3.5" />
+                          View
+                        </Button>
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="destructive"
+                          onClick={() => remove(img.galleryId)}
+                          className="cursor-pointer"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                          Delete
+                        </Button>
+                      </div>
+                    </div>
+                    <div className="p-2.5">
+                      <p
+                        className="truncate text-xs font-medium"
+                        title={img.description ?? ''}
+                      >
+                        {img.description || 'Untitled image'}
+                      </p>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )
+        ) : documents.length === 0 ? (
           <p className="rounded-lg border border-dashed bg-muted/20 p-3 text-center text-xs text-muted-foreground">
-            No images uploaded for this indicator yet.
+            No documents uploaded for this indicator yet.
           </p>
         ) : (
-          <div className="grid gap-3 sm:grid-cols-2">
-            {images.map((img, idx) => {
-              const src = img.imagePath?.startsWith('http')
-                ? img.imagePath
-                : `/api/uploads/${img.imagePath}`;
-              return (
-                <div
-                  key={img.galleryId}
-                  className="group relative overflow-hidden rounded-lg border bg-card shadow-sm transition-all duration-200 hover:shadow-md"
-                >
-                  <div className="relative aspect-[4/3] overflow-hidden bg-muted">
-                    <img
-                      src={src ?? ''}
-                      alt={img.description ?? 'Indicator evidence'}
-                      className="h-full w-full object-cover transition-transform duration-200 group-hover:scale-[1.03]"
-                    />
-                    <div className="absolute right-1.5 top-1.5 flex gap-1">
-                      {img.isVerified ? (
-                        <Badge className="bg-success-green/90 text-[10px] text-white">
-                          <ShieldCheck className="h-3 w-3" />
-                          Verifier
-                        </Badge>
-                      ) : (
-                        <Badge variant="outline" className="bg-white text-[10px]">
-                          <ImageIcon className="h-3 w-3" />
-                          Nodal
-                        </Badge>
-                      )}
-                    </div>
-                    <div className="absolute inset-0 flex items-center justify-center gap-2 bg-black/40 opacity-0 transition-opacity duration-200 group-hover:opacity-100">
-                      <Button
-                        type="button"
-                        size="sm"
-                        variant="secondary"
-                        onClick={() => setLightboxIndex(idx)}
-                        className="cursor-pointer bg-white text-foreground hover:bg-white/90"
-                      >
-                        <ZoomIn className="h-3.5 w-3.5" />
-                        View
-                      </Button>
-                      <Button
-                        type="button"
-                        size="sm"
-                        variant="destructive"
-                        onClick={() => remove(img.galleryId)}
-                        className="cursor-pointer"
-                      >
-                        <Trash2 className="h-3.5 w-3.5" />
-                        Delete
-                      </Button>
-                    </div>
-                  </div>
-                  <div className="p-2.5">
-                    <p
-                      className="truncate text-xs font-medium"
-                      title={img.description ?? ''}
-                    >
-                      {img.description || 'Untitled image'}
+          <ul className="divide-y rounded-lg border">
+            {documents.map((doc) => (
+              <li key={doc.documentId} className="flex items-center gap-3 p-3">
+                <FileText className="h-4 w-4 text-[#2E7D32]" aria-hidden />
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-semibold">{doc.filename}</p>
+                  <p className="font-mono text-[11px] text-muted-foreground">
+                    {doc.size != null ? formatBytes(doc.size) : 'Size unavailable'}
+                    {' · '}
+                    {doc.uploadedOn ?? '-'}
+                  </p>
+                  {doc.description && (
+                    <p className="truncate text-[11px] text-muted-foreground">
+                      {doc.description}
                     </p>
-                  </div>
+                  )}
                 </div>
-              );
-            })}
-          </div>
+                {doc.path && (
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="secondary"
+                    asChild
+                    className="cursor-pointer"
+                  >
+                    <a href={`/api/uploads/${doc.path}`} target="_blank" rel="noreferrer">
+                      <FileText className="h-3.5 w-3.5" />
+                      Open
+                    </a>
+                  </Button>
+                )}
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="destructive"
+                  onClick={() => removeDocument(doc.documentId)}
+                  className="cursor-pointer"
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                  Delete
+                </Button>
+              </li>
+            ))}
+          </ul>
         )}
       </div>
 

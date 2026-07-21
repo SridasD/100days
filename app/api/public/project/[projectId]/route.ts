@@ -114,23 +114,22 @@ export async function GET(
       FROM hdp.indicators i
       LEFT JOIN hdp.master_district md ON i.district_id = md.district_id
       WHERE i.project_id = ${id}
-        AND i.verified_date IS NOT NULL
       ORDER BY i.indicator_id ASC
     `);
 
-    const indicators = (inds.rows as Array<any>).map((r) => {
+    // All indicators (verified or not) feed the project's overall physical/
+    // financial % — unverified ones count as 0 progress, per the site-wide
+    // rollup rule. Only verified indicators are exposed in the visible list.
+    const allIndicatorRows = (inds.rows as Array<any>).map((r) => {
       const physTarget = Number(r.physical_target) || 0;
       const finTarget = Number(r.financial_target) || 0;
       const physAch = Number(r.physical_achievement) || 0;
       const finAch = Number(r.financial_achievement) || 0;
-      const physPct =
-        physTarget > 0
-          ? Math.min(100, Math.round((physAch / physTarget) * 100))
-          : Number(r.physical_pct) || 0;
+      // Physical % is the stored verified_percentage — never recalculated
+      // from target/achievement.
+      const physPct = Math.round(Number(r.physical_pct) || 0);
       const finPct =
-        finTarget > 0
-          ? Math.min(100, Math.round((finAch / finTarget) * 100))
-          : 0;
+        finTarget > 0 ? Math.round((finAch / finTarget) * 100) : null;
       return {
         indicatorId: Number(r.indicator_id),
         name: r.indicator_name ?? "",
@@ -148,6 +147,8 @@ export async function GET(
         videoCount: Number(r.video_count) || 0,
       };
     });
+
+    const indicators = allIndicatorRows.filter((row) => row.verified);
 
     // ----- 3. Gallery for the project -----------------------------------
     // Each row joins back to its indicator so the public Gallery tab can
@@ -192,20 +193,26 @@ export async function GET(
       }));
 
     // ----- 4. Aggregate progress for the headline -----------------------
+    // Physical: average of ALL indicators' verified_percentage (unverified
+    // count as 0). Financial: SUM(indicator achievements) / project_cost,
+    // never an average of per-indicator percentages; null when the project
+    // has no usable cost.
+    const projectCost = Number(headRow.project_cost) || 0;
     const overallPhysical =
-      indicators.length > 0
+      allIndicatorRows.length > 0
         ? Math.round(
-            indicators.reduce((s, i) => s + i.physicalPct, 0) /
-              indicators.length,
+            allIndicatorRows.reduce((s, i) => s + i.physicalPct, 0) /
+              allIndicatorRows.length,
           )
         : 0;
+    const totalFinancialAchievement = allIndicatorRows.reduce(
+      (s, i) => s + i.financialAchievement,
+      0,
+    );
     const overallFinancial =
-      indicators.length > 0
-        ? Math.round(
-            indicators.reduce((s, i) => s + i.financialPct, 0) /
-              indicators.length,
-          )
-        : 0;
+      projectCost > 0
+        ? Math.round((totalFinancialAchievement / projectCost) * 100)
+        : null;
 
     return NextResponse.json({
       project: {
@@ -216,7 +223,7 @@ export async function GET(
         projectCode: headRow.project_code ?? null,
         name: headRow.project_name ?? "",
         description: headRow.description ?? "",
-        costInLakhs: Number(headRow.project_cost) || 0,
+        costInLakhs: projectCost,
         status,
         completionDate: headRow.completion_date ?? null,
         departments: headRow.departments ?? "",

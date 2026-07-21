@@ -20,6 +20,9 @@ interface ApiUser {
   designation: string;
   lastLogin: string | null;
   registeredOn: string | null;
+  failedLoginAttempts: number;
+  lockedUntil: string | null;
+  isLocked: boolean;
 }
 
 export default function AdminUserEditPage() {
@@ -97,7 +100,17 @@ export default function AdminUserEditPage() {
         </div>
       )}
 
-      {data && <UserForm userId={userRef} defaults={defaults} />}
+      {data && (
+        <UserForm
+          userId={userRef}
+          defaults={defaults}
+          lockState={{
+            failedLoginAttempts: data.failedLoginAttempts,
+            lockedUntil: data.lockedUntil,
+            isLocked: data.isLocked,
+          }}
+        />
+      )}
     </main>
   );
 }

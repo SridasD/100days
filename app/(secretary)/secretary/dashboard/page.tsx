@@ -335,53 +335,6 @@ export default function SecretaryDashboardPage() {
 
     const alerts = data?.alerts;
 
-    const notifications = useMemo(() => {
-        const notes: Array<{ title: string; detail: string; tone: "warn" | "info" }> = [];
-        const a = alerts;
-        if (!a) return notes;
-
-        if (a.pendingVerificationCount > 0) {
-            notes.push({
-                title: "Verification Pending",
-                detail: `${fmtNumber(a.pendingVerificationCount)} items awaiting verification`,
-                tone: "warn",
-            });
-        }
-        if ((a.pendingProgressUpdates?.length ?? 0) > 0) {
-            const maxDays = Math.max(...a.pendingProgressUpdates.map((r) => r.pendingDays));
-            notes.push({
-                title: "No Progress Update",
-                detail: `${fmtNumber(a.pendingProgressUpdates.length)} departments, up to ${fmtNumber(maxDays)} days pending`,
-                tone: "warn",
-            });
-        }
-        if ((a.noRecentActivity?.length ?? 0) > 0) {
-            notes.push({
-                title: "No Recent Activity",
-                detail: `${fmtNumber(a.noRecentActivity.length)} departments need follow-up`,
-                tone: "warn",
-            });
-        }
-        if ((a.indicatorsWithoutUpdates?.length ?? 0) > 0) {
-            notes.push({
-                title: "Indicator Staleness",
-                detail: `${fmtNumber(a.indicatorsWithoutUpdates.length)} indicators without recent updates`,
-                tone: "warn",
-            });
-        }
-
-        const latest = data?.recentActivity?.slice(0, 2) ?? [];
-        for (const event of latest) {
-            notes.push({
-                title: eventLabel(event.action),
-                detail: `${event.actor} · ${fmtDateTime(event.loggedOn)}`,
-                tone: "info",
-            });
-        }
-
-        return notes.slice(0, 8);
-    }, [alerts, data]);
-
     return (
         <div className="flex min-h-screen flex-col bg-[#F3F4F6]">
             <KeralaHeader
@@ -740,36 +693,6 @@ export default function SecretaryDashboardPage() {
                                 {data.recentActivity.length === 0 && (
                                     <div className="rounded-xl border border-slate-200 px-3 py-4 text-sm text-slate-500">
                                         No recent activity in this scope.
-                                    </div>
-                                )}
-                            </div>
-                        </section>
-
-                        <section className="rounded-2xl border border-indigo-200 bg-indigo-50/50 p-4 shadow-sm">
-                            <div className="mb-3 flex items-center justify-between gap-3">
-                                <h2 className="text-sm font-semibold uppercase tracking-[0.18em] text-indigo-700">
-                                    Notifications
-                                </h2>
-                                <Badge variant="outline">{fmtNumber(notifications.length)} items</Badge>
-                            </div>
-                            <div className="space-y-2">
-                                {notifications.map((note, idx) => (
-                                    <div
-                                        key={`${note.title}-${idx}`}
-                                        className={cn(
-                                            "rounded-xl border px-3 py-2 text-sm",
-                                            note.tone === "warn"
-                                                ? "border-amber-300 bg-amber-50 text-amber-900"
-                                                : "border-indigo-200 bg-white text-slate-700"
-                                        )}
-                                    >
-                                        <p className="font-semibold">{note.title}</p>
-                                        <p className="text-xs opacity-90">{note.detail}</p>
-                                    </div>
-                                ))}
-                                {notifications.length === 0 && (
-                                    <div className="rounded-xl border border-indigo-200 bg-white px-3 py-4 text-sm text-slate-500">
-                                        No active notifications.
                                     </div>
                                 )}
                             </div>

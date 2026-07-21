@@ -298,6 +298,13 @@ export async function DELETE(
   if (!isSession(sessionOrResponse)) return sessionOrResponse;
   const session = sessionOrResponse;
 
+  if (session.roleId !== ROLE.HEAD_OF_DEPARTMENT) {
+    return NextResponse.json(
+      { error: "Only HOD can delete indicators" },
+      { status: 403 },
+    );
+  }
+
   const { indicatorId } = await params;
   const id = await resolveIndicatorId(indicatorId);
   if (!id) {

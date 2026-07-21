@@ -39,13 +39,13 @@ export default function AdminReportsPage() {
   const [exporting, setExporting] = useState<string | null>(null);
   const pathname = usePathname();
   const isOsd = pathname.startsWith('/admin/osd');
-  const dashboardPath = isOsd ? '/admin/osd/dashboard' : '/admin/dashboard';
+  const dashboardPath = isOsd ? '/admin/osd/project-performance-dashboard' : '/admin/dashboard';
 
-  const handleExport = async (reportId: string, format: 'csv' | 'xlsx') => {
-    setExporting(`${reportId}-${format}`);
+  const handleExport = async (reportId: string) => {
+    setExporting(reportId);
     try {
       const response = await fetch(
-        `/api/admin/reports/${reportId}?format=${format}`,
+        `/api/admin/reports/${reportId}?format=xlsx`,
       );
       if (!response.ok) throw new Error('Export failed');
 
@@ -53,7 +53,7 @@ export default function AdminReportsPage() {
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
-      link.download = `${reportId}-report.${format === 'xlsx' ? 'xlsx' : 'csv'}`;
+      link.download = `${reportId}-report.xlsx`;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
@@ -87,14 +87,14 @@ export default function AdminReportsPage() {
                 Reports & Analytics
               </h1>
               <p className="text-sm text-muted-foreground">
-                Generate and export programme reports in CSV or Excel format.
+                Generate and export programme reports in Excel format.
               </p>
             </div>
           </div>
 
           <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
             <Badge variant="outline">{reports.length} report templates</Badge>
-            <Badge variant="outline">CSV and Excel export</Badge>
+            <Badge variant="outline">Excel export</Badge>
           </div>
         </div>
       </section>
@@ -134,18 +134,8 @@ export default function AdminReportsPage() {
                 <Button
                   size="sm"
                   variant="outline"
-                  disabled={exporting === `${report.id}-csv`}
-                  onClick={() => handleExport(report.id, 'csv')}
-                  className="cursor-pointer flex-1"
-                >
-                  <Download className="h-3 w-3" />
-                  CSV
-                </Button>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  disabled={exporting === `${report.id}-xlsx`}
-                  onClick={() => handleExport(report.id, 'xlsx')}
+                  disabled={exporting === report.id}
+                  onClick={() => handleExport(report.id)}
                   className="cursor-pointer flex-1"
                 >
                   <Download className="h-3 w-3" />
@@ -164,9 +154,8 @@ export default function AdminReportsPage() {
             <p className="font-semibold text-blue-900">Report Information</p>
             <p className="mt-1 text-sm text-blue-800">
               All reports are generated dynamically from the current database.
-              CSV exports include English headers with data in both English and
-              Malayalam where applicable. Excel exports include formatted
-              sheets with summary tabs.
+              Excel exports include structured sheets with professional headers,
+              generation timestamp, and tabular formatting.
             </p>
           </div>
         </CardContent>

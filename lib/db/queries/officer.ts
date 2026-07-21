@@ -316,6 +316,14 @@ export interface GalleryRow {
   is_verified: boolean | null;
 }
 
+export interface DocumentRow {
+  document_id: number;
+  indicator_id: number;
+  document_path: string | null;
+  description: string | null;
+  uploaded_on: string | null;
+}
+
 export async function listGallery(
   indicatorId: number,
   galleryType?: 1 | 2,
@@ -339,4 +347,16 @@ export async function listGallery(
     ORDER BY gallery_id DESC
   `);
   return result.rows as unknown as GalleryRow[];
+}
+
+export async function listDocuments(
+  indicatorId: number,
+): Promise<DocumentRow[]> {
+  const result = await db.execute(sql`
+    SELECT document_id, indicator_id, document_path, description, uploaded_on
+    FROM hdp.documents
+    WHERE indicator_id = ${indicatorId}
+    ORDER BY document_id DESC
+  `);
+  return result.rows as unknown as DocumentRow[];
 }

@@ -125,7 +125,7 @@ export function ProfilePage({ homeHref: homeHrefOverride }: ProfilePageProps) {
     (me?.roleId === 5
       ? '/secretary/dashboard'
       : me?.roleId === 4
-        ? '/admin/osd/dashboard'
+        ? '/admin/osd/project-performance-dashboard'
         : me?.roleId === 3
           ? '/admin/dashboard'
           : me?.roleId === 1
