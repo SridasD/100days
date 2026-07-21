@@ -92,6 +92,8 @@ interface ApiDocumentItem {
   size: number | null;
   uploadedOn: string | null;
   description: string | null;
+  verifiedBy?: number | null;
+  verifiedDate?: string | null;
 }
 
 export interface ProgressSavePatch {
@@ -118,6 +120,8 @@ export interface SheetIndicator {
   achievedDirectPersons?: number | null;
   achievedIndirectDays?: number | null;
   achievedIndirectPersons?: number | null;
+  verifiedDate?: string | null;
+  isVerified?: boolean;
 }
 
 export interface ProjectTargets {
@@ -153,6 +157,7 @@ const inrFormat = new Intl.NumberFormat('en-IN', {
 });
 
 const ACCEPTED_IMAGE_EXTS = ['jpg', 'jpeg', 'png'] as const;
+const ACCEPTED_DOC_EXTS = ['pdf'] as const;
 const MAX_SIZE_BYTES = 5 * 1024 * 1024;
 
 function nowStamp() {
@@ -163,6 +168,13 @@ function nowStamp() {
     hour: '2-digit',
     minute: '2-digit',
   });
+}
+
+function formatVerifiedStamp(value: string | null | undefined) {
+  if (!value) return null;
+  const dt = new Date(value);
+  if (Number.isNaN(dt.getTime())) return null;
+  return dt.toLocaleString('en-IN');
 }
 
 function formatBytes(bytes: number) {
@@ -585,6 +597,7 @@ export function IndicatorActionSheet({
             >
               <MediaTabContent
                 indicatorId={indicator?.indicatorId ?? 0}
+                indicatorVerifiedOn={indicator?.verifiedDate ?? null}
                 loading={galleryLoading}
                 error={galleryError}
                 images={images}
@@ -602,6 +615,7 @@ export function IndicatorActionSheet({
             >
               <VideoTabContent
                 indicatorId={indicator?.indicatorId ?? 0}
+                indicatorVerifiedOn={indicator?.verifiedDate ?? null}
                 loading={galleryLoading}
                 error={galleryError}
                 videos={videos}
@@ -1056,6 +1070,7 @@ function ProgressTabContent({
 // ===========================================================================
 function MediaTabContent({
   indicatorId,
+  indicatorVerifiedOn,
   loading,
   error,
   images,
@@ -1065,6 +1080,7 @@ function MediaTabContent({
   onToast,
 }: {
   indicatorId: number;
+  indicatorVerifiedOn: string | null;
   loading: boolean;
   error: string | null;
   images: ApiGalleryItem[];
@@ -1074,6 +1090,8 @@ function MediaTabContent({
   onToast: (msg: string) => void;
 }) {
   const fileInputRef = useRef<HTMLInputElement>(null);
+  type Kind = 'images' | 'documents';
+  const [kind, setKind] = useState<Kind>('images');
   const [file, setFile] = useState<File | null>(null);
   const [description, setDescription] = useState('');
   const [validationError, setValidationError] = useState<string | null>(null);
@@ -1109,11 +1127,9 @@ function MediaTabContent({
     return () => window.removeEventListener('keydown', onKey);
   }, [lightboxIndex, images.length]);
 
-  // PDF upload has been removed from this sheet — only images can be
-  // uploaded here. Already-uploaded documents (if any) still show below,
-  // read/delete only.
-  const acceptedExts = ACCEPTED_IMAGE_EXTS;
-  const acceptAttr = ACCEPTED_IMAGE_EXTS.map((e) => `.${e}`).join(',');
+  const acceptedExts =
+    kind === 'images' ? ACCEPTED_IMAGE_EXTS : ACCEPTED_DOC_EXTS;
+  const acceptAttr = acceptedExts.map((e) => `.${e}`).join(',');
 
   function validate(f: File): string | null {
     const ext = extOf(f.name);
@@ -1156,11 +1172,18 @@ function MediaTabContent({
       if (xhr.status >= 200 && xhr.status < 300) {
         try {
           const json = JSON.parse(xhr.responseText) as {
-            item: ApiGalleryItem;
+            item: ApiGalleryItem | ApiDocumentItem;
           };
-          // SINGLE source of truth — add ONCE from the server response
-          setImages((prev) => dedupe([json.item, ...prev], (x) => x.galleryId));
-          onToast('Image uploaded');
+          const item = json.item;
+          if ('galleryId' in item) {
+            setImages((prev) => dedupe([item, ...prev], (x) => x.galleryId));
+            onToast('Image uploaded');
+          } else {
+            setDocuments((prev) =>
+              dedupe([item, ...prev], (x) => x.documentId),
+            );
+            onToast('Document uploaded');
+          }
         } catch (e) {
           console.error('Bad upload response', e);
           setValidationError('Upload succeeded but server response was unreadable.');
@@ -1234,6 +1257,55 @@ function MediaTabContent({
   return (
     <div className="flex flex-1 flex-col overflow-hidden">
       <div className="flex-1 space-y-5 overflow-y-auto px-6 py-5">
+        <div
+          role="radiogroup"
+          aria-label="Media type"
+          className="inline-flex rounded-full border bg-muted/30 p-0.5 text-xs font-medium"
+        >
+          {(['images', 'documents'] as Kind[]).map((value) => (
+            <button
+              type="button"
+              key={value}
+              role="radio"
+              aria-checked={kind === value}
+              onClick={() => {
+                setKind(value);
+                setFile(null);
+                setDescription('');
+                setValidationError(null);
+              }}
+              className={cn(
+                'cursor-pointer rounded-full px-3 py-1 transition-colors duration-200',
+                kind === value
+                  ? 'bg-[#2E7D32] text-white shadow'
+                  : 'text-muted-foreground hover:text-foreground',
+              )}
+            >
+              {value === 'images' ? (
+                <span className="flex items-center gap-1.5">
+                  <Images className="h-3.5 w-3.5" aria-hidden />
+                  Images
+                  {images.length > 0 && (
+                    <span className="ml-1 rounded-full bg-white/20 px-1.5 text-[10px]">
+                      {images.length}
+                    </span>
+                  )}
+                </span>
+              ) : (
+                <span className="flex items-center gap-1.5">
+                  <FileText className="h-3.5 w-3.5" aria-hidden />
+                  Documents
+                  {documents.length > 0 && (
+                    <span className="ml-1 rounded-full bg-white/20 px-1.5 text-[10px]">
+                      {documents.length}
+                    </span>
+                  )}
+                </span>
+              )}
+            </button>
+          ))}
+        </div>
+
         {/* Drop zone / preview */}
         {!file ? (
           <div
@@ -1377,72 +1449,92 @@ function MediaTabContent({
           </div>
         )}
 
-        {/* Images gallery */}
-        {images.length === 0 ? (
-          <EmptyHint text="No images uploaded yet" />
+        {kind === 'images' ? (
+          images.length === 0 ? (
+            <EmptyHint text="No images uploaded yet" />
+          ) : (
+            <div className="grid gap-3 sm:grid-cols-2">
+              {images.map((img, idx) => (
+                <ImageThumb
+                  key={img.galleryId}
+                  img={img}
+                  indicatorVerifiedOn={indicatorVerifiedOn}
+                  onView={() => setLightboxIndex(idx)}
+                  onDelete={() => removeImage(img.galleryId)}
+                />
+              ))}
+            </div>
+          )
+        ) : documents.length === 0 ? (
+          <EmptyHint text="No documents uploaded yet" />
         ) : (
-          <div className="grid gap-3 sm:grid-cols-2">
-            {images.map((img, idx) => (
-              <ImageThumb
-                key={img.galleryId}
-                img={img}
-                onView={() => setLightboxIndex(idx)}
-                onDelete={() => removeImage(img.galleryId)}
-              />
-            ))}
-          </div>
-        )}
-
-        {/* Previously uploaded documents — view/delete only; PDF upload has
-            been removed from this sheet. */}
-        {documents.length > 0 && (
           <div className="space-y-2">
             <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
               Uploaded Documents
             </p>
             <ul className="divide-y rounded-lg border">
               {documents.map((d) => (
-              <li key={d.documentId} className="flex items-center gap-3 p-3">
-                <FileText className="h-4 w-4 text-[#2E7D32]" aria-hidden />
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-semibold">{d.filename}</p>
-                  <p className="font-mono text-[11px] text-muted-foreground">
-                    {d.size != null ? formatBytes(d.size) : 'Size unavailable'}
-                    {' · '}
-                    {d.uploadedOn ?? '-'}
-                  </p>
-                  {d.description && (
-                    <p className="truncate text-[11px] text-muted-foreground">
-                      {d.description}
-                    </p>
+                <li key={d.documentId} className="flex items-center gap-3 p-3">
+                  <FileText className="h-4 w-4 text-[#2E7D32]" aria-hidden />
+                  <div className="min-w-0 flex-1">
+                    {(() => {
+                      const verifiedOn = formatVerifiedStamp(d.verifiedDate ?? null);
+                      return (
+                        <>
+                          <div className="flex flex-wrap items-center gap-2">
+                            <p className="truncate text-sm font-semibold">{d.filename}</p>
+                            {verifiedOn && (
+                              <Badge className="bg-success-green/90 text-[10px] text-white">
+                                <CheckCircle2 className="h-3 w-3" />
+                                Verified
+                              </Badge>
+                            )}
+                          </div>
+                          <p className="font-mono text-[11px] text-muted-foreground">
+                            {d.size != null ? formatBytes(d.size) : 'Size unavailable'}
+                            {' · '}
+                            {d.uploadedOn ?? '-'}
+                          </p>
+                          {verifiedOn && (
+                            <p className="text-[10px] font-medium text-success-green">
+                              Verified on {verifiedOn}
+                            </p>
+                          )}
+                        </>
+                      );
+                    })()}
+                    {d.description && (
+                      <p className="truncate text-[11px] text-muted-foreground">
+                        {d.description}
+                      </p>
+                    )}
+                  </div>
+                  {d.path && (
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="secondary"
+                      asChild
+                      className="cursor-pointer"
+                    >
+                      <a href={`/api/uploads/${d.path}`} target="_blank" rel="noreferrer">
+                        <FileText className="h-3.5 w-3.5" />
+                        Open
+                      </a>
+                    </Button>
                   )}
-                </div>
-                {d.path && (
                   <Button
                     type="button"
                     size="sm"
-                    variant="secondary"
-                    asChild
+                    variant="destructive"
+                    onClick={() => removeDocument(d.documentId)}
                     className="cursor-pointer"
                   >
-                    <a href={`/api/uploads/${d.path}`} target="_blank" rel="noreferrer">
-                      <FileText className="h-3.5 w-3.5" />
-                      Open
-                    </a>
+                    <Trash2 className="h-3.5 w-3.5" />
+                    Delete
                   </Button>
-                )}
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="destructive"
-                  onClick={() => removeDocument(d.documentId)}
-                  className="cursor-pointer"
-                >
-                  <Trash2 className="h-3.5 w-3.5" />
-                  Delete
-                </Button>
-              </li>
-            ))}
+                </li>
+              ))}
             </ul>
           </div>
         )}
@@ -1465,10 +1557,12 @@ function MediaTabContent({
 
 function ImageThumb({
   img,
+  indicatorVerifiedOn,
   onView,
   onDelete,
 }: {
   img: ApiGalleryItem;
+  indicatorVerifiedOn: string | null;
   onView: () => void;
   onDelete: () => void;
 }) {
@@ -1478,6 +1572,9 @@ function ImageThumb({
   const src = img.imagePath?.startsWith('http')
     ? img.imagePath
     : `/api/uploads/${img.imagePath}`;
+  const verifiedOn = formatVerifiedStamp(
+    img.isVerified ? indicatorVerifiedOn ?? img.uploadedOn : null,
+  );
   return (
     <div className="group relative overflow-hidden rounded-lg border bg-card shadow-sm transition-all duration-200 hover:shadow-md">
       <div className="relative aspect-[4/3] overflow-hidden bg-muted">
@@ -1486,6 +1583,14 @@ function ImageThumb({
           alt={img.description ?? 'Indicator evidence'}
           className="h-full w-full object-cover transition-transform duration-200 group-hover:scale-[1.03]"
         />
+        {verifiedOn && (
+          <div className="absolute right-1.5 top-1.5 z-10">
+            <Badge className="bg-success-green/90 text-[10px] text-white">
+              <CheckCircle2 className="h-3 w-3" />
+              Verified
+            </Badge>
+          </div>
+        )}
         <div className="absolute inset-0 flex items-center justify-center gap-2 bg-black/40 opacity-0 transition-opacity duration-200 group-hover:opacity-100">
           <Button
             type="button"
@@ -1509,10 +1614,15 @@ function ImageThumb({
           </Button>
         </div>
       </div>
-      <div className="p-2.5">
+      <div className="space-y-1 p-2.5">
         <p className="truncate text-xs font-medium" title={img.description ?? ''}>
           {img.description || 'Untitled image'}
         </p>
+        {verifiedOn && (
+          <p className="text-[10px] font-medium text-success-green">
+            Verified on {verifiedOn}
+          </p>
+        )}
       </div>
     </div>
   );
@@ -1574,6 +1684,7 @@ function Lightbox({
 // ===========================================================================
 function VideoTabContent({
   indicatorId,
+  indicatorVerifiedOn,
   loading,
   error,
   videos,
@@ -1581,6 +1692,7 @@ function VideoTabContent({
   onToast,
 }: {
   indicatorId: number;
+  indicatorVerifiedOn: string | null;
   loading: boolean;
   error: string | null;
   videos: ApiGalleryItem[];
@@ -1795,6 +1907,9 @@ function VideoTabContent({
             {videos.map((v) => {
               const pf = derivePlatform(v);
               const src = deriveEmbedSrc(v);
+              const verifiedOn = formatVerifiedStamp(
+                v.isVerified ? indicatorVerifiedOn ?? v.uploadedOn : null,
+              );
               return (
                 <div
                   key={v.galleryId}
@@ -1811,7 +1926,7 @@ function VideoTabContent({
                     />
                   </div>
                   <div className="flex items-center justify-between gap-2 p-3">
-                    <span className="flex items-center gap-2">
+                    <span className="flex flex-wrap items-center gap-2">
                       <span
                         style={{
                           backgroundColor: pf === 'youtube' ? '#FF0000' : '#1877F2',
@@ -1829,6 +1944,12 @@ function VideoTabContent({
                         <span className="text-[11px] text-muted-foreground">
                           Added {new Date(v.uploadedOn).toLocaleString('en-IN')}
                         </span>
+                      )}
+                      {verifiedOn && (
+                        <Badge className="bg-success-green/90 text-[10px] text-white">
+                          <CheckCircle2 className="h-3 w-3" />
+                          Verified on {verifiedOn}
+                        </Badge>
                       )}
                     </span>
                     <Button

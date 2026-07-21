@@ -89,6 +89,8 @@ export async function GET(
           path: relPath,
           description: doc.description,
           uploadedOn: doc.uploaded_on,
+          verifiedBy: doc.verified_by,
+          verifiedDate: doc.verified_date,
           size,
         };
       }),

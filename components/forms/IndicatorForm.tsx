@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState, useTransition } from 'react';
+import { useEffect, useMemo, useRef, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -60,6 +60,7 @@ interface MasterData {
 }
 
 interface ProjectBudget {
+  projectCode: string;
   projectName: string;
   projectCost: number;
   indicatorsTotal: number;
@@ -158,6 +159,7 @@ export function IndicatorForm({ projectId, indicatorId }: Props) {
   /** Tracks whether the edit GET has hydrated the form, so we don't run
    *  the "downstream resets on district change" effect during prefill. */
   const [prefilled, setPrefilled] = useState(!isEdit);
+  const skipInitialUnitSyncRef = useRef(isEdit);
 
   const {
     register,
@@ -183,6 +185,26 @@ export function IndicatorForm({ projectId, indicatorId }: Props) {
     },
     mode: 'onTouched',
   });
+
+  const unitValue = watch('unit');
+
+  useEffect(() => {
+    if (!unitValue) return;
+    if (skipInitialUnitSyncRef.current) {
+      skipInitialUnitSyncRef.current = false;
+      return;
+    }
+
+    setValue(
+      'physical_target',
+      unitValue === 'Percentage' ? 100 : ('' as unknown as number),
+      {
+        shouldDirty: true,
+        shouldTouch: true,
+        shouldValidate: true,
+      },
+    );
+  }, [setValue, unitValue]);
 
   // ----------------------- edit: prefill from API ------------------------
   useEffect(() => {
@@ -262,6 +284,7 @@ export function IndicatorForm({ projectId, indicatorId }: Props) {
         }
         return r.json() as Promise<{
           project: {
+            projectCode: string | null;
             projectName: string;
             projectCost: number;
             indicatorsTotal: number;
@@ -272,6 +295,7 @@ export function IndicatorForm({ projectId, indicatorId }: Props) {
       })
       .then((j) =>
         setBudget({
+          projectCode: j.project.projectCode ?? '',
           projectName: j.project.projectName ?? '',
           projectCost: j.project.projectCost ?? 0,
           indicatorsTotal: j.project.indicatorsTotal ?? 0,
@@ -436,13 +460,20 @@ export function IndicatorForm({ projectId, indicatorId }: Props) {
             Loading project budget…
           </div>
         ) : (
-          <Card className="border-l-4 border-l-[#2E7D32] shadow-sm">
+          <Card className="mb-8 border-l-4 border-l-[#2E7D32] shadow-sm">
             <CardContent className="space-y-3 p-5">
               <div className="flex flex-wrap items-baseline justify-between gap-2">
-                <h2 className="flex items-center gap-2 text-sm font-semibold text-foreground">
-                  <Wallet className="h-4 w-4 text-[#2E7D32]" aria-hidden />
-                  {budget.projectName || 'Project budget'}
-                </h2>
+                <div className="space-y-1">
+                  <h2 className="flex items-center gap-2 text-sm font-semibold text-foreground">
+                    <Wallet className="h-4 w-4 text-[#2E7D32]" aria-hidden />
+                    {budget.projectName || 'Project budget'}
+                  </h2>
+                  {budget.projectCode && (
+                    <p className="text-xs text-muted-foreground">
+                      Project Code: <span className="font-mono">{budget.projectCode}</span>
+                    </p>
+                  )}
+                </div>
                 <span className="text-[11px] text-muted-foreground">
                   {budget.indicatorsTotal} existing{' '}
                   {budget.indicatorsTotal === 1 ? 'indicator' : 'indicators'}
@@ -496,6 +527,9 @@ export function IndicatorForm({ projectId, indicatorId }: Props) {
                   )}
                 </div>
               </div>
+              <p className="rounded-md border border-[#2E7D32]/15 bg-[#2E7D32]/5 px-3 py-2 text-xs leading-5 text-muted-foreground">
+                If the Total Project Cost has been finalized but is unrecorded in the system, kindly forward the <span className="font-semibold text-foreground">Project Code</span>, verified cost details, and relevant supporting documents to <span className="font-semibold text-foreground">piemdkerala@gmail.com</span> for administrative reconciliation.
+              </p>
               {budgetState && enteredFinancial > 0 && (
                 <div
                   className={cn(
@@ -826,7 +860,7 @@ export function IndicatorForm({ projectId, indicatorId }: Props) {
           </CardContent>
         </Card>
 
-        <div className="flex flex-wrap items-center justify-end gap-2">
+        <div className="mt-6 flex flex-wrap items-center justify-end gap-2">
           <Button
             type="button"
             variant="outline"

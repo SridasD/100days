@@ -103,6 +103,8 @@ interface DocumentItem {
   size: number | null;
   uploadedOn: string | null;
   description: string | null;
+  verifiedBy?: number | null;
+  verifiedDate?: string | null;
 }
 
 interface HistoryEvent {
@@ -148,6 +150,13 @@ function detectPlatform(url: string): 'youtube' | 'facebook' | null {
   if (YT_HOST_RE.test(url)) return 'youtube';
   if (FB_HOST_RE.test(url)) return 'facebook';
   return null;
+}
+
+function formatVerifiedStamp(value: string | null | undefined) {
+  if (!value) return null;
+  const dt = new Date(value);
+  if (Number.isNaN(dt.getTime())) return null;
+  return dt.toLocaleString('en-IN');
 }
 
 // ===========================================================================
@@ -759,6 +768,7 @@ export function VerifierIndicatorSheet({
             >
               <MediaTab
                 indicatorId={indicator.indicatorPublicId ?? indicator.indicatorId}
+                indicatorVerifiedOn={indicator.verifiedDate}
                 images={images}
                 documents={documents}
                 loading={galleryLoading}
@@ -776,6 +786,7 @@ export function VerifierIndicatorSheet({
             >
               <VideoTab
                 indicatorId={indicator.indicatorPublicId ?? indicator.indicatorId}
+                indicatorVerifiedOn={indicator.verifiedDate}
                 videos={videos}
                 loading={galleryLoading}
                 error={galleryError}
@@ -825,6 +836,7 @@ export function VerifierIndicatorSheet({
 // ===========================================================================
 function MediaTab({
   indicatorId,
+  indicatorVerifiedOn,
   images,
   documents,
   loading,
@@ -833,6 +845,7 @@ function MediaTab({
   onToast,
 }: {
   indicatorId: string | number;
+  indicatorVerifiedOn: string | null;
   images: GalleryItem[];
   documents: DocumentItem[];
   loading: boolean;
@@ -1121,6 +1134,9 @@ function MediaTab({
                 const src = img.imagePath?.startsWith('http')
                   ? img.imagePath
                   : `/api/uploads/${img.imagePath}`;
+                const verifiedOn = formatVerifiedStamp(
+                  img.isVerified ? indicatorVerifiedOn ?? img.uploadedOn : null,
+                );
                 return (
                   <div
                     key={img.galleryId}
@@ -1136,7 +1152,7 @@ function MediaTab({
                         {img.isVerified ? (
                           <Badge className="bg-success-green/90 text-[10px] text-white">
                             <ShieldCheck className="h-3 w-3" />
-                            Verifier
+                            Verified
                           </Badge>
                         ) : (
                           <Badge variant="outline" className="bg-white text-[10px]">
@@ -1168,13 +1184,18 @@ function MediaTab({
                         </Button>
                       </div>
                     </div>
-                    <div className="p-2.5">
+                    <div className="space-y-1 p-2.5">
                       <p
                         className="truncate text-xs font-medium"
                         title={img.description ?? ''}
                       >
                         {img.description || 'Untitled image'}
                       </p>
+                      {verifiedOn && (
+                        <p className="text-[10px] font-medium text-success-green">
+                          Verified on {verifiedOn}
+                        </p>
+                      )}
                     </div>
                   </div>
                 );
@@ -1191,12 +1212,32 @@ function MediaTab({
               <li key={doc.documentId} className="flex items-center gap-3 p-3">
                 <FileText className="h-4 w-4 text-[#2E7D32]" aria-hidden />
                 <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-semibold">{doc.filename}</p>
-                  <p className="font-mono text-[11px] text-muted-foreground">
-                    {doc.size != null ? formatBytes(doc.size) : 'Size unavailable'}
-                    {' · '}
-                    {doc.uploadedOn ?? '-'}
-                  </p>
+                  {(() => {
+                    const verifiedOn = formatVerifiedStamp(doc.verifiedDate ?? null);
+                    return (
+                      <>
+                        <div className="flex flex-wrap items-center gap-2">
+                          <p className="truncate text-sm font-semibold">{doc.filename}</p>
+                          {verifiedOn && (
+                            <Badge className="bg-success-green/90 text-[10px] text-white">
+                              <ShieldCheck className="h-3 w-3" />
+                              Verified
+                            </Badge>
+                          )}
+                        </div>
+                        <p className="font-mono text-[11px] text-muted-foreground">
+                          {doc.size != null ? formatBytes(doc.size) : 'Size unavailable'}
+                          {' · '}
+                          {doc.uploadedOn ?? '-'}
+                        </p>
+                        {verifiedOn && (
+                          <p className="text-[10px] font-medium text-success-green">
+                            Verified on {verifiedOn}
+                          </p>
+                        )}
+                      </>
+                    );
+                  })()}
                   {doc.description && (
                     <p className="truncate text-[11px] text-muted-foreground">
                       {doc.description}
@@ -1296,6 +1337,7 @@ function Lightbox({
 // ===========================================================================
 function VideoTab({
   indicatorId,
+  indicatorVerifiedOn,
   videos,
   loading,
   error,
@@ -1303,6 +1345,7 @@ function VideoTab({
   onToast,
 }: {
   indicatorId: string | number;
+  indicatorVerifiedOn: string | null;
   videos: GalleryItem[];
   loading: boolean;
   error: string | null;
@@ -1434,6 +1477,9 @@ function VideoTab({
             {videos.map((v) => {
               const src = v.imagePath ?? '';
               const isYT = YT_HOST_RE.test(src);
+              const verifiedOn = formatVerifiedStamp(
+                v.isVerified ? indicatorVerifiedOn ?? v.uploadedOn : null,
+              );
               return (
                 <div
                   key={v.galleryId}
@@ -1449,22 +1495,27 @@ function VideoTab({
                     />
                   </div>
                   <div className="flex items-center justify-between gap-2 p-3">
-                    <Badge
-                      className={cn(
-                        'text-[10px] text-white',
-                        isYT ? 'bg-[#FF0000]' : 'bg-[#1877F2]',
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      <Badge
+                        className={cn(
+                          'text-[10px] text-white',
+                          isYT ? 'bg-[#FF0000]' : 'bg-[#1877F2]',
+                        )}
+                      >
+                        {isYT ? (
+                          <Youtube className="h-3 w-3" />
+                        ) : (
+                          <Facebook className="h-3 w-3" />
+                        )}
+                        {isYT ? 'YouTube' : 'Facebook'}
+                      </Badge>
+                      {verifiedOn && (
+                        <Badge className="bg-success-green/90 text-[10px] text-white">
+                          <ShieldCheck className="h-3 w-3" />
+                          Verified on {verifiedOn}
+                        </Badge>
                       )}
-                    >
-                      {isYT ? (
-                        <Youtube className="h-3 w-3" />
-                      ) : (
-                        <Facebook className="h-3 w-3" />
-                      )}
-                      {isYT ? 'YouTube' : 'Facebook'}
-                      {v.isVerified && (
-                        <span className="ml-1 opacity-90">| Verified</span>
-                      )}
-                    </Badge>
+                    </div>
                     <Button
                       type="button"
                       size="sm"

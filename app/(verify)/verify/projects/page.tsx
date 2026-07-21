@@ -1,14 +1,28 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
-import { AlertTriangle, CheckCircle2, Clock, FolderOpen } from 'lucide-react';
+import {
+  AlertTriangle,
+  CheckCircle2,
+  Clock,
+  FolderOpen,
+  Search,
+} from 'lucide-react';
 import { KeralaHeader } from '@/components/layout/KeralaHeader';
 import { OfficerUserMenu } from '@/components/layout/OfficerUserMenu';
 import { SiteFooter } from '@/components/layout/SiteFooter';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 
 interface VerifierProject {
   projectId: number;
@@ -21,11 +35,15 @@ interface VerifierProject {
   indicatorsTotal: number;
 }
 
+type QueueFilter = 'all' | 'pending' | 'verified';
+
 export default function VerifyProjectsPage() {
   const [projects, setProjects] = useState<VerifierProject[] | null>(null);
   const [departmentLabel, setDepartmentLabel] = useState('Verifying');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [query, setQuery] = useState('');
+  const [queueFilter, setQueueFilter] = useState<QueueFilter>('all');
 
   useEffect(() => {
     const load = async () => {
@@ -55,6 +73,25 @@ export default function VerifyProjectsPage() {
   }, []);
 
   const roleLabel = 'Verification Officer';
+  const filteredProjects = useMemo(() => {
+    if (!projects) return [];
+    const search = query.trim().toLowerCase();
+
+    return projects.filter((project) => {
+      const matchesSearch =
+        search.length === 0 ||
+        project.projectName.toLowerCase().includes(search) ||
+        project.projectCode?.toLowerCase().includes(search) ||
+        project.department.toLowerCase().includes(search);
+
+      const matchesQueue =
+        queueFilter === 'all' ||
+        (queueFilter === 'pending' && project.indicatorsPending > 0) ||
+        (queueFilter === 'verified' && project.indicatorsVerified > 0);
+
+      return matchesSearch && matchesQueue;
+    });
+  }, [projects, query, queueFilter]);
 
   return (
     <div className="flex min-h-screen flex-col bg-background">
@@ -77,6 +114,43 @@ export default function VerifyProjectsPage() {
             Review and approve indicator progress submissions from nodal officers.
           </p>
         </div>
+
+        {!loading && !error && projects && projects.length > 0 && (
+          <div className="mb-6 flex flex-col gap-3 rounded-xl border bg-card p-4 shadow-sm md:flex-row md:items-center md:justify-between">
+            <div className="relative w-full md:max-w-md">
+              <Search
+                className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground"
+                aria-hidden
+              />
+              <Input
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder="Search by project name, project code or department…"
+                className="pl-9"
+                aria-label="Search verify projects"
+              />
+            </div>
+
+            <div className="flex items-center gap-3">
+              <Select
+                value={queueFilter}
+                onValueChange={(value) => setQueueFilter(value as QueueFilter)}
+              >
+                <SelectTrigger className="w-[180px]" aria-label="Filter verification queue">
+                  <SelectValue placeholder="Filter queue" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Projects</SelectItem>
+                  <SelectItem value="pending">Pending Only</SelectItem>
+                  <SelectItem value="verified">Verified Only</SelectItem>
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">
+                {filteredProjects.length} of {projects.length} projects
+              </p>
+            </div>
+          </div>
+        )}
 
         {loading && (
           <div className="space-y-3">
@@ -120,9 +194,25 @@ export default function VerifyProjectsPage() {
           </Card>
         )}
 
-        {!loading && !error && projects && projects.length > 0 && (
+        {!loading && !error && projects && projects.length > 0 && filteredProjects.length === 0 && (
+          <Card className="border-dashed">
+            <CardContent className="flex flex-col items-center justify-center gap-3 py-16 text-center">
+              <FolderOpen className="h-7 w-7 text-muted-foreground" />
+              <div>
+                <p className="text-base font-semibold text-foreground">
+                  No projects match the current filters
+                </p>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Try a different project code, project name, department, or queue filter.
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {!loading && !error && filteredProjects.length > 0 && (
           <div className="grid gap-4">
-            {projects.map((p) => (
+            {filteredProjects.map((p) => (
               <Card
                 key={p.projectId}
                 className="overflow-hidden border-l-4 border-l-kerala-blue shadow-sm transition-all duration-200 hover:shadow-md"
@@ -135,7 +225,7 @@ export default function VerifyProjectsPage() {
                       </h3>
                       {p.projectCode && (
                         <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                          Code: {p.projectCode}
+                          Project Code: {p.projectCode}
                         </p>
                       )}
                       <p className="text-sm text-muted-foreground">

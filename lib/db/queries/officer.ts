@@ -322,6 +322,8 @@ export interface DocumentRow {
   document_path: string | null;
   description: string | null;
   uploaded_on: string | null;
+  verified_by: number | null;
+  verified_date: string | null;
 }
 
 export async function listGallery(
@@ -353,7 +355,14 @@ export async function listDocuments(
   indicatorId: number,
 ): Promise<DocumentRow[]> {
   const result = await db.execute(sql`
-    SELECT document_id, indicator_id, document_path, description, uploaded_on
+    SELECT
+      document_id,
+      indicator_id,
+      document_path,
+      description,
+      uploaded_on,
+      verified_by,
+      verified_date
     FROM hdp.documents
     WHERE indicator_id = ${indicatorId}
     ORDER BY document_id DESC
