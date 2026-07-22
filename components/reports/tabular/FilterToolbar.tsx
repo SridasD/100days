@@ -24,14 +24,29 @@ type FilterToolbarProps = {
   initial: ReportFilters;
   departmentOptions: string[];
   agencyOptions: string[];
+  sourceOfFundingOptions: string[];
+  natureOfProjectOptions: string[];
+  projectExecutionTypeOptions: string[];
   onApply: (filters: ReportFilters) => void;
   onClear: () => void;
 };
 
-export function FilterToolbar({ initial, departmentOptions, agencyOptions, onApply, onClear }: FilterToolbarProps) {
+export function FilterToolbar({
+  initial,
+  departmentOptions,
+  agencyOptions,
+  sourceOfFundingOptions,
+  natureOfProjectOptions,
+  projectExecutionTypeOptions,
+  onApply,
+  onClear,
+}: FilterToolbarProps) {
   const [search, setSearch] = useState(initial.search);
   const [department, setDepartment] = useState(initial.department);
   const [agency, setAgency] = useState(initial.agency);
+  const [sourceOfFunding, setSourceOfFunding] = useState(initial.sourceOfFunding);
+  const [natureOfProject, setNatureOfProject] = useState(initial.natureOfProject);
+  const [projectExecutionType, setProjectExecutionType] = useState(initial.projectExecutionType);
   const [verification, setVerification] = useState(initial.verification);
   const [status, setStatus] = useState(initial.status);
 
@@ -106,11 +121,65 @@ export function FilterToolbar({ initial, departmentOptions, agencyOptions, onApp
           </SelectContent>
         </Select>
 
+        <Select value={natureOfProject} onValueChange={setNatureOfProject}>
+          <SelectTrigger className="h-9 w-full md:w-48" aria-label="Filter by nature of project">
+            <SelectValue placeholder="All Nature of Project" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="All">All Nature of Project</SelectItem>
+            {natureOfProjectOptions.map((name) => (
+              <SelectItem key={name} value={name}>
+                {name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+
+        <Select value={sourceOfFunding} onValueChange={setSourceOfFunding}>
+          <SelectTrigger className="h-9 w-full md:w-52" aria-label="Filter by source of funding">
+            <SelectValue placeholder="All Source of Funding" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="All">All Source of Funding</SelectItem>
+            {sourceOfFundingOptions.map((name) => (
+              <SelectItem key={name} value={name}>
+                {name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+
+        <Select value={projectExecutionType} onValueChange={setProjectExecutionType}>
+          <SelectTrigger className="h-9 w-full md:w-52" aria-label="Filter by project execution type">
+            <SelectValue placeholder="All Project Execution Type" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="All">All Project Execution Type</SelectItem>
+            {projectExecutionTypeOptions.map((name) => (
+              <SelectItem key={name} value={name}>
+                {name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+
         <div className="flex gap-2 md:ml-auto">
           <Button variant="outline" size="sm" onClick={onClear}>
             Clear
           </Button>
-          <Button size="sm" onClick={() => onApply({ search, department, agency, verification, status })}>
+          <Button
+            size="sm"
+            onClick={() => onApply({
+              search,
+              department,
+              agency,
+              sourceOfFunding,
+              natureOfProject,
+              projectExecutionType,
+              verification,
+              status,
+            })}
+          >
             Apply
           </Button>
         </div>

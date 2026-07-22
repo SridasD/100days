@@ -1,8 +1,9 @@
-import { Building2, Briefcase, Target, CheckCircle2, ListChecks, Images, Camera, Video, FileText } from 'lucide-react';
+import { Building2, Briefcase, Target, CheckCircle2, ListChecks, Images, Camera, Video, FileText, TriangleAlert } from 'lucide-react';
 
 type KPISummaryCardsProps = {
   departmentCount: number;
   projectCount: number;
+  projectsWithNoIndicators: number;
   indicatorCount: number;
   completedProjectCount: number;
   completedIndicatorCount: number;
@@ -14,6 +15,7 @@ type KPISummaryCardsProps = {
 export function KPISummaryCards({
   departmentCount,
   projectCount,
+  projectsWithNoIndicators,
   indicatorCount,
   completedProjectCount,
   completedIndicatorCount,
@@ -44,6 +46,13 @@ export function KPISummaryCards({
       iconColor: 'text-teal-600',
     },
     {
+      label: 'Projects Without Indicators',
+      value: projectsWithNoIndicators,
+      icon: TriangleAlert,
+      iconBg: 'bg-amber-100',
+      iconColor: 'text-amber-700',
+    },
+    {
       label: 'Projects Completed',
       value: completedProjectCount,
       icon: CheckCircle2,
@@ -72,7 +81,7 @@ export function KPISummaryCards({
   ];
 
   return (
-    <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
+    <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-7">
       {cards.map((card) => {
         const Icon = card.icon;
         return (
