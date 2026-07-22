@@ -1397,13 +1397,16 @@ function MediaTabContent({
             </div>
             <Textarea
               rows={2}
-              maxLength={500}
+              maxLength={200}
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               placeholder="Add a short description (optional)…"
               disabled={uploadState !== 'idle'}
               className="resize-none text-sm"
             />
+            <p className="text-right text-[11px] text-muted-foreground">
+              {description.length}/200
+            </p>
             {uploadState === 'uploading' && (
               <div
                 role="progressbar"

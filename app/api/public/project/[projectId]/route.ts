@@ -7,7 +7,7 @@ import { resolveProjectId } from "@/lib/db/public-id";
 // Public project detail. Returns:
 //   - project headline (name, code, cost, status, departments)
 //   - per-indicator rows with progress + media counts
-//   - flat lists of images and embedded videos for a gallery view
+//   - flat lists of images, embedded videos and verified documents for a gallery view
 //
 // Verifier-corrected values are preferred over nodal-submitted ones whenever
 // a verified row exists, mirroring how the rest of the public site reads.
@@ -192,6 +192,31 @@ export async function GET(
         indicatorName: g.indicator_name ?? "",
       }));
 
+    const documentsResult = await db.execute(sql`
+      SELECT
+        d.document_id,
+        d.document_path,
+        d.description,
+        d.uploaded_on,
+        i.indicator_id,
+        i.indicator_name
+      FROM hdp.documents d
+      INNER JOIN hdp.indicators i ON d.indicator_id = i.indicator_id
+      WHERE i.project_id = ${id}
+        AND d.verified_date IS NOT NULL
+      ORDER BY i.indicator_id ASC, d.uploaded_on DESC
+      LIMIT 200
+    `);
+
+    const documents = (documentsResult.rows as Array<any>).map((d) => ({
+      documentId: Number(d.document_id),
+      path: d.document_path ?? "",
+      description: d.description ?? "",
+      uploadedOn: d.uploaded_on,
+      indicatorId: Number(d.indicator_id),
+      indicatorName: d.indicator_name ?? "",
+    }));
+
     // ----- 4. Aggregate progress for the headline -----------------------
     // Physical: average of ALL indicators' verified_percentage (unverified
     // count as 0). Financial: SUM(indicator achievements) / project_cost,
@@ -241,6 +266,7 @@ export async function GET(
         indicators,
         images,
         videos,
+        documents,
       },
     });
   } catch (err) {

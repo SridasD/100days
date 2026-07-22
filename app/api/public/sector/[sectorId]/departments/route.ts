@@ -140,6 +140,17 @@ export async function GET(
             AND COALESCE(g.is_verified, false) = true
         ), 0) AS video_count
 
+        ,COALESCE((
+          SELECT COUNT(*)::int FROM hdp.documents d
+          INNER JOIN hdp.indicators i ON d.indicator_id = i.indicator_id
+          INNER JOIN hdp.master_projects mp ON i.project_id = mp.project_id
+          INNER JOIN hdp.project_secretary ps ON mp.project_id = ps.project_id
+          WHERE ps.sec_id = ms.sec_id
+            AND mp.sector_id = ${id}
+            AND COALESCE(mp.is_archived, false) = false
+            AND d.verified_date IS NOT NULL
+        ), 0) AS document_count
+
       FROM hdp.master_secretary ms
       LEFT JOIN dept_rollup dr ON dr.sec_id = ms.sec_id
       WHERE EXISTS (
@@ -154,7 +165,8 @@ export async function GET(
 
     const departments = (r.rows as Array<any>).map((row) => {
       const physicalPct = Number(row.physical_pct) || 0;
-      const financialPct = row.financial_pct == null ? null : Number(row.financial_pct);
+      const financialPct =
+        row.financial_pct == null ? null : Number(row.financial_pct);
       const projects = Number(row.projects) || 0;
       const projectsCompleted = Number(row.projects_completed) || 0;
       const projectsInProgress = Number(row.projects_in_progress) || 0;
@@ -182,6 +194,7 @@ export async function GET(
         status,
         imageCount: Number(row.image_count) || 0,
         videoCount: Number(row.video_count) || 0,
+        documentCount: Number(row.document_count) || 0,
       };
     });
 

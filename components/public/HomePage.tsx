@@ -69,6 +69,7 @@ interface ApiDepartment {
   status: 'completed' | 'in-progress' | 'not-started';
   imageCount: number;
   videoCount: number;
+  documentCount: number;
 }
 
 interface DashboardStats {

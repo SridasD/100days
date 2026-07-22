@@ -72,10 +72,16 @@ const SECTOR_META: Record<number, { nameMal: string; icon: typeof Sun }> = {
   12: { nameMal: 'തദ്ദേശസ്വയംഭരണം', icon: Building },
 };
 
-const STATUS_PILL: Record<Status, string> = {
-  completed: 'bg-[#E8F5E9] text-[#1B5E20]',
-  'in-progress': 'bg-[#FFF8E1] text-[#E65100]',
-  'not-started': 'bg-[#FFEBEE] text-[#C62828]',
+const STATUS_META: Record<Status, { chip: string; labelMal: string }> = {
+  completed: { chip: 'bg-[#E8F5E9] text-[#1B5E20]', labelMal: 'പൂർത്തിയായി' },
+  'in-progress': {
+    chip: 'bg-[#FFF8E1] text-[#E65100]',
+    labelMal: 'പുരോഗതിയിൽ',
+  },
+  'not-started': {
+    chip: 'bg-[#FFEBEE] text-[#C62828]',
+    labelMal: 'ആരംഭിച്ചിട്ടില്ല',
+  },
 };
 
 export default function PublicSectorPage({
@@ -164,6 +170,7 @@ export default function PublicSectorPage({
     : undefined;
   const Icon = meta?.icon ?? Building2;
   const nameMal = meta?.nameMal ?? sector?.sectorName ?? 'മേഖല';
+  const tone = sector ? STATUS_META[sector.status] : null;
 
   return (
     <div className="flex min-h-screen flex-col bg-hdp-bg">
@@ -186,7 +193,7 @@ export default function PublicSectorPage({
           aria-hidden
           className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(255,255,255,0.12),transparent_50%)]"
         />
-        <div className="container relative mx-auto grid gap-6 px-4 py-12 md:grid-cols-[1.6fr_1fr]">
+        <div className="container relative mx-auto grid gap-6 px-4 py-10 md:grid-cols-[1.6fr_1fr] md:py-12">
           <div>
             <Breadcrumbs nameMal={nameMal} />
 
@@ -207,10 +214,19 @@ export default function PublicSectorPage({
             <p className="font-malayalam mt-3 max-w-xl text-sm leading-relaxed text-white/80">
               ഈ മേഖലയിലെ വകുപ്പുകൾ, പദ്ധതികൾ, പുരോഗതി എന്നിവ വിശദമായി കാണാം.
             </p>
+
+            {tone && (
+              <span
+                className={`mt-4 inline-flex items-center gap-1.5 rounded-full bg-white/95 px-3 py-1 text-[11px] font-semibold ${tone.chip}`}
+              >
+                <span className="h-1.5 w-1.5 rounded-full bg-current opacity-80" />
+                <span className="font-malayalam">{tone.labelMal}</span>
+              </span>
+            )}
           </div>
 
           {sector && (
-            <div className="rounded-2xl border border-white/15 bg-white/10 p-4 backdrop-blur">
+            <div className="rounded-2xl border border-white/15 bg-white/10 p-3.5 backdrop-blur sm:p-4">
               <div className="grid grid-cols-3 gap-2 text-center">
                 <HeroStat value={sector.projects} labelMal="പദ്ധതികൾ" />
                 <HeroStat value={sector.indicators} labelMal="ഘടകങ്ങൾ" />
@@ -219,20 +235,34 @@ export default function PublicSectorPage({
                   labelMal="വകുപ്പുകൾ"
                 />
               </div>
-              <div className="mt-3 flex justify-center">
-                <span
-                  className={`inline-flex items-center rounded-full bg-white/95 px-3 py-1 text-[11px] font-semibold ${STATUS_PILL[sector.status]}`}
-                >
-                  <span className="h-1.5 w-1.5 rounded-full bg-current opacity-80" />
-                </span>
-              </div>
             </div>
           )}
         </div>
       </section>
 
       {/* DEPARTMENTS LIST */}
-      <main className="container mx-auto flex-1 px-4 py-10">
+      <main className="container mx-auto flex-1 px-4 py-8 sm:py-10">
+        {sector && (
+          <section className="mb-5 rounded-2xl border bg-white p-3 shadow-sm sm:p-4">
+            <div className="flex flex-nowrap items-center gap-2 overflow-x-auto pb-1 sm:flex-wrap sm:overflow-visible sm:pb-0">
+              <Badge className="bg-hdp-green text-white">
+                <span className="font-mono font-semibold">{sector.projects}</span>
+                <span className="font-malayalam ml-1">പദ്ധതികൾ</span>
+              </Badge>
+              <Badge variant="outline" className="bg-hdp-green/5 text-hdp-green">
+                <span className="font-mono font-semibold">{sector.indicators}</span>
+                <span className="font-malayalam ml-1">ഘടകങ്ങൾ</span>
+              </Badge>
+              <Badge variant="outline" className="bg-hdp-green/5 text-hdp-green">
+                <span className="font-mono font-semibold">
+                  {departments?.length ?? 0}
+                </span>
+                <span className="font-malayalam ml-1">വകുപ്പുകൾ</span>
+              </Badge>
+            </div>
+          </section>
+        )}
+
         <div className="mb-6 flex flex-wrap items-end justify-between gap-3">
           <div>
             <p className="font-malayalam text-xs font-semibold uppercase tracking-wide text-hdp-green">
@@ -284,7 +314,7 @@ export default function PublicSectorPage({
 
         {/* List */}
         {!error && departments && departments.length > 0 && (
-          <div className="space-y-4">
+          <div className="space-y-5">
             {departments.map((d) => (
               <DepartmentProgressCard key={d.secId} {...d} defaultOpen />
             ))}
@@ -306,7 +336,7 @@ function Breadcrumbs({ nameMal }: { nameMal: string }) {
         ഹോം
       </Link>
       <ChevronRight className="h-3 w-3 opacity-50" />
-      <Link href="/" className="hover:text-white">
+      <Link href="/#sector-projects" className="hover:text-white">
         മേഖലകൾ
       </Link>
       <ChevronRight className="h-3 w-3 opacity-50" />

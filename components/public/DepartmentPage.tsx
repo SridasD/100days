@@ -12,6 +12,7 @@ import {
   CheckCircle2,
   ChevronRight,
   ClipboardList,
+  FileText,
   IndianRupee,
   Images,
   Layers,
@@ -60,6 +61,7 @@ const STATUS_META: Record<
 export interface DepartmentProject {
   projectId: number;
   projectPublicId?: string;
+  projectCode?: string | null;
   /** Project name as shown — usually Malayalam */
   name: string;
   costInLakhs: number;
@@ -67,6 +69,7 @@ export interface DepartmentProject {
   indicatorsCompleted: number;
   imageCount: number;
   videoCount: number;
+  documentCount: number;
   physicalPct: number;
   financialPct: number | null;
   verified: boolean;
@@ -109,7 +112,13 @@ export function DepartmentPage({
     const q = query.trim().toLowerCase();
     return projects.filter((p) => {
       if (filter !== 'all' && p.status !== filter) return false;
-      if (q && !p.name.toLowerCase().includes(q)) return false;
+      if (
+        q &&
+        !p.name.toLowerCase().includes(q) &&
+        !(p.projectCode ?? '').toLowerCase().includes(q)
+      ) {
+        return false;
+      }
       return true;
     });
   }, [projects, query, filter]);
@@ -284,6 +293,11 @@ function ProjectCard({
       >
         {project.name}
       </h3>
+      {project.projectCode && (
+        <p className="px-5 pt-1 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+          Project Code: <span className="font-mono">{project.projectCode}</span>
+        </p>
+      )}
 
       {/* indicator + media chip row */}
       <div className="mt-3 flex flex-wrap items-center gap-2 px-5">
@@ -310,7 +324,6 @@ function ProjectCard({
               {project.imageCount}
             </span>
             <span className="font-malayalam">ചിത്രങ്ങൾ</span>
-            <VerifiedDataBadge />
           </Chip>
         )}
         {project.videoCount > 0 && (
@@ -320,7 +333,15 @@ function ProjectCard({
               {project.videoCount}
             </span>
             <span className="font-malayalam">വീഡിയോകൾ</span>
-            <VerifiedDataBadge />
+          </Chip>
+        )}
+        {project.documentCount > 0 && (
+          <Chip>
+            <FileText className="h-3 w-3" />
+            <span className="font-mono font-semibold">
+              {project.documentCount}
+            </span>
+            <span className="font-malayalam">രേഖകൾ</span>
           </Chip>
         )}
         {project.imageCount === 0 && project.videoCount === 0 && (
