@@ -116,6 +116,12 @@ export async function GET(
             AND COALESCE(g.is_verified, false) = true
         ), 0) AS video_count,
         COALESCE((
+          SELECT COUNT(*)::int FROM hdp.documents d
+          INNER JOIN hdp.indicators i ON d.indicator_id = i.indicator_id
+          WHERE i.project_id = mp.project_id
+            AND d.verified_date IS NOT NULL
+        ), 0) AS document_count,
+        COALESCE((
           SELECT AVG(COALESCE(i.verified_percentage, 0))::numeric(5,2)
           FROM hdp.indicators i
           WHERE i.project_id = mp.project_id
@@ -159,8 +165,10 @@ export async function GET(
         indicatorsCompleted: Number(r.indicators_completed) || 0,
         imageCount: Number(r.image_count) || 0,
         videoCount: Number(r.video_count) || 0,
+        documentCount: Number(r.document_count) || 0,
         physicalPct: Math.round(Number(r.physical_pct) || 0),
-        financialPct: r.financial_pct == null ? null : Math.round(Number(r.financial_pct)),
+        financialPct:
+          r.financial_pct == null ? null : Math.round(Number(r.financial_pct)),
         verified: Boolean(r.verified),
         status,
       };

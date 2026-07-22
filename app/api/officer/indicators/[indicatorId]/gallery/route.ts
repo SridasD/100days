@@ -145,7 +145,8 @@ async function handleFileUpload(
 ) {
   const form = await req.formData();
   const file = form.get("file");
-  const description = String(form.get("description") ?? "");
+  const descriptionRaw = String(form.get("description") ?? "");
+  const description = descriptionRaw.trim();
 
   if (!(file instanceof File)) {
     return NextResponse.json({ error: "No file provided" }, { status: 400 });
@@ -164,6 +165,12 @@ async function handleFileUpload(
     return NextResponse.json(
       { error: "File size exceeds 5MB limit." },
       { status: 413 },
+    );
+  }
+  if (description.length > 200) {
+    return NextResponse.json(
+      { error: "Description must be 200 characters or fewer." },
+      { status: 400 },
     );
   }
 
