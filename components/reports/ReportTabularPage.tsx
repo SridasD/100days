@@ -17,6 +17,9 @@ type TabularRow = {
     hod_names: string;
     project_code: string;
     project_name: string;
+    source_of_funding: string;
+    nature_of_project: string;
+    project_execution_type: string;
     indicator_name: string;
     physical_progress: number;
     financial_progress: number | null;
@@ -41,6 +44,9 @@ type ProjectGroup = {
     hodNames: string;
     projectCode: string;
     projectName: string;
+    sourceOfFunding: string;
+    natureOfProject: string;
+    projectExecutionType: string;
     isCompleted: boolean;
     completedDate: Date | null;
     projectCost: number;
@@ -177,6 +183,9 @@ function buildDepartments(rows: TabularRow[]) {
                 hodNames: row.hod_names,
                 projectCode: row.project_code,
                 projectName: row.project_name,
+                sourceOfFunding: row.source_of_funding,
+                natureOfProject: row.nature_of_project,
+                projectExecutionType: row.project_execution_type,
                 isCompleted: row.project_is_completed,
                 completedDate: row.project_completion_date,
                 projectCost: row.project_cost,
@@ -256,6 +265,17 @@ async function loadTabularRows(): Promise<TabularRow[]> {
       dm.hod_names,
       dm.project_code,
       dm.project_name,
+            COALESCE(msf.source_of_funding_name, 'Unspecified') AS source_of_funding,
+            CASE
+                WHEN COALESCE(mp.nature_of_project, 0) = 1 THEN 'Livelihood'
+                WHEN COALESCE(mp.nature_of_project, 0) = 2 THEN 'Infrastructure'
+                ELSE 'Unspecified'
+            END AS nature_of_project,
+            CASE
+                WHEN COALESCE(mp.project_execution_type, 0) = 1 THEN 'Completion'
+                WHEN COALESCE(mp.project_execution_type, 0) = 2 THEN 'Inauguration'
+                ELSE 'Unspecified'
+            END AS project_execution_type,
       dm.is_completed AS project_is_completed,
       dm.completion_date AS project_completion_date,
       dm.project_cost,
@@ -305,6 +325,8 @@ async function loadTabularRows(): Promise<TabularRow[]> {
         WHERE d.indicator_id = i.indicator_id
       ), 0) AS document_count
     FROM dept_map dm
+    LEFT JOIN hdp.master_projects mp ON mp.project_id = dm.project_id
+    LEFT JOIN hdp.master_source_of_funding msf ON msf.source_of_funding_id = mp.source_of_funding_id
     LEFT JOIN hdp.indicators i ON i.project_id = dm.project_id
     ORDER BY dm.administrative_department ASC, dm.department_name ASC, dm.project_name ASC, indicator_name ASC
   `);
@@ -318,6 +340,9 @@ async function loadTabularRows(): Promise<TabularRow[]> {
             hod_names: String(r.hod_names ?? 'Unassigned'),
             project_code: String(r.project_code ?? '-'),
             project_name: String(r.project_name ?? 'Untitled project'),
+            source_of_funding: String(r.source_of_funding ?? 'Unspecified'),
+            nature_of_project: String(r.nature_of_project ?? 'Unspecified'),
+            project_execution_type: String(r.project_execution_type ?? 'Unspecified'),
             indicator_name: String(r.indicator_name ?? 'Untitled indicator'),
             physical_progress: toNumber(r.physical_progress),
             financial_progress: r.financial_progress == null ? null : toNumber(r.financial_progress),
@@ -344,10 +369,38 @@ export async function ReportTabularPage({ reportId, title, isOsd, showHierarchyT
     const reportHref = isOsd ? '/admin/osd/reports' : '/admin/reports';
     const viewHref = isOsd ? `/admin/osd/reports/${reportId}/view` : `/admin/reports/${reportId}/view`;
     const allProjects = departments.flatMap((department) => department.projects);
+    const indicatorRows = rows.filter((row) => row.indicator_id !== null);
+    const projectsWithNoIndicators = allProjects.filter((project) =>
+        project.indicators.every((row) => row.indicator_id === null),
+    ).length;
+
+    const indicatorBands = indicatorRows.reduce(
+        (acc, row) => {
+            const pct = Math.max(0, Math.min(100, Number(row.physical_progress) || 0));
+            if (pct === 0) acc.zero += 1;
+            else if (pct <= 25) acc.oneTo25 += 1;
+            else if (pct <= 50) acc.above25To50 += 1;
+            else if (pct <= 75) acc.above50To75 += 1;
+            else if (pct < 100) acc.above75To99 += 1;
+            else acc.completed100 += 1;
+            return acc;
+        },
+        {
+            zero: 0,
+            oneTo25: 0,
+            above25To50: 0,
+            above50To75: 0,
+            above75To99: 0,
+            completed100: 0,
+        },
+    );
+
     const summary = {
         ...aggregate(rows),
         physical: physicalRollup(allProjects),
         financial: financialRollup(allProjects),
+        projectsWithNoIndicators,
+        indicatorBands,
     };
     const projectCount = allProjects.length;
     const completedProjectCount = allProjects.filter((project) => project.isCompleted).length;

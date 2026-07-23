@@ -7,6 +7,9 @@ export type TabularRow = {
   hod_names: string;
   project_code: string;
   project_name: string;
+  source_of_funding: string;
+  nature_of_project: string;
+  project_execution_type: string;
   indicator_name: string;
   physical_progress: number;
   financial_progress: number | null;
@@ -29,6 +32,9 @@ export type ProjectGroup = {
   hodNames: string;
   projectCode: string;
   projectName: string;
+  sourceOfFunding: string;
+  natureOfProject: string;
+  projectExecutionType: string;
   isCompleted: boolean;
   completedDate: Date | null;
   projectCost: number;
@@ -50,12 +56,24 @@ export type Summary = {
   documents: number;
   physical: number;
   financial: number | null;
+  projectsWithNoIndicators: number;
+  indicatorBands: {
+    zero: number;
+    oneTo25: number;
+    above25To50: number;
+    above50To75: number;
+    above75To99: number;
+    completed100: number;
+  };
 };
 
 export type ReportFilters = {
   search: string;
   department: string;
   agency: string;
+  sourceOfFunding: string;
+  natureOfProject: string;
+  projectExecutionType: string;
   verification: string;
   status: string;
 };

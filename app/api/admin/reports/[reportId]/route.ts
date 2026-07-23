@@ -5,7 +5,14 @@ import { requireAdminSession, isAdminSession } from "@/lib/auth/admin-session";
 import { db } from "@/lib/db/client";
 import { getDefaulterThresholds } from "@/lib/config/defaulter-thresholds";
 import type { TabularRow } from "@/components/reports/tabular/types";
-import { aggregate, financialRollup, physicalRollup, rollupLastUpdate, rollupStatus, rollupVerification } from "@/components/reports/tabular/lib";
+import {
+  aggregate,
+  financialRollup,
+  physicalRollup,
+  rollupLastUpdate,
+  rollupStatus,
+  rollupVerification,
+} from "@/components/reports/tabular/lib";
 
 export const runtime = "nodejs";
 
@@ -564,6 +571,9 @@ type LaggingFlatRow = {
   project_id: unknown;
   project_code: unknown;
   project_name: unknown;
+  source_of_funding: unknown;
+  nature_of_project: unknown;
+  project_execution_type: unknown;
   indicator_id: unknown;
   indicator_name: unknown;
   physical_progress: unknown;
@@ -579,6 +589,17 @@ type LaggingFlatRow = {
   video_count: unknown;
   document_count: unknown;
   project_cost: unknown;
+};
+
+type LaggingExportFilters = {
+  search: string | null;
+  department: string | null;
+  agency: string | null;
+  sourceOfFunding: string | null;
+  natureOfProject: string | null;
+  projectExecutionType: string | null;
+  verification: string | null;
+  status: string | null;
 };
 
 type LaggingProject = {
@@ -598,7 +619,7 @@ function toDate(value: unknown) {
   if (value instanceof Date) {
     return Number.isNaN(value.getTime()) ? null : value;
   }
-  if (typeof value === 'string') {
+  if (typeof value === "string") {
     const parsed = new Date(value);
     return Number.isNaN(parsed.getTime()) ? null : parsed;
   }
@@ -615,13 +636,143 @@ function toText(value: unknown, fallback = "") {
 // rollup rows show how many of the scope's indicators actually need
 // attention rather than a bare status word, so one bad indicator out of
 // 20 doesn't read as the whole department being in trouble.
-function statusCellText(status: string, summary: { lagging: number; totalIndicators: number }) {
+function statusCellText(
+  status: string,
+  summary: { lagging: number; totalIndicators: number },
+) {
   return status === "Needs Attention"
     ? `${summary.lagging}/${summary.totalIndicators} Needs Attention`
     : status;
 }
 
-function buildLaggingWorkbook(rows: LaggingFlatRow[]) {
+function readFilterParam(params: URLSearchParams, key: string) {
+  const raw = params.get(key);
+  if (!raw) return null;
+  const value = raw.trim();
+  if (value.length === 0 || value === "All") return null;
+  return value;
+}
+
+function parseLaggingExportFilters(
+  params: URLSearchParams,
+): LaggingExportFilters {
+  return {
+    search: readFilterParam(params, "search"),
+    department: readFilterParam(params, "department"),
+    agency: readFilterParam(params, "agency"),
+    sourceOfFunding: readFilterParam(params, "sourceOfFunding"),
+    natureOfProject: readFilterParam(params, "natureOfProject"),
+    projectExecutionType: readFilterParam(params, "projectExecutionType"),
+    verification: readFilterParam(params, "verification"),
+    status: readFilterParam(params, "status"),
+  };
+}
+
+function rowVerificationStatus(row: LaggingFlatRow) {
+  const verifiedDate = toDate(row.verified_date);
+  const submittedDate = toDate(row.submitted_date);
+  if (verifiedDate) return "Verified";
+  if (submittedDate) return "Pending Verification";
+  return "No Update";
+}
+
+function rowIndicatorStatus(row: LaggingFlatRow) {
+  return Boolean(row.is_stale) || Boolean(row.has_no_progress)
+    ? "Needs Attention"
+    : "On Track";
+}
+
+function matchesLaggingExportFilters(
+  row: LaggingFlatRow,
+  filters: LaggingExportFilters,
+) {
+  const administrativeDepartment = toText(
+    row.administrative_department,
+    "Unassigned",
+  );
+  const implementingDepartment = toText(row.department_name, "Unassigned");
+  const hodNames = toText(row.hod_names, "Unassigned");
+  const projectCode = toText(row.project_code, "-");
+  const projectName = toText(row.project_name, "Untitled project");
+  const indicatorName = toText(row.indicator_name, "Untitled indicator");
+  const sourceOfFunding = toText(row.source_of_funding, "Unspecified");
+  const natureOfProject = toText(row.nature_of_project, "Unspecified");
+  const projectExecutionType = toText(
+    row.project_execution_type,
+    "Unspecified",
+  );
+
+  if (filters.department && administrativeDepartment !== filters.department) {
+    return false;
+  }
+  if (filters.agency && implementingDepartment !== filters.agency) {
+    return false;
+  }
+  if (filters.sourceOfFunding && sourceOfFunding !== filters.sourceOfFunding) {
+    return false;
+  }
+  if (filters.natureOfProject && natureOfProject !== filters.natureOfProject) {
+    return false;
+  }
+  if (
+    filters.projectExecutionType &&
+    projectExecutionType !== filters.projectExecutionType
+  ) {
+    return false;
+  }
+  if (
+    filters.verification &&
+    rowVerificationStatus(row) !== filters.verification
+  ) {
+    return false;
+  }
+  if (filters.status && rowIndicatorStatus(row) !== filters.status) {
+    return false;
+  }
+
+  if (filters.search) {
+    const searchLower = filters.search.toLowerCase();
+    const matchesSearch = [
+      administrativeDepartment,
+      implementingDepartment,
+      hodNames,
+      projectCode,
+      projectName,
+      indicatorName,
+      sourceOfFunding,
+      natureOfProject,
+      projectExecutionType,
+    ].some((value) => value.toLowerCase().includes(searchLower));
+
+    if (!matchesSearch) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+function formatLaggingExportFilters(filters: LaggingExportFilters) {
+  const parts: string[] = [];
+  if (filters.search) parts.push(`Search: ${filters.search}`);
+  if (filters.department) parts.push(`Department: ${filters.department}`);
+  if (filters.agency) parts.push(`Implementing: ${filters.agency}`);
+  if (filters.verification) parts.push(`Verification: ${filters.verification}`);
+  if (filters.status) parts.push(`Status: ${filters.status}`);
+  if (filters.natureOfProject) parts.push(`Nature: ${filters.natureOfProject}`);
+  if (filters.sourceOfFunding)
+    parts.push(`Funding: ${filters.sourceOfFunding}`);
+  if (filters.projectExecutionType)
+    parts.push(`Execution: ${filters.projectExecutionType}`);
+
+  if (parts.length === 0) return "Applied filters: None";
+  return `Applied filters: ${parts.join(" | ")}`;
+}
+
+function buildLaggingWorkbook(
+  rows: LaggingFlatRow[],
+  filters: LaggingExportFilters,
+) {
   const byAdmin = new Map<string, Map<string, LaggingDepartment>>();
 
   for (const row of rows) {
@@ -672,7 +823,10 @@ function buildLaggingWorkbook(rows: LaggingFlatRow[]) {
       project_name: project.name,
       indicator_name: toText(row.indicator_name, "Untitled indicator"),
       physical_progress: toNumber(row.physical_progress),
-      financial_progress: row.financial_progress == null ? null : toNumber(row.financial_progress),
+      financial_progress:
+        row.financial_progress == null
+          ? null
+          : toNumber(row.financial_progress),
       financial_achievement: toNumber(row.financial_achievement),
       submitted_date: toDate(row.submitted_date),
       verified_date: toDate(row.verified_date),
@@ -692,7 +846,7 @@ function buildLaggingWorkbook(rows: LaggingFlatRow[]) {
   workbook.creator = "HDP Portal";
   workbook.company = "Kerala CMO";
 
-  const sheet = workbook.addWorksheet("Lagging Analysis");
+  const sheet = workbook.addWorksheet("Project Progress");
   sheet.properties.outlineProperties = {
     summaryBelow: false,
     summaryRight: false,
@@ -712,7 +866,7 @@ function buildLaggingWorkbook(rows: LaggingFlatRow[]) {
   ];
 
   sheet.mergeCells("A1:J1");
-  sheet.getCell("A1").value = "Lagging Analysis Report";
+  sheet.getCell("A1").value = "കേരള സർക്കാർ|100 ദിന പദ്ധതികൾ";
   sheet.getCell("A1").font = {
     size: 16,
     bold: true,
@@ -721,14 +875,43 @@ function buildLaggingWorkbook(rows: LaggingFlatRow[]) {
   sheet.getCell("A1").alignment = { horizontal: "center", vertical: "middle" };
 
   sheet.mergeCells("A2:J2");
-  sheet.getCell("A2").value = `Generated on ${formatDateTime()}`;
+  sheet.getCell("A2").value = "Project Progress & Performance";
   sheet.getCell("A2").font = {
+    size: 13,
+    bold: true,
+    color: { argb: "FF1F2937" },
+  };
+  sheet.getCell("A2").alignment = { horizontal: "center", vertical: "middle" };
+
+  sheet.mergeCells("A3:J3");
+  sheet.getCell("A3").value = `Generated on ${formatDateTime()}`;
+  sheet.getCell("A3").alignment = { horizontal: "center", vertical: "middle" };
+  sheet.getCell("A3").font = {
     size: 10,
     italic: true,
     color: { argb: "FF6B7280" },
   };
 
-  const headerRow = sheet.getRow(4);
+  sheet.getRow(1).height = 26;
+  sheet.getRow(2).height = 22;
+  sheet.getRow(3).height = 20;
+
+  sheet.mergeCells("A4:J4");
+  sheet.getCell("A4").value = formatLaggingExportFilters(filters);
+  sheet.getCell("A4").font = {
+    size: 10,
+    italic: true,
+    color: { argb: "FF475569" },
+  };
+  sheet.getCell("A4").alignment = {
+    horizontal: "left",
+    vertical: "middle",
+    wrapText: true,
+  };
+  sheet.getRow(4).height = 22;
+
+  const headerRow = sheet.getRow(5);
+  headerRow.height = 22;
   headerRow.values = [
     "Hierarchy",
     "Implementing Agency / HOD",
@@ -756,13 +939,15 @@ function buildLaggingWorkbook(rows: LaggingFlatRow[]) {
     };
   });
 
-  let currentRow = 5;
+  let currentRow = 6;
   let adminIndex = 0;
 
   for (const [adminName, deptMap] of byAdmin.entries()) {
     adminIndex += 1;
     const adminNumber = String(adminIndex);
-    const adminProjects = Array.from(deptMap.values()).flatMap((dept) => Array.from(dept.projects.values()));
+    const adminProjects = Array.from(deptMap.values()).flatMap((dept) =>
+      Array.from(dept.projects.values()),
+    );
     const adminIndicators = adminProjects.flatMap((p) => p.indicators);
     const adminSummary = aggregate(adminIndicators);
     const adminLastUpdate = rollupLastUpdate(adminIndicators);
@@ -877,15 +1062,15 @@ function buildLaggingWorkbook(rows: LaggingFlatRow[]) {
   }
 
   sheet.autoFilter = {
-    from: { row: 4, column: 1 },
-    to: { row: 4, column: 10 },
+    from: { row: 5, column: 1 },
+    to: { row: 5, column: 10 },
   };
-  sheet.views = [{ state: "frozen", ySplit: 4 }];
+  sheet.views = [{ state: "frozen", ySplit: 5 }];
 
   return workbook;
 }
 
-async function buildAdminLaggingAnalysisExport() {
+async function buildAdminLaggingAnalysisExport(filters: LaggingExportFilters) {
   const { indicatorStaleDays } = getDefaulterThresholds();
   const now = new Date();
 
@@ -944,6 +1129,17 @@ async function buildAdminLaggingAnalysisExport() {
       dm.project_id,
       dm.project_code,
       dm.project_name,
+      COALESCE(msf.source_of_funding_name, 'Unspecified') AS source_of_funding,
+      CASE
+        WHEN COALESCE(mp.nature_of_project, 0) = 1 THEN 'Livelihood'
+        WHEN COALESCE(mp.nature_of_project, 0) = 2 THEN 'Infrastructure'
+        ELSE 'Unspecified'
+      END AS nature_of_project,
+      CASE
+        WHEN COALESCE(mp.project_execution_type, 0) = 1 THEN 'Completion'
+        WHEN COALESCE(mp.project_execution_type, 0) = 2 THEN 'Inauguration'
+        ELSE 'Unspecified'
+      END AS project_execution_type,
       dm.project_cost,
       i.indicator_id,
       COALESCE(i.indicator_name, 'Untitled indicator') AS indicator_name,
@@ -988,11 +1184,17 @@ async function buildAdminLaggingAnalysisExport() {
         WHERE d.indicator_id = i.indicator_id
       ), 0) AS document_count
     FROM dept_map dm
+    LEFT JOIN hdp.master_projects mp ON mp.project_id = dm.project_id
+    LEFT JOIN hdp.master_source_of_funding msf ON msf.source_of_funding_id = mp.source_of_funding_id
     LEFT JOIN hdp.indicators i ON i.project_id = dm.project_id
     ORDER BY dm.administrative_department ASC, dm.department_name ASC, dm.project_name ASC, indicator_name ASC
   `);
 
-  return buildLaggingWorkbook(result.rows as LaggingFlatRow[]);
+  const rows = (result.rows as LaggingFlatRow[]).filter((row) =>
+    matchesLaggingExportFilters(row, filters),
+  );
+
+  return buildLaggingWorkbook(rows, filters);
 }
 
 async function generateLaggingAnalysisTable() {
@@ -1557,14 +1759,17 @@ export async function GET(
         break;
       case "lagging-analysis":
         if (format === "xlsx") {
-          const workbook = await buildAdminLaggingAnalysisExport();
+          const exportFilters = parseLaggingExportFilters(
+            req.nextUrl.searchParams,
+          );
+          const workbook = await buildAdminLaggingAnalysisExport(exportFilters);
           const buffer = (await workbook.xlsx.writeBuffer()) as ArrayBuffer;
           const timestamp = formatFileTimestamp();
           return new NextResponse(Buffer.from(buffer), {
             headers: {
               "content-type":
                 "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-              "content-disposition": `attachment; filename="HDP-Lagging analysis report ${timestamp}.xlsx"`,
+              "content-disposition": `attachment; filename="HDP-Project Progress & Performance ${timestamp}.xlsx"`,
             },
           });
         }
