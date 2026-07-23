@@ -89,6 +89,7 @@ HDP screens/
 HDP-2026-share.zip
 deploy-zips/
 PRODUCTION_DEPLOYMENT_STEPS.md
+.deploy-stage-*/
 
 # Drizzle local artifacts
 .drizzle/
