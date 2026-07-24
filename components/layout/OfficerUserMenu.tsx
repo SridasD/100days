@@ -4,6 +4,15 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { ChevronDown, KeyRound, LogOut, UserCircle } from 'lucide-react';
 import { signOut } from 'next-auth/react';
+
+async function handleLogout() {
+  try {
+    await fetch('/api/auth/logout', { method: 'POST', credentials: 'same-origin' });
+  } catch {
+    // Best effort: continue to signOut even if audit logging fails.
+  }
+  await signOut({ callbackUrl: '/login' });
+}
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -186,7 +195,7 @@ export function OfficerUserMenu({
         </DropdownMenuItem>
         <DropdownMenuSeparator />
         <DropdownMenuItem
-          onClick={() => signOut({ callbackUrl: '/login' })}
+          onClick={() => void handleLogout()}
           className="text-error-red focus:bg-error-red/10 focus:text-error-red"
         >
           <LogOut className="h-4 w-4" />

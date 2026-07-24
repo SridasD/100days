@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useTransition } from 'react';
+import { useEffect, useState, useTransition } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -13,6 +13,8 @@ import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { cn } from '@/lib/utils';
 
+const SENSITIVE_QUERY_KEYS = ['loginName', 'password', 'username', 'pass', 'pwd'];
+
 export function LoginForm() {
   const router = useRouter();
   const params = useSearchParams();
@@ -20,6 +22,20 @@ export function LoginForm() {
   const [showPassword, setShowPassword] = useState(false);
   const [serverError, setServerError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
+
+  useEffect(() => {
+    const hasSensitiveQuery = SENSITIVE_QUERY_KEYS.some((key) => params.get(key));
+    if (!hasSensitiveQuery) return;
+
+    const nextParams = new URLSearchParams(params.toString());
+    for (const key of SENSITIVE_QUERY_KEYS) {
+      nextParams.delete(key);
+    }
+
+    const nextQuery = nextParams.toString();
+    const nextUrl = nextQuery ? `/login?${nextQuery}` : '/login';
+    router.replace(nextUrl, { scroll: false });
+  }, [params, router]);
 
   const {
     register,

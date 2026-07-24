@@ -1,10 +1,18 @@
 /** @type {import('next').NextConfig} */
 const isProduction = process.env.NODE_ENV === "production";
 
+const scriptSrc = ["'self'", "'unsafe-inline'"];
+if (!isProduction) {
+  // Next.js dev runtime uses eval for fast refresh/source maps.
+  scriptSrc.push("'unsafe-eval'");
+}
+
+const styleSrc = ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"];
+
 const cspDirectives = [
   "default-src 'self'",
-  "script-src 'self' 'unsafe-eval' 'unsafe-inline'",
-  "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+  `script-src ${scriptSrc.join(" ")}`,
+  `style-src ${styleSrc.join(" ")}`,
   "font-src 'self' https://fonts.gstatic.com",
   "img-src 'self' blob: data: https://i.ytimg.com https://*.fbcdn.net",
   "object-src 'none'",

@@ -18,7 +18,6 @@ import {
   Images,
   IndianRupee,
   Layers,
-  PawPrint,
   Video,
 } from 'lucide-react';
 import { VerifiedDataBadge } from './VerifiedDataBadge';
@@ -97,7 +96,7 @@ export function DepartmentProgressCard({
       <header className="border-b bg-gradient-to-r from-hdp-bg/80 via-white to-white px-5 py-4">
         <div className="flex items-start gap-3">
           <span className="mt-0.5 flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-hdp-green/12 text-hdp-green">
-            <PawPrint className="h-4.5 w-4.5" aria-hidden />
+            <ClipboardList className="h-4.5 w-4.5" aria-hidden />
           </span>
           <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-center justify-between gap-2">
@@ -228,10 +227,7 @@ export function DepartmentProgressCard({
             <div className="flex items-center justify-between gap-2">
               <div>
                 <p className="font-malayalam text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
-                  ഘടക പുരോഗതി
-                </p>
-                <p className="font-malayalam mt-1 text-xs text-muted-foreground">
-                  പദ്ധതി ഘടകങ്ങളുടെ സ്ഥിരീകരിച്ച നില
+                  പൂർത്തിയായ  ഘടകങ്ങൾ
                 </p>
               </div>
               <VerifiedDataBadge className="shrink-0" />
@@ -246,9 +242,6 @@ export function DepartmentProgressCard({
                     <span className="font-mono text-3xl font-extrabold leading-none text-foreground">
                       {indicators}
                     </span>
-                    <span className="font-malayalam pb-0.5 text-[11px] font-medium text-muted-foreground">
-                      ഘടകങ്ങൾ
-                    </span>
                   </div>
                 </div>
                 <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-kerala-blue/10 text-kerala-blue">
@@ -259,14 +252,11 @@ export function DepartmentProgressCard({
               <div className="flex items-center justify-between rounded-xl border border-hdp-success/15 bg-hdp-success/5 px-3 py-2.5">
                 <div className="min-w-0">
                   <p className="font-malayalam text-[10px] font-semibold uppercase tracking-wide text-hdp-success/80">
-                    പൂർത്തിയായി
+                    പൂർത്തിയായ  ഘടകങ്ങൾ
                   </p>
                   <div className="mt-1 flex items-end gap-2">
                     <span className="font-mono text-3xl font-extrabold leading-none text-foreground">
                       {indicatorsCompleted}
-                    </span>
-                    <span className="font-malayalam pb-0.5 text-[11px] font-medium text-muted-foreground">
-                      ഘടകങ്ങൾ
                     </span>
                   </div>
                 </div>

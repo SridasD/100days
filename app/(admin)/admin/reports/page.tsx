@@ -41,23 +41,72 @@ export default function AdminReportsPage() {
   const isOsd = pathname.startsWith('/admin/osd');
   const dashboardPath = isOsd ? '/admin/osd/project-performance-dashboard' : '/admin/dashboard';
 
+  const getAttachmentFilename = (response: Response, fallback: string) => {
+    const contentDisposition = response.headers.get('content-disposition') ?? '';
+    const match = contentDisposition.match(/filename="([^"]+)"/i);
+    return match?.[1] ?? fallback;
+  };
+
+  const downloadBlob = (blob: Blob, filename: string) => {
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    window.URL.revokeObjectURL(url);
+  };
+
+  const readErrorMessage = async (response: Response) => {
+    const contentType = response.headers.get('content-type') ?? '';
+    if (contentType.includes('application/json')) {
+      const payload = await response.json().catch(() => null);
+      if (payload && typeof payload.error === 'string' && payload.error.trim()) {
+        return payload.error;
+      }
+    }
+
+    const text = await response.text().catch(() => '');
+    return text.trim() || `HTTP ${response.status}`;
+  };
+
   const handleExport = async (reportId: string) => {
     setExporting(reportId);
     try {
-      const response = await fetch(
+      const xlsxResponse = await fetch(
         `/api/admin/reports/${reportId}?format=xlsx`,
       );
-      if (!response.ok) throw new Error('Export failed');
 
-      const blob = await response.blob();
-      const url = window.URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = `${reportId}-report.xlsx`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      window.URL.revokeObjectURL(url);
+      if (xlsxResponse.ok) {
+        const blob = await xlsxResponse.blob();
+        const filename = getAttachmentFilename(
+          xlsxResponse,
+          `${reportId}-report.xlsx`,
+        );
+        downloadBlob(blob, filename);
+        return;
+      }
+
+      const xlsxError = await readErrorMessage(xlsxResponse);
+
+      // Graceful fallback so users can still export data even when XLSX generation fails.
+      const csvResponse = await fetch(
+        `/api/admin/reports/${reportId}?format=csv`,
+      );
+      if (csvResponse.ok) {
+        const blob = await csvResponse.blob();
+        const filename = getAttachmentFilename(
+          csvResponse,
+          `${reportId}-report.csv`,
+        );
+        downloadBlob(blob, filename);
+        alert(`Excel export failed (${xlsxError}). CSV exported instead.`);
+        return;
+      }
+
+      const csvError = await readErrorMessage(csvResponse);
+      throw new Error(`${xlsxError}; CSV fallback failed: ${csvError}`);
     } catch (e) {
       alert(`Failed to export: ${e instanceof Error ? e.message : 'Unknown error'}`);
     } finally {

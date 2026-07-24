@@ -24,6 +24,7 @@ import {
   ExternalLink,
   Facebook,
   FileText,
+  Info,
   IndianRupee,
   ImageIcon,
   Images,
@@ -305,22 +306,38 @@ function IndicatorsTab({
 }: {
   indicators: PublicProjectIndicator[];
 }) {
+  const verifiedNote = (
+    <div className="flex items-start gap-2 rounded-xl border border-[#2E7D32]/15 bg-[#2E7D32]/5 px-4 py-3 text-xs text-muted-foreground">
+      <Info className="mt-0.5 h-4 w-4 flex-shrink-0 text-[#2E7D32]" />
+      <p>
+        Only verified indicators are shown here. The project may have more
+        indicators overall.
+      </p>
+    </div>
+  );
+
   if (indicators.length === 0) {
     return (
-      <EmptyCard
-        titleMal="സ്ഥിരീകരിച്ച പുരോഗതി ഡാറ്റ ലഭ്യമല്ല"
-        descMal="Verified data not yet available"
-      />
+      <div className="space-y-4">
+        {verifiedNote}
+        <EmptyCard
+          titleMal="സ്ഥിരീകരിച്ച പുരോഗതി ഡാറ്റ ലഭ്യമല്ല"
+          descMal="Verified data not yet available"
+        />
+      </div>
     );
   }
   return (
-    <ul className="grid gap-5 md:grid-cols-2">
-      {indicators.map((ind, idx) => (
-        <li key={ind.indicatorId}>
-          <IndicatorCard ind={ind} index={idx + 1} />
-        </li>
-      ))}
-    </ul>
+    <div className="space-y-4">
+      {verifiedNote}
+      <ul className="grid gap-5 md:grid-cols-2">
+        {indicators.map((ind, idx) => (
+          <li key={ind.indicatorId}>
+            <IndicatorCard ind={ind} index={idx + 1} />
+          </li>
+        ))}
+      </ul>
+    </div>
   );
 }
 

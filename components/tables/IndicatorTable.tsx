@@ -733,7 +733,7 @@ export function IndicatorTable({
             serialNo={startIdx + idx + 1}
             i={ind}
             onOpenSheet={openSheet}
-            canDelete={canDeleteNonVerified && !ind.isVerified}
+            canDelete={canDeleteNonVerified && !ind.isVerified && !ind.verifiedDate}
             onDelete={handleDeleteIndicator}
           />
         ))}

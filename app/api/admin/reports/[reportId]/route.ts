@@ -821,6 +821,9 @@ function buildLaggingWorkbook(
       hod_names: hodNames,
       project_code: project.code,
       project_name: project.name,
+      source_of_funding: "",
+      nature_of_project: "",
+      project_execution_type: "",
       indicator_name: toText(row.indicator_name, "Untitled indicator"),
       physical_progress: toNumber(row.physical_progress),
       financial_progress:
@@ -837,7 +840,6 @@ function buildLaggingWorkbook(
       image_count: toNumber(row.image_count),
       video_count: toNumber(row.video_count),
       document_count: toNumber(row.document_count),
-      // This export doesn't fetch project completion status (not used by this sheet's columns).
       project_is_completed: false,
     });
   }

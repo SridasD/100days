@@ -774,52 +774,85 @@ function ProgressTabContent({
       <form
         id="progress-form"
         onSubmit={handleSubmit(onValid)}
-        className="flex-1 space-y-6 overflow-y-auto px-4 py-4 sm:px-6"
+        className="flex-1 space-y-6 overflow-y-auto bg-gradient-to-b from-background via-background to-muted/20 px-4 py-4 pb-6 sm:px-6"
         noValidate
       >
-        <section className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-          <KpiSummaryCard
-            icon={<BarChart3 className="h-3.5 w-3.5" aria-hidden />}
-            title="Physical"
-            value={`${physical.toFixed(2)} / ${physicalTarget.toFixed(2)} ${indicator?.unit ?? ''}`}
-            progress={percentage}
-            subtitle="Target vs achieved"
-          />
-          <KpiSummaryCard
-            icon={<IndianRupee className="h-3.5 w-3.5" aria-hidden />}
-            title="Financial"
-            value={`Rs ${financial.toFixed(2)} / ${financialTarget.toFixed(2)} L`}
-            progress={financialProgress}
-            subtitle="Target vs achieved"
-          />
-          <KpiSummaryCard
-            icon={<Percent className="h-3.5 w-3.5" aria-hidden />}
-            title="Progress"
-            value={`${percentage.toFixed(2)}%`}
-            progress={percentage}
-            subtitle="Overall completion"
-            emphasize
-          />
-          <KpiSummaryCard
-            icon={<MapPin className="h-3.5 w-3.5" aria-hidden />}
-            title="Location"
-            value={locationLabel}
-            progress={percentage}
-            subtitle="Implementation coverage"
-            valueTitle={locationParts.join(', ')}
-          />
+        <section className="space-y-3 rounded-2xl border border-border/80 bg-white/60 p-3 shadow-sm backdrop-blur-sm">
+          <div className="flex items-center justify-between gap-2 px-1">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+              Live Snapshot
+            </p>
+            <Badge variant="neutral" className="text-[10px]">
+              Auto-calculated
+            </Badge>
+          </div>
+          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+            <KpiSummaryCard
+              icon={<BarChart3 className="h-3.5 w-3.5" aria-hidden />}
+              title="Physical"
+              value={`${physical.toFixed(2)} / ${physicalTarget.toFixed(2)} ${indicator?.unit ?? ''}`}
+              progress={percentage}
+              subtitle="Target vs achieved"
+            />
+            <KpiSummaryCard
+              icon={<IndianRupee className="h-3.5 w-3.5" aria-hidden />}
+              title="Financial"
+              value={`Rs ${financial.toFixed(2)} / ${financialTarget.toFixed(2)} L`}
+              progress={financialProgress}
+              subtitle="Target vs achieved"
+            />
+            <KpiSummaryCard
+              icon={<Percent className="h-3.5 w-3.5" aria-hidden />}
+              title="Progress"
+              value={`${percentage.toFixed(2)}%`}
+              progress={percentage}
+              subtitle="Overall completion"
+              emphasize
+            />
+            <KpiSummaryCard
+              icon={<MapPin className="h-3.5 w-3.5" aria-hidden />}
+              title="Location"
+              value={locationLabel}
+              progress={percentage}
+              subtitle="Implementation coverage"
+              valueTitle={locationParts.join(', ')}
+            />
+          </div>
         </section>
 
-        <section className="space-y-3">
+        <section className="rounded-2xl border border-[#2E7D32]/25 bg-gradient-to-r from-[#2E7D32]/8 via-[#2E7D32]/4 to-transparent px-4 py-3 shadow-sm">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div className="space-y-1">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[#2E7D32]">
+                Start Here
+              </p>
+              <p className="text-sm font-medium text-foreground">
+                Enter the update in the form fields below.
+              </p>
+              <p className="text-xs text-muted-foreground">
+                <b>Physical Achievement</b> and <b>Financial Achievement</b> values may be updated continuously. <b>Employment Details</b> may be provided at any stage, if applicable. Upon achieving 100% Physical Target, entering the <b>Completion Date</b> is required.
+              </p>
+            </div>
+             
+          </div>
+        </section>
+
+        <section className="space-y-3 rounded-2xl border border-border/70 bg-card/90 p-4 shadow-sm">
           <SectionTitle
             icon={<BarChart3 className="h-3.5 w-3.5" />}
             title="Achievement"
           />
+          <p className="text-xs text-muted-foreground">
+            Primary entry fields. These values directly update overall progress.
+          </p>
           <div className="grid gap-4 sm:grid-cols-2">
-            <div className="space-y-2 rounded-2xl border bg-card p-4 shadow-sm">
+            <div className="space-y-2 rounded-2xl border border-[#2E7D32]/30 bg-[#2E7D32]/5 p-4 shadow-sm ring-1 ring-[#2E7D32]/10">
               <Label htmlFor="physical_achievement" className="text-xs">
                 Physical Achievement{' '}
                 <span className="text-muted-foreground">({indicator?.unit})</span>
+                <span className="ml-1 rounded bg-success-green/15 px-1.5 py-0.5 text-[10px] font-semibold text-success-green">
+                  Required
+                </span>
               </Label>
               <Input
                 id="physical_achievement"
@@ -880,10 +913,13 @@ function ProgressTabContent({
               </div>
             </div>
 
-            <div className="space-y-2 rounded-2xl border bg-card p-4 shadow-sm">
+            <div className="space-y-2 rounded-2xl border border-[#2E7D32]/30 bg-[#2E7D32]/5 p-4 shadow-sm ring-1 ring-[#2E7D32]/10">
               <Label htmlFor="financial_achievement" className="text-xs">
                 Financial Achievement{' '}
                 <span className="text-muted-foreground">(Lakhs)</span>
+                <span className="ml-1 rounded bg-success-green/15 px-1.5 py-0.5 text-[10px] font-semibold text-success-green">
+                  Required
+                </span>
               </Label>
               <div className="relative">
                 <IndianRupee
@@ -950,11 +986,14 @@ function ProgressTabContent({
           </div>
         </section>
 
-        <section className="space-y-3">
+        <section className="space-y-3 rounded-2xl border border-border/70 bg-card/90 p-4 shadow-sm">
           <SectionTitle
             icon={<Briefcase className="h-3.5 w-3.5" />}
             title="Employment Generation"
           />
+          <p className="text-xs text-muted-foreground">
+            Add achieved days and persons for both direct and indirect employment.
+          </p>
           <div className="grid gap-4 sm:grid-cols-2">
             <EmploymentCard
               title="Direct Employment"
@@ -981,7 +1020,7 @@ function ProgressTabContent({
           </div>
         </section>
 
-        <section className="space-y-2">
+        <section className="space-y-2 rounded-2xl border border-border/70 bg-card/90 p-4 shadow-sm">
           <SectionTitle
             icon={<Info className="h-3.5 w-3.5" />}
             title="Description"
@@ -1987,10 +2026,10 @@ function SectionTitle({
   title: string;
 }) {
   return (
-    <h3 className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-[#2E7D32]">
+    <h3 className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.14em] text-[#2E7D32]">
       <span
         aria-hidden
-        className="flex h-6 w-6 items-center justify-center rounded-md bg-[#2E7D32]/10"
+        className="flex h-6 w-6 items-center justify-center rounded-md bg-[#2E7D32]/10 ring-1 ring-[#2E7D32]/15"
       >
         {icon}
       </span>
@@ -2019,7 +2058,7 @@ function KpiSummaryCard({
   return (
     <article
       className={cn(
-        'rounded-2xl border bg-card p-4 shadow-sm',
+        'rounded-2xl border border-border/70 bg-card p-4 shadow-sm',
         emphasize && 'border-success-green/40 bg-success-green/5',
       )}
       aria-label={title}
