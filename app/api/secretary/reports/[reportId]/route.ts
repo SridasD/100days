@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { sql } from "drizzle-orm";
+import ExcelJS from "exceljs";
 import { ROLE, isSession, requireSession } from "@/lib/auth/session";
 import { db } from "@/lib/db/client";
 import { getDefaulterThresholds } from "@/lib/config/defaulter-thresholds";
@@ -7,6 +8,14 @@ import { getDefaulterThresholds } from "@/lib/config/defaulter-thresholds";
 export const runtime = "nodejs";
 
 type Row = Record<string, unknown>;
+type ReportResult = {
+  title: string;
+  headers: string[];
+  rows: unknown[][];
+  csv: string;
+};
+
+const REPORT_GOV_HEADING = "കേരള സർക്കാർ | 100 ദിന പദ്ധതികൾ";
 
 function csvEscape(value: unknown) {
   const text = value == null ? "" : String(value);
@@ -22,33 +31,236 @@ function toCsv(headers: string[], rows: unknown[][]) {
   return `${headerLine}\n${body}`;
 }
 
+function buildReport(
+  title: string,
+  headers: string[],
+  rows: unknown[][],
+): ReportResult {
+  return {
+    title,
+    headers,
+    rows,
+    csv: toCsv(headers, rows),
+  };
+}
+
+function asCellValue(value: unknown): string | number | boolean {
+  if (value == null) return "";
+  if (typeof value === "number" || typeof value === "boolean") return value;
+  return String(value);
+}
+
+function asDisplayDate(value: Date) {
+  return new Intl.DateTimeFormat("en-IN", {
+    dateStyle: "medium",
+    timeStyle: "medium",
+    timeZone: "Asia/Kolkata",
+  }).format(value);
+}
+
+function escapeHtml(value: string) {
+  return value
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#39;");
+}
+
+async function toXlsxBuffer(result: ReportResult) {
+  const workbook = new ExcelJS.Workbook();
+  const sheet = workbook.addWorksheet("Report");
+  const maxColumns = Math.max(result.headers.length, 1);
+  const tableHeaderRowNumber = 5;
+
+  sheet.mergeCells(1, 1, 1, maxColumns);
+  sheet.getCell(1, 1).value = REPORT_GOV_HEADING;
+  sheet.getCell(1, 1).font = { bold: true, size: 14 };
+
+  sheet.mergeCells(2, 1, 2, maxColumns);
+  sheet.getCell(2, 1).value = result.title;
+  sheet.getCell(2, 1).font = { bold: true, size: 12 };
+
+  sheet.mergeCells(3, 1, 3, maxColumns);
+  sheet.getCell(3, 1).value = `Generated on: ${asDisplayDate(new Date())}`;
+  sheet.getCell(3, 1).font = { italic: true, size: 11 };
+
+  const headerRow = sheet.getRow(tableHeaderRowNumber);
+  headerRow.values = result.headers;
+  headerRow.font = { bold: true };
+
+  for (const row of result.rows) {
+    sheet.addRow(row.map(asCellValue));
+  }
+
+  sheet.columns = result.headers.map((header, idx) => {
+    const headerLen = header.length;
+    const contentLen = result.rows.reduce((max, row) => {
+      const cell = row[idx];
+      const length = cell == null ? 0 : String(cell).length;
+      return Math.max(max, length);
+    }, 0);
+    return { width: Math.min(Math.max(headerLen, contentLen, 12), 48) };
+  });
+
+  const tableEndRowNumber = tableHeaderRowNumber + result.rows.length;
+  const border: Partial<ExcelJS.Borders> = {
+    top: { style: "thin", color: { argb: "FF94A3B8" } },
+    left: { style: "thin", color: { argb: "FF94A3B8" } },
+    bottom: { style: "thin", color: { argb: "FF94A3B8" } },
+    right: { style: "thin", color: { argb: "FF94A3B8" } },
+  };
+
+  for (
+    let rowNumber = tableHeaderRowNumber;
+    rowNumber <= tableEndRowNumber;
+    rowNumber += 1
+  ) {
+    for (
+      let colNumber = 1;
+      colNumber <= result.headers.length;
+      colNumber += 1
+    ) {
+      const cell = sheet.getCell(rowNumber, colNumber);
+      cell.border = border;
+      cell.alignment = { vertical: "middle", wrapText: true };
+    }
+  }
+
+  return workbook.xlsx.writeBuffer();
+}
+
 function csvToHtmlTable(csv: string, title: string) {
   const lines = csv.split(/\r?\n/).filter(Boolean);
   const cells = lines.map((line) => line.split(","));
   const [header, ...rows] = cells;
+  const generatedOn = asDisplayDate(new Date());
+  const safeTitle = escapeHtml(title);
+  const safeGovHeading = escapeHtml(REPORT_GOV_HEADING);
 
   return `<!doctype html>
 <html>
 <head>
   <meta charset="utf-8" />
-  <title>${title}</title>
+  <title>${safeTitle}</title>
   <style>
-    body { font-family: Arial, sans-serif; margin: 24px; }
-    h1 { font-size: 18px; margin-bottom: 12px; }
-    table { border-collapse: collapse; width: 100%; }
-    th, td { border: 1px solid #d1d5db; padding: 8px; font-size: 12px; text-align: left; }
-    th { background: #f3f4f6; }
-    @media print { body { margin: 8px; } }
+    :root {
+      --ink: #0f172a;
+      --muted: #475569;
+      --line: #cbd5e1;
+      --head-bg: #e2e8f0;
+      --row-alt: #f8fafc;
+      --brand: #0b3a82;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: #f1f5f9;
+      color: var(--ink);
+      font-family: "Segoe UI", "Noto Sans Malayalam", "Nirmala UI", Arial, sans-serif;
+      line-height: 1.45;
+    }
+    .page {
+      max-width: 1120px;
+      margin: 20px auto;
+      background: #ffffff;
+      border: 1px solid #e2e8f0;
+      border-radius: 12px;
+      padding: 18px 20px 20px;
+      box-shadow: 0 8px 24px rgba(15, 23, 42, 0.08);
+    }
+    .header {
+      border-bottom: 2px solid var(--brand);
+      padding-bottom: 10px;
+      margin-bottom: 14px;
+    }
+    .gov-heading {
+      font-size: 22px;
+      font-weight: 700;
+      letter-spacing: 0.01em;
+      color: var(--brand);
+      margin: 0;
+    }
+    .report-title {
+      font-size: 16px;
+      font-weight: 600;
+      margin: 6px 0 2px;
+      color: var(--ink);
+    }
+    .generated-on {
+      font-size: 12px;
+      color: var(--muted);
+      margin: 0;
+    }
+    .table-wrap {
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      overflow: hidden;
+    }
+    table {
+      border-collapse: collapse;
+      width: 100%;
+      table-layout: fixed;
+    }
+    th, td {
+      border-bottom: 1px solid var(--line);
+      padding: 9px 10px;
+      font-size: 12px;
+      text-align: left;
+      vertical-align: top;
+      word-break: break-word;
+    }
+    th {
+      background: var(--head-bg);
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      font-size: 11px;
+      font-weight: 700;
+    }
+    tbody tr:nth-child(even) td { background: var(--row-alt); }
+    tbody tr:last-child td { border-bottom: 0; }
+    .footer {
+      margin-top: 10px;
+      font-size: 11px;
+      color: var(--muted);
+      text-align: right;
+    }
+    @media print {
+      body { background: #fff; }
+      .page {
+        box-shadow: none;
+        border: 0;
+        margin: 0;
+        padding: 0;
+        max-width: none;
+      }
+      .header { margin-bottom: 10px; }
+      @page { size: A4 landscape; margin: 12mm; }
+    }
   </style>
 </head>
 <body>
-  <h1>${title}</h1>
-  <table>
-    <thead><tr>${header.map((h) => `<th>${h}</th>`).join("")}</tr></thead>
-    <tbody>
-      ${rows.map((r) => `<tr>${r.map((c) => `<td>${c}</td>`).join("")}</tr>`).join("\n")}
-    </tbody>
-  </table>
+  <main class="page">
+    <header class="header">
+      <p class="gov-heading">${safeGovHeading}</p>
+      <p class="report-title">${safeTitle}</p>
+      <p class="generated-on">Generated on: ${escapeHtml(generatedOn)}</p>
+    </header>
+    <section class="table-wrap">
+      <table>
+        <thead><tr>${header.map((h) => `<th>${escapeHtml(h)}</th>`).join("")}</tr></thead>
+        <tbody>
+          ${rows
+            .map(
+              (r) =>
+                `<tr>${r.map((c) => `<td>${escapeHtml(c)}</td>`).join("")}</tr>`,
+            )
+            .join("\n")}
+        </tbody>
+      </table>
+    </section>
+    <div class="footer">HDP Reporting System</div>
+  </main>
 </body>
 </html>`;
 }
@@ -128,7 +340,19 @@ async function reportDepartmentSummary(secId: number) {
     r.financial_progress,
     r.last_updated,
   ]);
-  return { title: "Department Summary Report", csv: toCsv(headers, rows) };
+
+  const totals = rows.reduce(
+    (acc, row) => {
+      acc.projects += Number(row[1] ?? 0);
+      acc.indicators += Number(row[2] ?? 0);
+      return acc;
+    },
+    { projects: 0, indicators: 0 },
+  );
+
+  rows.push(["TOTAL", totals.projects, totals.indicators, "", "", ""]);
+
+  return buildReport("Department Summary Report", headers, rows);
 }
 
 async function reportProjectSummary(secId: number) {
@@ -216,7 +440,7 @@ async function reportProjectSummary(secId: number) {
     r.indicators,
     r.last_updated,
   ]);
-  return { title: "Project Summary Report", csv: toCsv(headers, rows) };
+  return buildReport("Project Summary Report", headers, rows);
 }
 
 async function reportPhysicalProgress(secId: number) {
@@ -276,7 +500,7 @@ async function reportPhysicalProgress(secId: number) {
     r.physical_progress,
     r.last_updated,
   ]);
-  return { title: "Physical Progress Report", csv: toCsv(headers, rows) };
+  return buildReport("Physical Progress Report", headers, rows);
 }
 
 async function reportFinancialProgress(secId: number) {
@@ -336,7 +560,7 @@ async function reportFinancialProgress(secId: number) {
     r.financial_progress,
     r.last_updated,
   ]);
-  return { title: "Financial Progress Report", csv: toCsv(headers, rows) };
+  return buildReport("Financial Progress Report", headers, rows);
 }
 
 async function reportIndicators(secId: number) {
@@ -404,7 +628,7 @@ async function reportIndicators(secId: number) {
     r.financial_progress,
     r.last_updated,
   ]);
-  return { title: "Indicator Report", csv: toCsv(headers, rows) };
+  return buildReport("Indicator Report", headers, rows);
 }
 
 async function reportDefaulters(secId: number) {
@@ -509,7 +733,7 @@ async function reportDefaulters(secId: number) {
     r.subject,
     r.days,
   ]);
-  return { title: "Defaulters Report", csv: toCsv(headers, rows) };
+  return buildReport("Defaulters Report", headers, rows);
 }
 
 export async function GET(
@@ -535,7 +759,7 @@ export async function GET(
   }
 
   try {
-    let result: { title: string; csv: string };
+    let result: ReportResult;
 
     switch (reportId) {
       case "department-summary":
@@ -573,17 +797,21 @@ export async function GET(
       });
     }
 
-    const contentType =
-      format === "xlsx"
-        ? "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-        : "text/csv; charset=utf-8";
-
-    const ext = format === "xlsx" ? "xlsx" : "csv";
+    if (format === "xlsx") {
+      const xlsxBuffer = await toXlsxBuffer(result);
+      return new NextResponse(xlsxBuffer as ArrayBuffer, {
+        headers: {
+          "content-type":
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+          "content-disposition": `attachment; filename="${reportId}-report.xlsx"`,
+        },
+      });
+    }
 
     return new NextResponse(result.csv, {
       headers: {
-        "content-type": contentType,
-        "content-disposition": `attachment; filename="${reportId}-report.${ext}"`,
+        "content-type": "text/csv; charset=utf-8",
+        "content-disposition": `attachment; filename="${reportId}-report.csv"`,
       },
     });
   } catch (err) {

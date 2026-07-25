@@ -1,6 +1,6 @@
 "use client";
 
-import { Fragment, useEffect, useState } from "react";
+import { Fragment, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { ChevronDown, ChevronUp, Download, FileSpreadsheet } from "lucide-react";
 import { KeralaHeader } from "@/components/layout/KeralaHeader";
@@ -124,6 +124,18 @@ export default function SecretaryDepartmentsPage() {
         const b = words[1]?.[0] ?? "P";
         return `${a}${b}`.toUpperCase();
     };
+
+    const totals = useMemo(() => {
+        const rows = data?.departmentPerformance ?? [];
+        return rows.reduce(
+            (acc, row) => {
+                acc.projects += row.projects || 0;
+                acc.indicators += row.indicators || 0;
+                return acc;
+            },
+            { projects: 0, indicators: 0 },
+        );
+    }, [data]);
 
     return (
         <div className="flex min-h-screen flex-col bg-[#F3F4F6]">
@@ -257,6 +269,12 @@ export default function SecretaryDepartmentsPage() {
                                                 </Fragment>
                                             );
                                         })}
+                                        <TableRow className="bg-slate-100/90 font-semibold text-slate-900">
+                                            <TableCell>Total</TableCell>
+                                            <TableCell className="text-right">{fmt(totals.projects)}</TableCell>
+                                            <TableCell className="text-right">{fmt(totals.indicators)}</TableCell>
+                                            <TableCell className="text-right text-slate-500">-</TableCell>
+                                        </TableRow>
                                     </TableBody>
                                 </Table>
                             </div>
