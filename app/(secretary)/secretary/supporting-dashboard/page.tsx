@@ -247,7 +247,7 @@ export default function SecretarySupportingDashboardPage() {
                                         <TableRow className="bg-[#FFF8E1]">
                                             <TableHead>Supporting Indicator</TableHead>
                                             <TableHead>Project</TableHead>
-                                            <TableHead>Project's Implementing Department</TableHead>
+                                            <TableHead>Project&apos;s Implementing Department</TableHead>
                                             <TableHead>District</TableHead>
                                             <TableHead className="text-right">Physical %</TableHead>
                                             <TableHead className="text-right">Financial %</TableHead>
@@ -259,12 +259,7 @@ export default function SecretarySupportingDashboardPage() {
                                             <TableRow key={row.indicatorId}>
                                                 <TableCell className="font-medium">{row.indicatorName}</TableCell>
                                                 <TableCell>
-                                                    <Link
-                                                        href={`/secretary/projects?projectId=${row.projectId}`}
-                                                        className="font-medium underline-offset-4 hover:underline"
-                                                    >
-                                                        {row.projectName}
-                                                    </Link>
+                                                    <div className="font-medium">{row.projectName}</div>
                                                     <div className="text-xs text-slate-500">{row.projectCode ?? "-"}</div>
                                                     <div className="text-xs text-slate-500">{statusFromCompleted(row.isCompleted)}</div>
                                                 </TableCell>

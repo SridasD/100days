@@ -36,7 +36,8 @@ export async function getPublicDashboardStats() {
     db.execute(sql`
         SELECT COUNT(*)::int as count
         FROM hdp.indicators i
-        WHERE i.verified_date IS NOT NULL
+        WHERE i.completed_date IS NOT NULL
+          AND i.verified_date IS NOT NULL
           AND EXISTS (
             SELECT 1 FROM hdp.master_projects mp
             WHERE mp.project_id = i.project_id

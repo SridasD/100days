@@ -10,28 +10,17 @@ import { Badge } from '@/components/ui/badge';
 
 const reports = [
   {
-    id: 'summary',
-    title: 'Summary Report',
-    description: 'Overview of all projects and indicators',
-    sections: ['Total Projects', 'Completed', 'In Progress', 'Indicators Count'],
-  },
-  {
     id: 'department',
     title: 'Department-wise Report',
     description: 'Project and indicator breakdown by department',
-    sections: ['By Secretary', 'Project Count', 'Indicator Status'],
+    sections: ['By Secretary', 'District Breakdown', 'Indicator Completion Status'],
   },
   {
-    id: 'completed',
-    title: 'Completed Projects',
-    description: 'List of all completed projects with achievements',
-    sections: ['Project Details', 'Achievements', 'Employment Data'],
-  },
-  {
-    id: 'district',
-    title: 'District-based Report',
-    description: 'Indicators and projects by district',
-    sections: ['By District', 'Indicator Details', 'Progress Status'],
+    id: 'state-average',
+    title: 'State Average Report',
+    description:
+      "Compare every department's verified physical progress against the overall State Average and identify top and bottom performing departments.",
+    sections: ['Verified Progress Only', 'Department Comparison', 'Top/Bottom Performers'],
   },
 ];
 

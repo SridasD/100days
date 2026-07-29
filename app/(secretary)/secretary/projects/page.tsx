@@ -15,6 +15,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 
 type Project = {
     projectId: number;
+    projectPublicId: string | null;
     projectCode: string | null;
     projectName: string | null;
     isOwned?: boolean;
@@ -84,11 +85,17 @@ function SecretaryProjectsPageContent() {
         };
     }, []);
 
-    const projectIdFilter = Number(searchParams.get("projectId") ?? "0");
+    const projectIdParam = searchParams.get("projectId");
 
     const projects = useMemo(() => {
         const rows = data?.projects ?? [];
-        const idFiltered = projectIdFilter > 0 ? rows.filter((r) => r.projectId === projectIdFilter) : rows;
+        const idFiltered = projectIdParam
+            ? rows.filter(
+                  (r) =>
+                      r.projectPublicId === projectIdParam ||
+                      String(r.projectId) === projectIdParam,
+              )
+            : rows;
 
         const scoped = idFiltered.filter((row) => {
             if (statusFilter !== "all" && statusLabel(row.isCompleted) !== statusFilter) {
@@ -145,7 +152,7 @@ function SecretaryProjectsPageContent() {
             const tb = b.lastUpdated ? new Date(b.lastUpdated).getTime() : 0;
             return tb - ta;
         });
-    }, [data, projectIdFilter, statusFilter, sectorFilter, districtFilter, departmentFilter, sortBy]);
+    }, [data, projectIdParam, statusFilter, sectorFilter, districtFilter, departmentFilter, sortBy]);
 
     const sectorOptions = useMemo(() => {
         const rows = data?.projects ?? [];
@@ -314,7 +321,7 @@ function SecretaryProjectsPageContent() {
                                         <TableRow key={project.projectId}>
                                             <TableCell>
                                                 <Link
-                                                    href={`/secretary/projects/${project.projectId}/indicators`}
+                                                    href={`/secretary/projects/${project.projectPublicId ?? project.projectId}/indicators`}
                                                     className="font-medium underline-offset-4 hover:underline"
                                                 >
                                                     {project.projectName ?? "Untitled project"}
@@ -336,7 +343,7 @@ function SecretaryProjectsPageContent() {
                                             <TableCell>{fmtDate(project.lastUpdated)}</TableCell>
                                             <TableCell>
                                                 <Link
-                                                    href={`/secretary/projects/${project.projectId}/indicators`}
+                                                    href={`/secretary/projects/${project.projectPublicId ?? project.projectId}/indicators`}
                                                     className="text-sm font-medium text-kerala-blue underline-offset-4 hover:underline"
                                                 >
                                                     View Indicators

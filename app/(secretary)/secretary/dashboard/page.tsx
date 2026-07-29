@@ -12,6 +12,7 @@ import {
     FolderOpen,
     Image,
     Loader2,
+    Paperclip,
     PlayCircle,
     ShieldAlert,
     TableProperties,
@@ -55,6 +56,7 @@ type DashboardPayload = {
         financialProgress: number;
         imagesUploaded: number;
         videosUploaded: number;
+        documentsUploaded: number;
         lastDataUpdate: string | null;
     };
     projectStatus: {
@@ -65,6 +67,7 @@ type DashboardPayload = {
     };
     projects: Array<{
         projectId: number;
+        projectPublicId: string | null;
         projectCode: string | null;
         projectName: string | null;
         isOwned?: boolean;
@@ -96,6 +99,7 @@ type DashboardPayload = {
     }>;
     departmentPerformance: Array<{
         deptId: number;
+        deptPublicId: string | null;
         department: string;
         projects: number;
         indicators: number;
@@ -139,8 +143,8 @@ type Filters = {
 
 const numberFmt = new Intl.NumberFormat("en-IN");
 const percentFmt = new Intl.NumberFormat("en-IN", {
-    minimumFractionDigits: 1,
-    maximumFractionDigits: 1,
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
 });
 
 function fmtNumber(value: number) {
@@ -393,6 +397,7 @@ export default function SecretaryDashboardPage() {
                             <KpiRowCard title="Financial Progress" value={fmtPercent(data.summary.financialProgress)} icon={ArrowUpDown} />
                             <KpiRowCard title="Images Uploaded" value={data.summary.imagesUploaded} icon={Image} />
                             <KpiRowCard title="Videos Uploaded" value={data.summary.videosUploaded} icon={PlayCircle} />
+                            <KpiRowCard title="Documents Uploaded" value={data.summary.documentsUploaded} icon={Paperclip} />
                         </section>
 
                         <section className="space-y-4 rounded-2xl border border-sky-200 bg-sky-50/50 p-4 shadow-sm">
@@ -520,7 +525,7 @@ export default function SecretaryDashboardPage() {
                                                 <TableRow key={row.deptId || row.department} className="cursor-pointer hover:bg-slate-50/70">
                                                     <TableCell className="font-medium">
                                                         <Link
-                                                            href={`/secretary/departments/${row.deptId}`}
+                                                            href={`/secretary/departments/${row.deptPublicId ?? row.deptId}`}
                                                             className="underline-offset-4 hover:underline"
                                                         >
                                                             {row.department}
@@ -562,7 +567,7 @@ export default function SecretaryDashboardPage() {
                                             {ownedProjects.map((project) => (
                                                 <TableRow key={project.projectId}>
                                                     <TableCell>
-                                                        <Link href={`/secretary/projects?projectId=${project.projectId}`} className="font-medium underline-offset-4 hover:underline">
+                                                        <Link href={`/secretary/projects?projectId=${project.projectPublicId ?? project.projectId}`} className="font-medium underline-offset-4 hover:underline">
                                                             {project.projectName ?? "Untitled project"}
                                                         </Link>
                                                         <div className="text-xs text-slate-500">{project.projectCode ?? "-"}</div>

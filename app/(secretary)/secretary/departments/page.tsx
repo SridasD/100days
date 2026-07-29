@@ -14,6 +14,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 type Payload = {
     departmentPerformance: Array<{
         deptId: number;
+        deptPublicId: string | null;
         department: string;
         projects: number;
         indicators: number;
@@ -35,6 +36,7 @@ type DepartmentDetails = {
     };
     projects: Array<{
         projectId: number;
+        projectPublicId: string | null;
         projectCode: string;
         projectName: string;
         status: string;
@@ -244,7 +246,7 @@ export default function SecretaryDepartmentsPage() {
                                                                             {details.projects.slice(0, 6).map((project) => (
                                                                                 <div key={project.projectId} className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-slate-200 px-3 py-2 text-sm">
                                                                                     <div>
-                                                                                        <Link href={`/secretary/projects/${project.projectId}/indicators`} className="font-medium text-slate-900 underline-offset-4 hover:underline">
+                                                                                        <Link href={`/secretary/projects/${project.projectPublicId ?? project.projectId}/indicators`} className="font-medium text-slate-900 underline-offset-4 hover:underline">
                                                                                             {project.projectName}
                                                                                         </Link>
                                                                                         <p className="text-xs text-slate-500">{project.projectCode || "-"}</p>
@@ -258,7 +260,7 @@ export default function SecretaryDepartmentsPage() {
                                                                     )}
 
                                                                     <div className="flex flex-wrap gap-3 pt-1 text-sm">
-                                                                        <Link href={`/secretary/departments/${row.deptId}`} className="font-medium text-kerala-blue underline-offset-4 hover:underline">
+                                                                        <Link href={`/secretary/departments/${row.deptPublicId ?? row.deptId}`} className="font-medium text-kerala-blue underline-offset-4 hover:underline">
                                                                             Open Full Department Details
                                                                         </Link>
                                                                     </div>

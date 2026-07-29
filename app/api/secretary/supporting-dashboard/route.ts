@@ -67,8 +67,12 @@ export async function GET() {
             'Unassigned'
           ) AS department_names,
           COALESCE(mp.is_completed, 0) AS is_completed,
-          COALESCE(i.verified_percentage, i.percentage, 0) AS physical_progress,
-          COALESCE(i.verified_financial_achievement, i.financial_achievement, 0) AS financial_progress,
+          COALESCE(i.verified_percentage, 0) AS physical_progress,
+          CASE
+            WHEN COALESCE(i.financial_target, 0) > 0
+            THEN ROUND((COALESCE(i.verified_financial_achievement, 0) / i.financial_target * 100)::numeric, 0)
+            ELSE 0
+          END AS financial_progress,
           COALESCE(i.verified_date, i.submitted_date) AS last_updated
         FROM hdp.indicators i
         INNER JOIN supported_indicators si ON si.indicator_id = i.indicator_id
