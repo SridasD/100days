@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Download, AlertTriangle, ArrowLeft, FileBarChart2 } from 'lucide-react';
+import { Download, AlertTriangle, ArrowLeft, FileBarChart2, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -176,8 +176,12 @@ export default function AdminReportsPage() {
                   onClick={() => handleExport(report.id)}
                   className="cursor-pointer flex-1"
                 >
-                  <Download className="h-3 w-3" />
-                  Excel
+                  {exporting === report.id ? (
+                    <Loader2 className="h-3 w-3 animate-spin" />
+                  ) : (
+                    <Download className="h-3 w-3" />
+                  )}
+                  {exporting === report.id ? 'Exporting…' : 'Excel'}
                 </Button>
               </div>
             </CardContent>

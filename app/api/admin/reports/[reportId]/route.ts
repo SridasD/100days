@@ -1709,14 +1709,18 @@ type DeptAverageEnriched = DeptAverageRow & {
   comparison: string;
 };
 
+// value + every department that shares it, so ties are shown explicitly
+// instead of one department being picked arbitrarily.
+type RankedDepartments = { value: number; departments: string[] };
+
 type StateAverageSummary = {
   rows: DeptAverageEnriched[];
   stateAverage: number | null;
   totalDepartments: number;
   aboveCount: number;
   belowCount: number;
-  highest: DeptAverageEnriched | null;
-  lowest: DeptAverageEnriched | null;
+  highest: RankedDepartments | null;
+  lowest: RankedDepartments | null;
 };
 
 /**
@@ -1829,12 +1833,24 @@ function computeStateAverageSummary(rows: DeptAverageRow[]): StateAverageSummary
     (r): r is DeptAverageEnriched & { dept_physical_avg: number } =>
       r.dept_physical_avg !== null,
   );
-  const highest = rankable.length
-    ? rankable.reduce((a, b) => (b.dept_physical_avg > a.dept_physical_avg ? b : a))
-    : null;
-  const lowest = rankable.length
-    ? rankable.reduce((a, b) => (b.dept_physical_avg < a.dept_physical_avg ? b : a))
-    : null;
+  const rankDepartments = (
+    pick: (candidate: number, current: number) => boolean,
+  ): RankedDepartments | null => {
+    if (rankable.length === 0) return null;
+    const value = rankable.reduce(
+      (current, r) => (pick(r.dept_physical_avg, current) ? r.dept_physical_avg : current),
+      rankable[0].dept_physical_avg,
+    );
+    return {
+      value,
+      departments: rankable
+        .filter((r) => r.dept_physical_avg === value)
+        .map((r) => r.secretary_name),
+    };
+  };
+
+  const highest = rankDepartments((candidate, current) => candidate > current);
+  const lowest = rankDepartments((candidate, current) => candidate < current);
 
   return {
     rows: enriched,
@@ -1871,24 +1887,22 @@ const STATE_AVERAGE_TABLE_HEADERS = [
   "Difference from State Average (%)",
 ];
 
+// Ties render as every tied department's name, e.g. "A, B, C (85%)" —
+// deliberately not collapsed to a count, so a tie is never hidden. The
+// summary sheet's row height is bumped to give this room to wrap.
+function formatRanked(ranked: RankedDepartments | null): string {
+  if (!ranked) return "N/A";
+  return `${ranked.departments.join(", ")} (${formatPct(ranked.value)})`;
+}
+
 function summaryMetricLines(summary: StateAverageSummary): [string, string][] {
   return [
     ["Overall State Physical Progress Average", formatPct(summary.stateAverage)],
     ["Total Departments", String(summary.totalDepartments)],
     ["Departments Above State Average", String(summary.aboveCount)],
     ["Departments Below State Average", String(summary.belowCount)],
-    [
-      "Highest Performing Department",
-      summary.highest
-        ? `${summary.highest.secretary_name} (${formatPct(summary.highest.dept_physical_avg)})`
-        : "N/A",
-    ],
-    [
-      "Lowest Performing Department",
-      summary.lowest
-        ? `${summary.lowest.secretary_name} (${formatPct(summary.lowest.dept_physical_avg)})`
-        : "N/A",
-    ],
+    ["Highest Performing Department", formatRanked(summary.highest)],
+    ["Lowest Performing Department", formatRanked(summary.lowest)],
   ];
 }
 
@@ -1903,7 +1917,7 @@ function buildStateAverageSummarySheet(
   const sheet = workbook.addWorksheet("State Average Summary");
   sheet.columns = [
     { key: "metric", width: 42 },
-    { key: "value", width: 36 },
+    { key: "value", width: 50 },
   ];
 
   buildReportBanner(sheet, {
@@ -1930,7 +1944,12 @@ function buildStateAverageSummarySheet(
   const dataEndRow = dataStartRow + summaryLines.length - 1;
   for (let rowIndex = dataStartRow; rowIndex <= dataEndRow; rowIndex += 1) {
     const row = sheet.getRow(rowIndex);
-    row.height = 24;
+    // The Highest/Lowest Performing Department rows can list several tied
+    // department names — give those two rows more room to wrap than the
+    // single-value metric rows above them.
+    const [, value] = summaryLines[rowIndex - dataStartRow];
+    const estimatedLines = Math.max(1, Math.ceil(value.length / 55));
+    row.height = 24 * estimatedLines;
     row.eachCell({ includeEmpty: true }, (cell, columnNumber) => {
       cell.border = {
         top: { style: "thin", color: { argb: "FFE5E7EB" } },
