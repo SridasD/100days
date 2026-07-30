@@ -233,7 +233,7 @@ export default function SecretarySupportingDashboardPage() {
                                     options={["all", ...districtOptions]}
                                 />
                                 <SelectField
-                                    label="Department"
+                                    label="Project's Implementing Department"
                                     value={filters.department}
                                     onChange={(value) => setFilters((prev) => ({ ...prev, department: value }))}
                                     options={["all", ...departmentOptions]}
@@ -247,7 +247,7 @@ export default function SecretarySupportingDashboardPage() {
                                         <TableRow className="bg-[#FFF8E1]">
                                             <TableHead>Supporting Indicator</TableHead>
                                             <TableHead>Project</TableHead>
-                                            <TableHead>Department</TableHead>
+                                            <TableHead>Project&apos;s Implementing Department</TableHead>
                                             <TableHead>District</TableHead>
                                             <TableHead className="text-right">Physical %</TableHead>
                                             <TableHead className="text-right">Financial %</TableHead>
@@ -259,12 +259,7 @@ export default function SecretarySupportingDashboardPage() {
                                             <TableRow key={row.indicatorId}>
                                                 <TableCell className="font-medium">{row.indicatorName}</TableCell>
                                                 <TableCell>
-                                                    <Link
-                                                        href={`/secretary/projects?projectId=${row.projectId}`}
-                                                        className="font-medium underline-offset-4 hover:underline"
-                                                    >
-                                                        {row.projectName}
-                                                    </Link>
+                                                    <div className="font-medium">{row.projectName}</div>
                                                     <div className="text-xs text-slate-500">{row.projectCode ?? "-"}</div>
                                                     <div className="text-xs text-slate-500">{statusFromCompleted(row.isCompleted)}</div>
                                                 </TableCell>
@@ -324,7 +319,7 @@ function SelectField({
                     className="h-9 w-full rounded-md border border-slate-300 bg-white px-2 text-sm text-slate-700"
                     value={value === "all" ? "" : value}
                     onChange={(e) => onChange(e.target.value.trim() || "all")}
-                    placeholder="Type department name..."
+                    placeholder="Type implementing department name..."
                 />
                 <datalist id={listId}>
                     {options

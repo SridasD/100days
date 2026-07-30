@@ -8,6 +8,7 @@ import {
   CalendarCheck,
   CheckCircle2,
   Clock,
+  FileText,
   ImageIcon,
   Loader2,
   PartyPopper,
@@ -45,6 +46,13 @@ interface VerifyApiIndicator extends Indicator {
   projectPublicId?: string | null;
 }
 
+interface VerifyProjectMeta {
+  projectId: number;
+  projectPublicId?: string | null;
+  name?: string | null;
+  code?: string | null;
+}
+
 const inrFormat = new Intl.NumberFormat('en-IN', {
   minimumFractionDigits: 2,
   maximumFractionDigits: 2,
@@ -59,6 +67,7 @@ export default function VerifyProjectIndicatorsPage({
   const projectRef = pid.trim();
 
   const [indicators, setIndicators] = useState<VerifyApiIndicator[] | null>(null);
+  const [projectMeta, setProjectMeta] = useState<VerifyProjectMeta | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState('');
@@ -91,10 +100,19 @@ export default function VerifyProjectIndicatorsPage({
         { cache: 'no-store' },
       );
       if (!res.ok) {
+        if (res.status === 401) {
+          const callbackUrl = encodeURIComponent(`/verify/projects/${projectRef}`);
+          window.location.assign(`/login?callbackUrl=${callbackUrl}`);
+          return null;
+        }
         const body = await res.json().catch(() => ({}));
         throw new Error(body.error ?? `HTTP ${res.status}`);
       }
-      const json = (await res.json()) as { indicators: VerifyApiIndicator[] };
+      const json = (await res.json()) as {
+        project?: VerifyProjectMeta;
+        indicators: VerifyApiIndicator[];
+      };
+      setProjectMeta(json.project ?? null);
       const canonicalProjectRef = json.indicators[0]?.projectPublicId;
       if (canonicalProjectRef && canonicalProjectRef !== projectRef) {
         window.location.replace(`/verify/projects/${canonicalProjectRef}`);
@@ -260,12 +278,21 @@ export default function VerifyProjectIndicatorsPage({
           <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
             <div>
               <h1 className="text-2xl font-bold tracking-tight text-foreground">
-                Verify indicators
+                {projectMeta?.name?.trim() || 'Verify indicators'}
               </h1>
-              <p className="text-xs text-muted-foreground">
-                Project #{projectRef} · Review nodal officer submissions and
-                approve.
-              </p>
+              <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                {projectMeta?.code?.trim() && (
+                  <Badge
+                    variant="outline"
+                    className="rounded-full border-emerald-200 bg-emerald-50 font-mono text-[10px] text-emerald-800"
+                  >
+                    {projectMeta.code}
+                  </Badge>
+                )}
+                <span className="rounded-full bg-muted px-2.5 py-1 text-[11px]">
+                  Review nodal officer submissions and approve
+                </span>
+              </div>
             </div>
             <div className="flex flex-wrap items-center gap-2">
               <Badge className="flex items-center gap-1.5 bg-warning-amber/90 text-white">
@@ -322,7 +349,7 @@ export default function VerifyProjectIndicatorsPage({
         </div>
 
         {/* Filter bar */}
-        <Card className="mb-4">
+        <Card className="mb-4 border-[#2E7D32]/15 bg-gradient-to-r from-[#F6FBF7] to-white shadow-sm">
           <CardContent className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center">
             <div className="relative flex-1">
               <Search
@@ -597,7 +624,7 @@ function IndicatorRow({
   return (
     <Card
       className={cn(
-        'overflow-hidden border-l-4 shadow-sm transition-all duration-200 hover:shadow-md',
+        'overflow-hidden rounded-xl border border-border/70 border-l-4 bg-gradient-to-br from-white to-slate-50/60 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md',
         isApproved ? 'border-l-success-green' : 'border-l-warning-amber',
       )}
     >
@@ -627,15 +654,19 @@ function IndicatorRow({
               {ind.imageCount > 0 && (
                 <Badge variant="outline" className="text-[10px]">
                   <ImageIcon className="h-3 w-3" />
-                  {ind.imageCount}
+                  {ind.imageCount} images
                 </Badge>
               )}
               {ind.videoCount > 0 && (
                 <Badge variant="outline" className="text-[10px]">
                   <Video className="h-3 w-3" />
-                  {ind.videoCount}
+                  {ind.videoCount} videos
                 </Badge>
               )}
+              <Badge variant="outline" className="text-[10px]">
+                <FileText className="h-3 w-3" />
+                {ind.documentCount ?? 0} documents
+              </Badge>
             </div>
 
             <p className="text-xs text-muted-foreground">

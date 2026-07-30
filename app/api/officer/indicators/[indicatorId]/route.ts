@@ -294,7 +294,7 @@ export async function DELETE(
   req: NextRequest,
   { params }: { params: Promise<{ indicatorId: string }> },
 ) {
-  const sessionOrResponse = await requireOfficerSession(req);
+  const sessionOrResponse = await requireOfficerSession();
   if (!isSession(sessionOrResponse)) return sessionOrResponse;
   const session = sessionOrResponse;
 

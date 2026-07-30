@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { Suspense } from 'react';
+import { redirect } from 'next/navigation';
 import { Home } from 'lucide-react';
 import { KeralaHeader } from '@/components/layout/KeralaHeader';
 import { SiteFooter } from '@/components/layout/SiteFooter';
@@ -14,7 +15,48 @@ import {
 
 // Section 7.1 / Appendix B.1 — login screen. Shares KeralaHeader + SiteFooter
 // with /officer/projects so the brand chrome stays consistent.
-export default function LoginPage() {
+type SearchParamValue = string | string[] | undefined;
+
+const SENSITIVE_LOGIN_QUERY_KEYS = new Set([
+  'loginname',
+  'password',
+  'username',
+  'pass',
+  'pwd',
+]);
+
+export default async function LoginPage({
+  searchParams,
+}: {
+  searchParams?: Promise<Record<string, SearchParamValue>>;
+}) {
+  const resolvedSearchParams = searchParams ? await searchParams : {};
+  const params = new URLSearchParams();
+  let needsSanitization = false;
+
+  for (const [key, value] of Object.entries(resolvedSearchParams)) {
+    if (SENSITIVE_LOGIN_QUERY_KEYS.has(key.toLowerCase())) {
+      needsSanitization = true;
+      continue;
+    }
+
+    if (Array.isArray(value)) {
+      for (const v of value) {
+        params.append(key, v);
+      }
+      continue;
+    }
+
+    if (typeof value === 'string') {
+      params.set(key, value);
+    }
+  }
+
+  if (needsSanitization) {
+    const cleanedQuery = params.toString();
+    redirect(cleanedQuery ? `/login?${cleanedQuery}` : '/login');
+  }
+
   return (
     <div className="flex min-h-screen flex-col bg-background">
       <KeralaHeader

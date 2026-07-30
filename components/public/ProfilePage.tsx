@@ -3,6 +3,15 @@
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { signOut } from 'next-auth/react';
+
+async function handleLogout() {
+  try {
+    await fetch('/api/auth/logout', { method: 'POST', credentials: 'same-origin' });
+  } catch {
+    // Best effort: continue to signOut even if audit logging fails.
+  }
+  await signOut({ callbackUrl: '/login' });
+}
 import {
   AlertCircle,
   Building2,
@@ -340,7 +349,7 @@ export function ProfilePage({ homeHref: homeHrefOverride }: ProfilePageProps) {
                         Change password
                       </Link>
                     </Button>
-                    <Button type="button" variant="ghost" onClick={() => signOut({ callbackUrl: '/login' })}>
+                    <Button type="button" variant="ghost" onClick={() => void handleLogout()}>
                       <LogOut className="h-4 w-4" />
                       Logout
                     </Button>
@@ -382,7 +391,7 @@ export function ProfilePage({ homeHref: homeHrefOverride }: ProfilePageProps) {
                       Change password
                     </Link>
                   </Button>
-                  <Button variant="outline" className="border-white/20 bg-white/10 text-white hover:bg-white/15 hover:text-white" onClick={() => signOut({ callbackUrl: '/login' })}>
+                  <Button variant="outline" className="border-white/20 bg-white/10 text-white hover:bg-white/15 hover:text-white" onClick={() => void handleLogout()}>
                     <LogOut className="h-4 w-4" />
                     Logout
                   </Button>

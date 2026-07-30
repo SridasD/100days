@@ -1,9 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
+import { sql } from "drizzle-orm";
 import {
   requireVerifierSession,
   isVerifierSession,
 } from "@/lib/auth/verifier-session";
 import { listVerifierIndicators } from "@/lib/db/queries/verifier";
+import { db } from "@/lib/db/client";
 import { resolveProjectId } from "@/lib/db/public-id";
 
 export const runtime = "nodejs";
@@ -23,10 +25,51 @@ export async function GET(
   }
 
   const pendingOnly = req.nextUrl.searchParams.get("pending") === "1";
+  const isCentral = !session.secId || session.secId === 0;
 
   try {
+    const projectResult = await db.execute(sql`
+      SELECT
+        mp.public_id,
+        mp.project_name,
+        mp.project_code
+      FROM hdp.master_projects mp
+      WHERE mp.project_id = ${id}
+        AND COALESCE(mp.is_archived, false) = false
+        ${
+          isCentral
+            ? sql``
+            : sql`AND EXISTS (
+              SELECT 1
+              FROM hdp.project_secretary ps
+              WHERE ps.project_id = mp.project_id
+                AND ps.sec_id = ${session.secId}
+            )`
+        }
+      LIMIT 1
+    `);
+
+    if (projectResult.rows.length === 0) {
+      return NextResponse.json(
+        { error: "Forbidden: project not assigned to your department" },
+        { status: 403 },
+      );
+    }
+
+    const projectRow = projectResult.rows[0] as {
+      public_id: string | null;
+      project_name: string | null;
+      project_code: string | null;
+    };
+
     const rows = await listVerifierIndicators(id, session.secId, pendingOnly);
     return NextResponse.json({
+      project: {
+        projectId: id,
+        projectPublicId: projectRow.public_id,
+        name: projectRow.project_name,
+        code: projectRow.project_code,
+      },
       indicators: rows.map((r) => {
         const submittedPhys = r.physical_achievement ?? 0;
         const verifiedPhys =
@@ -93,6 +136,7 @@ export async function GET(
           verifiedByName: r.verified_by_name ?? null,
           imageCount: r.image_count,
           videoCount: r.video_count,
+          documentCount: r.document_count,
           status: r.status,
         };
       }),

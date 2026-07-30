@@ -442,9 +442,21 @@ export async function DELETE(
 
   const { indicatorId } = await params;
   const id = await resolveIndicatorId(indicatorId);
-  const galleryId = Number(req.nextUrl.searchParams.get("galleryId"));
-  const documentId = Number(req.nextUrl.searchParams.get("documentId"));
-  if (!id || (!Number.isFinite(galleryId) && !Number.isFinite(documentId))) {
+  const parseOptionalId = (value: string | null): number | null => {
+    if (value == null || value.trim() === "") return null;
+    const parsed = Number(value);
+    return Number.isInteger(parsed) && parsed > 0 ? parsed : null;
+  };
+
+  const galleryId = parseOptionalId(req.nextUrl.searchParams.get("galleryId"));
+  const documentId = parseOptionalId(
+    req.nextUrl.searchParams.get("documentId"),
+  );
+  if (
+    !id ||
+    (galleryId == null && documentId == null) ||
+    (galleryId != null && documentId != null)
+  ) {
     return NextResponse.json(
       { error: "Invalid indicatorId or delete target" },
       { status: 400 },
@@ -461,7 +473,7 @@ export async function DELETE(
   }
 
   try {
-    if (Number.isFinite(documentId)) {
+    if (documentId != null) {
       const found = await db.execute(sql`
         SELECT document_path FROM hdp.documents
         WHERE document_id = ${documentId} AND indicator_id = ${id}
@@ -484,19 +496,23 @@ export async function DELETE(
         }
       }
 
-      await writeAudit({
-        userId: session.userId,
-        action: AUDIT_ACTIONS.MEDIA_DELETED,
-        entity: "documents",
-        entityId: documentId,
-        request: req,
-        secId: session.secId,
-        meta: {
-          indicatorId: id,
-          kind: "document",
-          requires_reverification: true,
-        },
-      });
+      try {
+        await writeAudit({
+          userId: session.userId,
+          action: AUDIT_ACTIONS.MEDIA_DELETED,
+          entity: "documents",
+          entityId: documentId,
+          request: req,
+          secId: session.secId,
+          meta: {
+            indicatorId: id,
+            kind: "document",
+            requires_reverification: true,
+          },
+        });
+      } catch (auditErr) {
+        console.error("Document delete audit failed", auditErr);
+      }
 
       await db.execute(sql`
         UPDATE hdp.indicators
@@ -532,19 +548,23 @@ export async function DELETE(
       }
     }
 
-    await writeAudit({
-      userId: session.userId,
-      action: AUDIT_ACTIONS.MEDIA_DELETED,
-      entity: "gallery",
-      entityId: galleryId,
-      request: req,
-      secId: session.secId,
-      meta: {
-        indicatorId: id,
-        galleryType: row.gallery_type,
-        requires_reverification: true,
-      },
-    });
+    try {
+      await writeAudit({
+        userId: session.userId,
+        action: AUDIT_ACTIONS.MEDIA_DELETED,
+        entity: "gallery",
+        entityId: galleryId,
+        request: req,
+        secId: session.secId,
+        meta: {
+          indicatorId: id,
+          galleryType: row.gallery_type,
+          requires_reverification: true,
+        },
+      });
+    } catch (auditErr) {
+      console.error("Gallery delete audit failed", auditErr);
+    }
 
     await db.execute(sql`
       UPDATE hdp.indicators

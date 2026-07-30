@@ -309,20 +309,21 @@ async function loadTabularRows(): Promise<TabularRow[]> {
         SELECT COUNT(*)::int
         FROM hdp.gallery g
         WHERE g.indicator_id = i.indicator_id
-          AND COALESCE(g.is_verified, false) = true
+                    AND COALESCE(g.is_verified, false) = true
           AND g.gallery_type = 1
       ), 0) AS image_count,
       COALESCE((
         SELECT COUNT(*)::int
         FROM hdp.gallery g
         WHERE g.indicator_id = i.indicator_id
-          AND COALESCE(g.is_verified, false) = true
+                    AND COALESCE(g.is_verified, false) = true
           AND g.gallery_type = 2
       ), 0) AS video_count,
       COALESCE((
         SELECT COUNT(*)::int
         FROM hdp.documents d
         WHERE d.indicator_id = i.indicator_id
+                    AND d.verified_date IS NOT NULL
       ), 0) AS document_count
     FROM dept_map dm
     LEFT JOIN hdp.master_projects mp ON mp.project_id = dm.project_id

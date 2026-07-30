@@ -3,35 +3,24 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Download, AlertTriangle, ArrowLeft, FileBarChart2 } from 'lucide-react';
+import { Download, AlertTriangle, ArrowLeft, FileBarChart2, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 
 const reports = [
   {
-    id: 'summary',
-    title: 'Summary Report',
-    description: 'Overview of all projects and indicators',
-    sections: ['Total Projects', 'Completed', 'In Progress', 'Indicators Count'],
-  },
-  {
     id: 'department',
     title: 'Department-wise Report',
     description: 'Project and indicator breakdown by department',
-    sections: ['By Secretary', 'Project Count', 'Indicator Status'],
+    sections: ['By Secretary', 'District Breakdown', 'Indicator Completion Status'],
   },
   {
-    id: 'completed',
-    title: 'Completed Projects',
-    description: 'List of all completed projects with achievements',
-    sections: ['Project Details', 'Achievements', 'Employment Data'],
-  },
-  {
-    id: 'district',
-    title: 'District-based Report',
-    description: 'Indicators and projects by district',
-    sections: ['By District', 'Indicator Details', 'Progress Status'],
+    id: 'state-average',
+    title: 'State Average Report',
+    description:
+      "Compare every department's verified physical progress against the overall State Average and identify top and bottom performing departments.",
+    sections: ['Verified Progress Only', 'Department Comparison', 'Top/Bottom Performers'],
   },
 ];
 
@@ -41,23 +30,72 @@ export default function AdminReportsPage() {
   const isOsd = pathname.startsWith('/admin/osd');
   const dashboardPath = isOsd ? '/admin/osd/project-performance-dashboard' : '/admin/dashboard';
 
+  const getAttachmentFilename = (response: Response, fallback: string) => {
+    const contentDisposition = response.headers.get('content-disposition') ?? '';
+    const match = contentDisposition.match(/filename="([^"]+)"/i);
+    return match?.[1] ?? fallback;
+  };
+
+  const downloadBlob = (blob: Blob, filename: string) => {
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    window.URL.revokeObjectURL(url);
+  };
+
+  const readErrorMessage = async (response: Response) => {
+    const contentType = response.headers.get('content-type') ?? '';
+    if (contentType.includes('application/json')) {
+      const payload = await response.json().catch(() => null);
+      if (payload && typeof payload.error === 'string' && payload.error.trim()) {
+        return payload.error;
+      }
+    }
+
+    const text = await response.text().catch(() => '');
+    return text.trim() || `HTTP ${response.status}`;
+  };
+
   const handleExport = async (reportId: string) => {
     setExporting(reportId);
     try {
-      const response = await fetch(
+      const xlsxResponse = await fetch(
         `/api/admin/reports/${reportId}?format=xlsx`,
       );
-      if (!response.ok) throw new Error('Export failed');
 
-      const blob = await response.blob();
-      const url = window.URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = `${reportId}-report.xlsx`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      window.URL.revokeObjectURL(url);
+      if (xlsxResponse.ok) {
+        const blob = await xlsxResponse.blob();
+        const filename = getAttachmentFilename(
+          xlsxResponse,
+          `${reportId}-report.xlsx`,
+        );
+        downloadBlob(blob, filename);
+        return;
+      }
+
+      const xlsxError = await readErrorMessage(xlsxResponse);
+
+      // Graceful fallback so users can still export data even when XLSX generation fails.
+      const csvResponse = await fetch(
+        `/api/admin/reports/${reportId}?format=csv`,
+      );
+      if (csvResponse.ok) {
+        const blob = await csvResponse.blob();
+        const filename = getAttachmentFilename(
+          csvResponse,
+          `${reportId}-report.csv`,
+        );
+        downloadBlob(blob, filename);
+        alert(`Excel export failed (${xlsxError}). CSV exported instead.`);
+        return;
+      }
+
+      const csvError = await readErrorMessage(csvResponse);
+      throw new Error(`${xlsxError}; CSV fallback failed: ${csvError}`);
     } catch (e) {
       alert(`Failed to export: ${e instanceof Error ? e.message : 'Unknown error'}`);
     } finally {
@@ -138,8 +176,12 @@ export default function AdminReportsPage() {
                   onClick={() => handleExport(report.id)}
                   className="cursor-pointer flex-1"
                 >
-                  <Download className="h-3 w-3" />
-                  Excel
+                  {exporting === report.id ? (
+                    <Loader2 className="h-3 w-3 animate-spin" />
+                  ) : (
+                    <Download className="h-3 w-3" />
+                  )}
+                  {exporting === report.id ? 'Exporting…' : 'Excel'}
                 </Button>
               </div>
             </CardContent>

@@ -1,6 +1,6 @@
 "use client";
 
-import { Fragment, useEffect, useState } from "react";
+import { Fragment, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { ChevronDown, ChevronUp, Download, FileSpreadsheet } from "lucide-react";
 import { KeralaHeader } from "@/components/layout/KeralaHeader";
@@ -14,6 +14,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 type Payload = {
     departmentPerformance: Array<{
         deptId: number;
+        deptPublicId: string | null;
         department: string;
         projects: number;
         indicators: number;
@@ -35,6 +36,7 @@ type DepartmentDetails = {
     };
     projects: Array<{
         projectId: number;
+        projectPublicId: string | null;
         projectCode: string;
         projectName: string;
         status: string;
@@ -124,6 +126,18 @@ export default function SecretaryDepartmentsPage() {
         const b = words[1]?.[0] ?? "P";
         return `${a}${b}`.toUpperCase();
     };
+
+    const totals = useMemo(() => {
+        const rows = data?.departmentPerformance ?? [];
+        return rows.reduce(
+            (acc, row) => {
+                acc.projects += row.projects || 0;
+                acc.indicators += row.indicators || 0;
+                return acc;
+            },
+            { projects: 0, indicators: 0 },
+        );
+    }, [data]);
 
     return (
         <div className="flex min-h-screen flex-col bg-[#F3F4F6]">
@@ -232,7 +246,7 @@ export default function SecretaryDepartmentsPage() {
                                                                             {details.projects.slice(0, 6).map((project) => (
                                                                                 <div key={project.projectId} className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-slate-200 px-3 py-2 text-sm">
                                                                                     <div>
-                                                                                        <Link href={`/secretary/projects/${project.projectId}/indicators`} className="font-medium text-slate-900 underline-offset-4 hover:underline">
+                                                                                        <Link href={`/secretary/projects/${project.projectPublicId ?? project.projectId}/indicators`} className="font-medium text-slate-900 underline-offset-4 hover:underline">
                                                                                             {project.projectName}
                                                                                         </Link>
                                                                                         <p className="text-xs text-slate-500">{project.projectCode || "-"}</p>
@@ -246,7 +260,7 @@ export default function SecretaryDepartmentsPage() {
                                                                     )}
 
                                                                     <div className="flex flex-wrap gap-3 pt-1 text-sm">
-                                                                        <Link href={`/secretary/departments/${row.deptId}`} className="font-medium text-kerala-blue underline-offset-4 hover:underline">
+                                                                        <Link href={`/secretary/departments/${row.deptPublicId ?? row.deptId}`} className="font-medium text-kerala-blue underline-offset-4 hover:underline">
                                                                             Open Full Department Details
                                                                         </Link>
                                                                     </div>
@@ -257,6 +271,12 @@ export default function SecretaryDepartmentsPage() {
                                                 </Fragment>
                                             );
                                         })}
+                                        <TableRow className="bg-slate-100/90 font-semibold text-slate-900">
+                                            <TableCell>Total</TableCell>
+                                            <TableCell className="text-right">{fmt(totals.projects)}</TableCell>
+                                            <TableCell className="text-right">{fmt(totals.indicators)}</TableCell>
+                                            <TableCell className="text-right text-slate-500">-</TableCell>
+                                        </TableRow>
                                     </TableBody>
                                 </Table>
                             </div>

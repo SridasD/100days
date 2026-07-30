@@ -14,8 +14,20 @@ export const authConfig: NextAuthConfig = {
     authorized({ auth, request }) {
       const { nextUrl } = request;
       const { pathname } = nextUrl;
+      const sensitiveLoginKeys = [
+        "loginName",
+        "password",
+        "username",
+        "pass",
+        "pwd",
+      ];
       const role = (auth?.user as any)?.roleId as number | undefined;
       const isApiRoute = pathname.startsWith("/api/");
+      const hasPathPrefix = (prefix: string) =>
+        pathname === prefix ||
+        pathname.startsWith(`${prefix}/`) ||
+        pathname.startsWith(`/api${prefix}/`) ||
+        pathname.startsWith(`/api${prefix}`);
       const hasSessionCookie =
         !!request.cookies.get("__Secure-authjs.session-token") ||
         !!request.cookies.get("authjs.session-token") ||
@@ -33,6 +45,21 @@ export const authConfig: NextAuthConfig = {
         method === "DELETE";
       const isStaticAsset =
         /\.(png|jpg|jpeg|gif|webp|svg|ico|css|js|map|txt|xml)$/i.test(pathname);
+
+      // Never keep credential-like query keys on /login in the address bar.
+      // Sanitize at middleware level so the first rendered URL is already clean.
+      if (pathname === "/login") {
+        const hasSensitiveLoginQuery = sensitiveLoginKeys.some((key) =>
+          nextUrl.searchParams.has(key),
+        );
+        if (hasSensitiveLoginQuery) {
+          const redirectUrl = new URL(nextUrl.toString());
+          for (const key of sensitiveLoginKeys) {
+            redirectUrl.searchParams.delete(key);
+          }
+          return Response.redirect(redirectUrl, 302);
+        }
+      }
 
       // CSRF mitigation: for unsafe API methods, require same-origin when
       // browsers send an Origin header.
@@ -101,31 +128,57 @@ export const authConfig: NextAuthConfig = {
       }
 
       // Role-based redirects (Section 5.4)
-      if ((role === 2 || role === 6) && pathname.startsWith("/verify"))
+      if ((role === 2 || role === 6) && hasPathPrefix("/verify")) {
+        if (isApiRoute) {
+          return Response.json({ error: "Forbidden" }, { status: 403 });
+        }
         return Response.redirect(new URL("/officer/projects", nextUrl));
-      if (role === 1 && pathname.startsWith("/officer"))
+      }
+      if (role === 1 && hasPathPrefix("/officer")) {
+        if (isApiRoute) {
+          return Response.json({ error: "Forbidden" }, { status: 403 });
+        }
         return Response.redirect(new URL("/verify/projects", nextUrl));
-      if (role === 5 && pathname.startsWith("/secretary")) return true;
+      }
+      if (role === 5 && hasPathPrefix("/secretary")) return true;
       if (
         role === 5 &&
-        (pathname.startsWith("/officer") ||
-          pathname.startsWith("/verify") ||
-          pathname.startsWith("/admin"))
-      )
+        (hasPathPrefix("/officer") ||
+          hasPathPrefix("/verify") ||
+          hasPathPrefix("/admin"))
+      ) {
+        if (isApiRoute) {
+          return Response.json({ error: "Forbidden" }, { status: 403 });
+        }
         return Response.redirect(new URL("/secretary/dashboard", nextUrl));
+      }
       if (
         role === 4 &&
-        pathname.startsWith("/admin") &&
-        !pathname.startsWith("/admin/osd") &&
-        !pathname.startsWith("/admin/projects")
-      )
+        hasPathPrefix("/admin") &&
+        !hasPathPrefix("/admin/osd") &&
+        !hasPathPrefix("/admin/reports") &&
+        !hasPathPrefix("/admin/projects") &&
+        !hasPathPrefix("/admin/master")
+      ) {
+        if (isApiRoute) {
+          return Response.json({ error: "Forbidden" }, { status: 403 });
+        }
         return Response.redirect(
           new URL("/admin/osd/project-performance-dashboard", nextUrl),
         );
-      if (role === 3 && pathname.startsWith("/admin/osd"))
+      }
+      if (role === 3 && hasPathPrefix("/admin/osd")) {
+        if (isApiRoute) {
+          return Response.json({ error: "Forbidden" }, { status: 403 });
+        }
         return Response.redirect(new URL("/admin/dashboard", nextUrl));
-      if (role !== 3 && role !== 4 && pathname.startsWith("/admin"))
+      }
+      if (role !== 3 && role !== 4 && hasPathPrefix("/admin")) {
+        if (isApiRoute) {
+          return Response.json({ error: "Forbidden" }, { status: 403 });
+        }
         return Response.redirect(new URL("/login", nextUrl));
+      }
 
       return true;
     },

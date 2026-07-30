@@ -82,6 +82,7 @@ export interface VerifierIndicator {
   verifiedByName: string | null;
   imageCount: number;
   videoCount: number;
+  documentCount?: number;
   status: 'pending' | 'approved' | 'reverification_required' | 'rejected';
 }
 
@@ -465,7 +466,7 @@ export function VerifierIndicatorSheet({
             onValueChange={(v) => setTab(v as Tab)}
             className="flex flex-1 flex-col overflow-hidden"
           >
-            <TabsList className="sticky top-0 z-10 shrink-0">
+            <TabsList className="sticky top-0 z-10 mx-4 mt-3 grid h-auto shrink-0 grid-cols-4 rounded-2xl border bg-muted/50 p-1">
               <TabsTrigger value="verify">
                 <ShieldCheck className="h-4 w-4" />
                 Verify
@@ -500,15 +501,35 @@ export function VerifierIndicatorSheet({
               forceMount
               className="flex flex-1 flex-col overflow-hidden data-[state=inactive]:hidden"
             >
-              <div className="flex-1 space-y-5 overflow-y-auto px-6 py-5 pb-24">
+              <div className="flex-1 space-y-5 overflow-y-auto bg-gradient-to-b from-background via-background to-muted/20 px-6 py-5 pb-24">
+                <section className="rounded-2xl border border-[#2E7D32]/25 bg-gradient-to-r from-[#2E7D32]/8 via-[#2E7D32]/4 to-transparent px-4 py-3 shadow-sm">
+                  <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div className="space-y-1">
+                      <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[#2E7D32]">
+                        Start Here
+                      </p>
+                      <p className="text-sm font-medium text-foreground">
+                        Please verify the details provided by the Nodal Officers on the left panel. Where adjustments are necessary, enter the updated values in the verified fields on the right.
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        Add remarks if any value is corrected, then approve.
+                      </p>
+                    </div>
+
+                  </div>
+                </section>
+
                 {/* Submitted vs Verified comparison */}
-                <section>
+                <section className="space-y-2 rounded-2xl border border-border/70 bg-card/90 p-4 shadow-sm">
                   <SectionTitle
                     icon={<ArrowLeftRight className="h-3.5 w-3.5" />}
-                    title="Nodal submission vs your verification"
+                    title="Nodal Officer's submission vs Verification"
                   />
+                  <p className="text-xs text-muted-foreground">
+                    Left panel is read-only nodal data. Right panel is your editable verification form.
+                  </p>
                   <div className="mt-2 grid gap-3 sm:grid-cols-2">
-                    <div className="rounded-lg border bg-muted/20 p-3">
+                    <div className="rounded-xl border border-border/80 bg-muted/20 p-3">
                       <p className="mb-2 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
                         Submitted by nodal
                       </p>
@@ -542,7 +563,7 @@ export function VerifierIndicatorSheet({
                         </p>
                       )}
                     </div>
-                    <div className="rounded-lg border border-[#2E7D32]/30 bg-[#2E7D32]/5 p-3">
+                    <div className="rounded-xl border border-[#2E7D32]/35 bg-[#2E7D32]/5 p-3 shadow-sm ring-1 ring-[#2E7D32]/10">
                       <p className="mb-2 text-[10px] font-semibold uppercase tracking-wide text-[#2E7D32]">
                         Verified values (editable)
                       </p>
@@ -554,6 +575,7 @@ export function VerifierIndicatorSheet({
                             min={0}
                             value={physical}
                             onChange={(e) => setPhysical(Number(e.target.value))}
+                            className="border-[#2E7D32]/25 bg-white"
                           />
                         </Field>
                         <Field label="Financial (Lakhs)">
@@ -564,7 +586,7 @@ export function VerifierIndicatorSheet({
                               step="0.01"
                               min={0}
                               value={financial}
-                              className="pl-9"
+                              className="border-[#2E7D32]/25 bg-white pl-9"
                               onChange={(e) =>
                                 setFinancial(Number(e.target.value))
                               }
@@ -577,17 +599,21 @@ export function VerifierIndicatorSheet({
                 </section>
 
                 {/* Employment generation */}
-                <section>
+                <section className="space-y-2 rounded-2xl border border-border/70 bg-card/90 p-4 shadow-sm">
                   <SectionTitle
                     icon={<BarChart3 className="h-3.5 w-3.5" />}
                     title="Employment generation (verified)"
                   />
+                  <p className="text-xs text-muted-foreground">
+                    Optional correction fields for employment impact.
+                  </p>
                   <div className="mt-2 grid gap-2 sm:grid-cols-2">
                     <Field label="Direct - Days">
                       <Input
                         type="number"
                         min={0}
                         value={directDays}
+                        className="bg-white"
                         onChange={(e) =>
                           setDirectDays(Number(e.target.value))
                         }
@@ -598,6 +624,7 @@ export function VerifierIndicatorSheet({
                         type="number"
                         min={0}
                         value={directPersons}
+                        className="bg-white"
                         onChange={(e) =>
                           setDirectPersons(Number(e.target.value))
                         }
@@ -608,6 +635,7 @@ export function VerifierIndicatorSheet({
                         type="number"
                         min={0}
                         value={indirectDays}
+                        className="bg-white"
                         onChange={(e) =>
                           setIndirectDays(Number(e.target.value))
                         }
@@ -618,6 +646,7 @@ export function VerifierIndicatorSheet({
                         type="number"
                         min={0}
                         value={indirectPersons}
+                        className="bg-white"
                         onChange={(e) =>
                           setIndirectPersons(Number(e.target.value))
                         }
@@ -627,7 +656,7 @@ export function VerifierIndicatorSheet({
                 </section>
 
                 {/* Description */}
-                <section>
+                <section className="space-y-2 rounded-2xl border border-border/70 bg-card/90 p-4 shadow-sm">
                   <SectionTitle
                     icon={<MessageSquare className="h-3.5 w-3.5" />}
                     title="Verified description"
@@ -638,7 +667,7 @@ export function VerifierIndicatorSheet({
                     value={description}
                     onChange={(e) => setDescription(e.target.value)}
                     placeholder="Corrected or confirmed description of work done..."
-                    className="mt-2 resize-y"
+                    className="mt-2 resize-y bg-white"
                   />
                 </section>
 
@@ -671,7 +700,7 @@ export function VerifierIndicatorSheet({
                 )}
 
                 {/* Remarks */}
-                <section>
+                <section className="space-y-2 rounded-2xl border border-border/70 bg-card/90 p-4 shadow-sm">
                   <SectionTitle
                     icon={<MessageSquare className="h-3.5 w-3.5" />}
                     title={
@@ -693,7 +722,7 @@ export function VerifierIndicatorSheet({
                         : 'Add a note about this verification (optional)'
                     }
                     className={cn(
-                      'mt-2 resize-y',
+                      'mt-2 resize-y bg-white',
                       remarksRequired &&
                       !remarksOk &&
                       'border-error-red focus-visible:ring-error-red',
@@ -717,7 +746,7 @@ export function VerifierIndicatorSheet({
                 )}
               </div>
 
-              <footer className="border-t bg-background px-6 py-3">
+              <footer className="sticky bottom-0 border-t bg-background/95 px-6 py-3 backdrop-blur">
                 {(images.length > 0 || documents.length > 0 || videos.length > 0) && (
                   <p className="mb-2 text-[11px] text-muted-foreground">
                     Approving this indicator will also verify attached evidence:
@@ -1710,10 +1739,10 @@ function SectionTitle({
   title: string;
 }) {
   return (
-    <h3 className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-[#2E7D32]">
+    <h3 className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.14em] text-[#2E7D32]">
       <span
         aria-hidden
-        className="flex h-6 w-6 items-center justify-center rounded-md bg-[#2E7D32]/10"
+        className="flex h-6 w-6 items-center justify-center rounded-md bg-[#2E7D32]/10 ring-1 ring-[#2E7D32]/15"
       >
         {icon}
       </span>
@@ -1729,8 +1758,8 @@ function Field({
   children: React.ReactNode;
 }) {
   return (
-    <div className="space-y-1">
-      <Label className="text-[11px]">{label}</Label>
+    <div className="space-y-1.5">
+      <Label className="text-[11px] font-medium">{label}</Label>
       {children}
     </div>
   );

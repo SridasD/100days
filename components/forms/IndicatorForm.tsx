@@ -642,26 +642,46 @@ export function IndicatorForm({ projectId, indicatorId }: Props) {
                 </div>
               </Field>
 
-              <Field
-                label="Financial Target (in Lakh)"
-                required
-                error={errors.financial_target?.message}
-              >
-                <div className="relative">
-                  <IndianRupee
-                    aria-hidden
-                    className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground"
-                  />
-                  <Input
-                    type="number"
-                    step="0.01"
-                    min={0}
-                    placeholder="0.00"
-                    className="pl-9"
-                    {...register('financial_target')}
-                  />
-                </div>
-              </Field>
+              <div className="space-y-2">
+                <Field
+                  label="Financial Target (in Lakh)"
+                  required
+                  error={errors.financial_target?.message}
+                >
+                  <div className="relative">
+                    <IndianRupee
+                      aria-hidden
+                      className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground"
+                    />
+                    <Input
+                      type="number"
+                      step="0.01"
+                      min={0}
+                      placeholder="0.00"
+                      className="pl-9"
+                      {...register('financial_target')}
+                    />
+                  </div>
+                </Field>
+
+                {budgetState && enteredFinancial > 0 && budgetState.exceeds && (
+                  <div
+                    aria-live="polite"
+                    className="flex items-start gap-2 rounded-md border border-error-red/30 bg-error-red/5 px-3 py-2 text-xs text-error-red"
+                  >
+                    <AlertTriangle className="mt-0.5 h-4 w-4 flex-shrink-0" />
+                    <span>
+                      <span className="font-semibold">
+                        Exceeds available balance by ₹{' '}
+                        {inrFormat.format(Math.abs(budgetState.remainingAfter))}{' '}
+                        Lakhs.
+                      </span>{' '}
+                      Reduce the financial target or ask the administrator to
+                      revise the project cost.
+                    </span>
+                  </div>
+                )}
+              </div>
             </div>
 
             {/* District → Local Body Type → Local Body cascade */}

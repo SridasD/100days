@@ -119,7 +119,8 @@ export async function GET() {
             COALESCE(mp.is_archived, false) AS is_archived,
             COALESCE(mp.is_completed, 0) AS is_completed,
             mp.completion_date,
-            sp.is_owned
+            sp.is_owned,
+            COALESCE(mp.project_cost, 0) AS project_cost
           FROM hdp.master_projects mp
           INNER JOIN scoped_projects sp ON sp.project_id = mp.project_id
         ),
@@ -135,6 +136,15 @@ export async function GET() {
           INNER JOIN active_projects ap ON ap.project_id = i.project_id
           LEFT JOIN supported_indicators si ON si.indicator_id = i.indicator_id
           WHERE ap.is_owned = true OR si.indicator_id IS NOT NULL
+        ),
+        project_rollup AS (
+          SELECT
+            ap.project_id,
+            COALESCE(AVG(COALESCE(i.verified_percentage, 0)), 0) AS project_physical_pct,
+            COALESCE(SUM(COALESCE(i.verified_financial_achievement, 0)), 0) AS project_achievement
+          FROM active_projects ap
+          LEFT JOIN hdp.indicators i ON i.project_id = ap.project_id
+          GROUP BY ap.project_id
         )
         SELECT
           (SELECT COUNT(DISTINCT pd.dept_id)::int
@@ -143,22 +153,35 @@ export async function GET() {
           ) AS total_departments,
           (SELECT COUNT(*)::int FROM active_projects) AS total_projects,
           (SELECT COUNT(*)::int FROM scoped_indicators) AS total_indicators,
-          (SELECT COALESCE(ROUND(AVG(COALESCE(i.verified_percentage, i.percentage, 0))::numeric, 1), 0)
-            FROM scoped_indicators i
+          (SELECT ROUND(COALESCE(AVG(pr.project_physical_pct), 0)::numeric, 1)
+            FROM project_rollup pr
           ) AS physical_progress,
-          (SELECT COALESCE(ROUND(AVG(COALESCE(i.verified_financial_achievement, i.financial_achievement, 0))::numeric, 1), 0)
-            FROM scoped_indicators i
+          (SELECT CASE
+              WHEN SUM(ap.project_cost) FILTER (WHERE ap.project_cost > 0) > 0
+              THEN ROUND((SUM(pr.project_achievement) FILTER (WHERE ap.project_cost > 0)
+                    / SUM(ap.project_cost) FILTER (WHERE ap.project_cost > 0) * 100)::numeric, 1)
+              ELSE 0
+            END
+            FROM project_rollup pr
+            INNER JOIN active_projects ap ON ap.project_id = pr.project_id
           ) AS financial_progress,
           (SELECT COUNT(*)::int
             FROM hdp.gallery g
             INNER JOIN scoped_indicators i ON i.indicator_id = g.indicator_id
             WHERE g.gallery_type = 1
+              AND COALESCE(g.is_verified, false) = true
           ) AS images_uploaded,
           (SELECT COUNT(*)::int
             FROM hdp.gallery g
             INNER JOIN scoped_indicators i ON i.indicator_id = g.indicator_id
             WHERE g.gallery_type = 2
+              AND COALESCE(g.is_verified, false) = true
           ) AS videos_uploaded,
+          (SELECT COUNT(*)::int
+            FROM hdp.documents d
+            INNER JOIN scoped_indicators i ON i.indicator_id = d.indicator_id
+            WHERE d.verified_date IS NOT NULL
+          ) AS documents_uploaded,
           (SELECT MAX(COALESCE(i.verified_date, i.submitted_date))
             FROM scoped_indicators i
           ) AS last_data_update
@@ -216,12 +239,14 @@ export async function GET() {
         scoped_project_rows AS (
           SELECT DISTINCT
             mp.project_id,
+            mp.public_id AS project_public_id,
             mp.project_code,
             mp.project_name,
             sp.is_owned,
             COALESCE(mp.is_archived, false) AS is_archived,
             COALESCE(mp.is_completed, 0) AS is_completed,
             mp.completion_date,
+            COALESCE(mp.project_cost, 0) AS project_cost,
             ms.sector_name,
             COALESCE(
               (
@@ -247,6 +272,7 @@ export async function GET() {
         )
         SELECT
           sp.project_id,
+          sp.project_public_id,
           sp.project_code,
           sp.project_name,
           sp.is_owned,
@@ -256,8 +282,12 @@ export async function GET() {
           sp.sector_name,
           sp.department_names,
           sp.district_names,
-          COALESCE(ROUND(AVG(COALESCE(i.verified_percentage, i.percentage, 0))::numeric, 1), 0) AS physical_progress,
-          COALESCE(ROUND(AVG(COALESCE(i.verified_financial_achievement, i.financial_achievement, 0))::numeric, 1), 0) AS financial_progress,
+          ROUND(COALESCE(AVG(COALESCE(i.verified_percentage, 0)), 0)::numeric, 1) AS physical_progress,
+          CASE
+            WHEN sp.project_cost > 0
+            THEN ROUND((COALESCE(SUM(COALESCE(i.verified_financial_achievement, 0)), 0) / sp.project_cost * 100)::numeric, 1)
+            ELSE 0
+          END AS financial_progress,
           COUNT(i.indicator_id)::int AS indicators,
           COUNT(i.indicator_id) FILTER (
             WHERE i.submitted_date IS NOT NULL AND i.verified_date IS NULL
@@ -268,12 +298,14 @@ export async function GET() {
         WHERE sp.is_archived = false
         GROUP BY
           sp.project_id,
+          sp.project_public_id,
           sp.project_code,
           sp.project_name,
           sp.is_owned,
           sp.is_archived,
           sp.is_completed,
           sp.completion_date,
+          sp.project_cost,
           sp.sector_name,
           sp.department_names,
           sp.district_names
@@ -287,35 +319,49 @@ export async function GET() {
           FROM hdp.project_secretary ps
           WHERE ps.sec_id = ${session.secId}
         ),
-        scoped_indicators AS (
-          SELECT i.*
-          FROM hdp.indicators i
-          INNER JOIN owned_projects op ON op.project_id = i.project_id
-        ),
         dept_projects AS (
           SELECT DISTINCT
             pd.dept_id,
             COALESCE(md.dept_name, 'Unassigned') AS department,
-            mp.project_id
+            md.public_id AS dept_public_id,
+            mp.project_id,
+            COALESCE(mp.project_cost, 0) AS project_cost
           FROM hdp.project_department pd
           LEFT JOIN hdp.master_department md ON md.dept_id = pd.dept_id
           INNER JOIN hdp.master_projects mp ON mp.project_id = pd.project_id
           INNER JOIN owned_projects op ON op.project_id = mp.project_id
           WHERE COALESCE(mp.is_archived, false) = false
+        ),
+        project_rollup AS (
+          SELECT
+            dp.project_id,
+            COALESCE(AVG(COALESCE(i.verified_percentage, 0)), 0) AS project_physical_pct,
+            COALESCE(SUM(COALESCE(i.verified_financial_achievement, 0)), 0) AS project_achievement,
+            COUNT(i.indicator_id) AS indicator_count,
+            MAX(COALESCE(i.verified_date, i.submitted_date)) AS project_last_updated
+          FROM dept_projects dp
+          LEFT JOIN hdp.indicators i ON i.project_id = dp.project_id
+          GROUP BY dp.project_id
         )
         SELECT
           dp.dept_id,
           dp.department,
+          dp.dept_public_id,
           COUNT(DISTINCT dp.project_id)::int AS projects,
           COUNT(DISTINCT dp.project_id)::int AS owned_projects,
           0::int AS supporting_projects,
-          COUNT(i.indicator_id)::int AS indicators,
-          COALESCE(ROUND(AVG(COALESCE(i.verified_percentage, i.percentage, 0))::numeric, 1), 0) AS physical_progress,
-          COALESCE(ROUND(AVG(COALESCE(i.verified_financial_achievement, i.financial_achievement, 0))::numeric, 1), 0) AS financial_progress,
-          MAX(COALESCE(i.verified_date, i.submitted_date)) AS last_updated
+          SUM(pr.indicator_count)::int AS indicators,
+          ROUND(COALESCE(AVG(pr.project_physical_pct), 0)::numeric, 1) AS physical_progress,
+          CASE
+            WHEN SUM(dp.project_cost) FILTER (WHERE dp.project_cost > 0) > 0
+            THEN ROUND((SUM(pr.project_achievement) FILTER (WHERE dp.project_cost > 0)
+                  / SUM(dp.project_cost) FILTER (WHERE dp.project_cost > 0) * 100)::numeric, 1)
+            ELSE 0
+          END AS financial_progress,
+          MAX(pr.project_last_updated) AS last_updated
         FROM dept_projects dp
-        LEFT JOIN scoped_indicators i ON i.project_id = dp.project_id
-        GROUP BY dp.dept_id, dp.department
+        LEFT JOIN project_rollup pr ON pr.project_id = dp.project_id
+        GROUP BY dp.dept_id, dp.department, dp.dept_public_id
         ORDER BY physical_progress ASC, financial_progress ASC, dp.department ASC
       `),
       alertsEnabled
@@ -611,6 +657,7 @@ export async function GET() {
         financialProgress: toNum(summary.financial_progress),
         imagesUploaded: toNum(summary.images_uploaded),
         videosUploaded: toNum(summary.videos_uploaded),
+        documentsUploaded: toNum(summary.documents_uploaded),
         lastDataUpdate: summary.last_data_update ?? null,
       },
       projectStatus: {
@@ -623,6 +670,7 @@ export async function GET() {
         const r = row as Record<string, unknown>;
         return {
           projectId: toNum(r.project_id),
+          projectPublicId: r.project_public_id ? String(r.project_public_id) : null,
           projectCode: toNullableString(r.project_code),
           projectName: toNullableString(r.project_name),
           isOwned: Boolean(r.is_owned),
@@ -665,6 +713,7 @@ export async function GET() {
         const supportingProjects = toNum(r.supporting_projects);
         return {
           deptId: toNum(r.dept_id),
+          deptPublicId: r.dept_public_id ? String(r.dept_public_id) : null,
           department: toNullableString(r.department) ?? "Unassigned",
           projects: toNum(r.projects),
           ownedProjects,

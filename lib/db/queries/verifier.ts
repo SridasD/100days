@@ -123,6 +123,7 @@ export interface VerifierIndicatorRow {
   verified_by_name: string | null;
   image_count: number;
   video_count: number;
+  document_count: number;
   status: "pending" | "approved" | "reverification_required" | "rejected";
 }
 
@@ -169,6 +170,10 @@ export async function listVerifierIndicators(
         SELECT COUNT(*)::int FROM hdp.gallery g
         WHERE g.indicator_id = i.indicator_id AND g.gallery_type = 2
       ), 0) AS video_count
+      ,COALESCE((
+        SELECT COUNT(*)::int FROM hdp.documents d
+        WHERE d.indicator_id = i.indicator_id
+      ), 0) AS document_count
     FROM hdp.indicators i
     INNER JOIN hdp.master_projects mp ON i.project_id = mp.project_id
     LEFT JOIN hdp.master_district md ON i.district_id = md.district_id

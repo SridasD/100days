@@ -105,7 +105,11 @@ export async function GET(
           i.indicator_id,
           COALESCE(i.indicator_name, 'Untitled indicator') AS indicator_name,
           COALESCE(i.verified_percentage, i.percentage, 0) AS physical_progress,
-          COALESCE(i.verified_financial_achievement, i.financial_achievement, 0) AS financial_progress,
+          CASE
+            WHEN COALESCE(i.financial_target, 0) > 0
+            THEN ROUND((COALESCE(i.verified_financial_achievement, 0) / i.financial_target * 100)::numeric, 0)
+            ELSE 0
+          END AS financial_progress,
           (
             ow.is_owned = false
             AND COALESCE(i.supporting_dept_ids, '{}'::integer[]) && ARRAY(

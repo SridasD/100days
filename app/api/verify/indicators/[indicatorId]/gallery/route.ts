@@ -390,9 +390,21 @@ export async function DELETE(
 
   const { indicatorId } = await params;
   const id = await resolveIndicatorId(indicatorId);
-  const galleryId = Number(req.nextUrl.searchParams.get("galleryId"));
-  const documentId = Number(req.nextUrl.searchParams.get("documentId"));
-  if (!id || (!Number.isFinite(galleryId) && !Number.isFinite(documentId))) {
+  const parseOptionalId = (value: string | null): number | null => {
+    if (value == null || value.trim() === "") return null;
+    const parsed = Number(value);
+    return Number.isInteger(parsed) && parsed > 0 ? parsed : null;
+  };
+
+  const galleryId = parseOptionalId(req.nextUrl.searchParams.get("galleryId"));
+  const documentId = parseOptionalId(
+    req.nextUrl.searchParams.get("documentId"),
+  );
+  if (
+    !id ||
+    (galleryId == null && documentId == null) ||
+    (galleryId != null && documentId != null)
+  ) {
     return NextResponse.json(
       { error: "Invalid indicatorId or delete target" },
       { status: 400 },
@@ -405,7 +417,7 @@ export async function DELETE(
   }
 
   try {
-    if (Number.isFinite(documentId)) {
+    if (documentId != null) {
       const found = await db.execute(sql`
         SELECT document_path FROM hdp.documents
         WHERE document_id = ${documentId} AND indicator_id = ${id}
@@ -428,19 +440,23 @@ export async function DELETE(
         }
       }
 
-      await writeAudit({
-        userId: session.userId,
-        action: AUDIT_ACTIONS.MEDIA_DELETED,
-        entity: "documents",
-        entityId: documentId,
-        request: req,
-        secId: session.secId,
-        meta: {
-          indicatorId: id,
-          kind: "document",
-          source: "verifier",
-        },
-      });
+      try {
+        await writeAudit({
+          userId: session.userId,
+          action: AUDIT_ACTIONS.MEDIA_DELETED,
+          entity: "documents",
+          entityId: documentId,
+          request: req,
+          secId: session.secId,
+          meta: {
+            indicatorId: id,
+            kind: "document",
+            source: "verifier",
+          },
+        });
+      } catch (auditErr) {
+        console.error("Verifier document delete audit failed", auditErr);
+      }
 
       return NextResponse.json({ ok: true });
     }
@@ -469,19 +485,23 @@ export async function DELETE(
       }
     }
 
-    await writeAudit({
-      userId: session.userId,
-      action: AUDIT_ACTIONS.MEDIA_DELETED,
-      entity: "gallery",
-      entityId: galleryId,
-      request: req,
-      secId: session.secId,
-      meta: {
-        indicatorId: id,
-        galleryType: row.gallery_type,
-        source: "verifier",
-      },
-    });
+    try {
+      await writeAudit({
+        userId: session.userId,
+        action: AUDIT_ACTIONS.MEDIA_DELETED,
+        entity: "gallery",
+        entityId: galleryId,
+        request: req,
+        secId: session.secId,
+        meta: {
+          indicatorId: id,
+          galleryType: row.gallery_type,
+          source: "verifier",
+        },
+      });
+    } catch (auditErr) {
+      console.error("Verifier gallery delete audit failed", auditErr);
+    }
 
     return NextResponse.json({ ok: true });
   } catch (err) {
