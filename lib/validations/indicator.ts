@@ -11,7 +11,7 @@ export const indicatorSchema = z.object({
   financial_target: z.number().min(0).optional(),
   physical_target: z.number().min(0).optional(),
   financial_achievement: z.number().min(0).optional(),
-  physical_achievement: z.number().int().min(0).optional(),
+  physical_achievement: z.number().min(0).optional(),
   physical_description: z.string().max(2000).optional(),
   no_days_employed_direct: z.number().int().min(0).default(0),
   no_persons_employed_direct: z.number().int().min(0).default(0),
@@ -23,7 +23,7 @@ export type IndicatorInput = z.infer<typeof indicatorSchema>;
 
 export const indicatorVerifySchema = z.object({
   verified_financial_achievement: z.number().min(0),
-  verified_physical_achievement: z.number().int().min(0),
+  verified_physical_achievement: z.number().min(0),
   verified_physical_description: z.string().max(2000).optional(),
   verified_achieved_no_days_employed_direct: z.number().int().min(0).optional(),
   verified_achieved_no_persons_employed_direct: z.number().int().min(0).optional(),

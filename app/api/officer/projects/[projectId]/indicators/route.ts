@@ -143,7 +143,7 @@ export async function GET(
           districtId: r.district_id,
           district: r.district_name ?? "",
           physicalTarget: r.physical_target ? Number(r.physical_target) : 0,
-          physicalAchievement: r.physical_achievement ?? 0,
+          physicalAchievement: Number(r.physical_achievement ?? 0),
           financialTarget: r.financial_target ? Number(r.financial_target) : 0,
           financialAchievement: r.financial_achievement
             ? Number(r.financial_achievement)
