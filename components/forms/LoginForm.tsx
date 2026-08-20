@@ -150,8 +150,12 @@ export function LoginForm() {
       }
 
       const target = await resolveRedirectPath();
-      router.push(target);
-      router.refresh();
+      // Hard navigation, not router.push — a soft client-side transition can
+      // reuse an already-mounted layout (e.g. the account menu), and that
+      // component's own client-fetched state (see OfficerUserMenu's /api/me
+      // call) never re-runs on router.refresh(). A full reload guarantees
+      // every client component remounts under the new session.
+      window.location.assign(target);
     });
   };
 
