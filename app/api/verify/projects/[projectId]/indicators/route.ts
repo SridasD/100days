@@ -71,7 +71,7 @@ export async function GET(
         code: projectRow.project_code,
       },
       indicators: rows.map((r) => {
-        const submittedPhys = r.physical_achievement ?? 0;
+        const submittedPhys = Number(r.physical_achievement ?? 0);
         const verifiedPhys =
           r.verified_physical_achievement != null
             ? Number(r.verified_physical_achievement)

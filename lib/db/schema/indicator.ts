@@ -19,13 +19,13 @@ export const indicators = hdp.table('indicators', {
   financialTarget: numeric('financial_target', { precision: 13, scale: 5 }),
   physicalTarget: numeric('physical_target', { precision: 10, scale: 2 }),
   financialAchievement: numeric('financial_achievement', { precision: 13, scale: 5 }),
-  physicalAchievement: integer('physical_achievement'),
+  physicalAchievement: numeric('physical_achievement', { precision: 10, scale: 2, mode: 'number' }),
   physicalDescription: text('physical_description'),
   percentage: numeric('percentage', { precision: 6, scale: 2 }),
 
   // Verification-side mirrors
   verifiedFinancialAchievement: numeric('verified_financial_achievement', { precision: 13, scale: 5 }),
-  verifiedPhysicalAchievement: integer('verified_physical_achievement'),
+  verifiedPhysicalAchievement: numeric('verified_physical_achievement', { precision: 10, scale: 2, mode: 'number' }),
   verifiedPhysicalDescription: text('verified_physical_description'),
   verifiedPercentage: numeric('verified_percentage', { precision: 6, scale: 2 }),
 
