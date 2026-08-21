@@ -40,13 +40,30 @@ export async function requireSession(
   req?: NextRequest,
 ): Promise<OfficerSession | NextResponse> {
   const authDebug = process.env.AUTH_DEBUG_LOG === "true";
-  const saltCandidates = [
-    process.env.AUTH_SALT,
+  // getToken()'s `cookieName` defaults to the non-secure name unless passed
+  // explicitly, regardless of `salt` — so a salt-only candidate list above
+  // always read the same (non-secure) cookie under different decryption
+  // attempts, and would never find a __Secure- prefixed cookie at all (any
+  // HTTPS deployment). Pair each salt with the cookie name it actually
+  // corresponds to so every candidate reads its own cookie.
+  const cookieNameCandidates = [
     "__Secure-authjs.session-token",
     "authjs.session-token",
     "__Secure-next-auth.session-token",
     "next-auth.session-token",
-  ].filter((v, i, arr): v is string => Boolean(v) && arr.indexOf(v) === i);
+  ];
+  const saltCandidates: { salt: string; cookieName: string; secureCookie: boolean }[] = [
+    ...(process.env.AUTH_SALT
+      ? [{ salt: process.env.AUTH_SALT, cookieName: process.env.AUTH_SALT, secureCookie: process.env.AUTH_SALT.startsWith("__Secure-") }]
+      : []),
+    ...cookieNameCandidates.map((cookieName) => ({
+      salt: cookieName,
+      cookieName,
+      secureCookie: cookieName.startsWith("__Secure-"),
+    })),
+  ].filter(
+    (v, i, arr) => arr.findIndex((o) => o.cookieName === v.cookieName) === i,
+  );
 
   let token: {
     id?: string | null;
@@ -59,11 +76,13 @@ export async function requireSession(
   } | null = null;
 
   if (req) {
-    for (const salt of saltCandidates) {
+    for (const candidate of saltCandidates) {
       token = await getToken({
         req,
         secret: process.env.AUTH_SECRET ?? "",
-        salt,
+        salt: candidate.salt,
+        cookieName: candidate.cookieName,
+        secureCookie: candidate.secureCookie,
       });
       if (token) break;
     }
@@ -96,7 +115,7 @@ export async function requireSession(
     const forwardedProto =
       hdrs.get("x-forwarded-proto") ??
       (process.env.NODE_ENV === "production" ? "https" : "http");
-    for (const salt of saltCandidates) {
+    for (const candidate of saltCandidates) {
       token = await getToken({
         req: {
           headers: {
@@ -105,7 +124,9 @@ export async function requireSession(
           },
         } as unknown as Parameters<typeof getToken>[0]["req"],
         secret: process.env.AUTH_SECRET ?? "",
-        salt,
+        salt: candidate.salt,
+        cookieName: candidate.cookieName,
+        secureCookie: candidate.secureCookie,
       });
       if (token) break;
     }
