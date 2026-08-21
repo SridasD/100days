@@ -4,7 +4,7 @@ import { useEffect, useState, useTransition } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { signIn } from 'next-auth/react';
+import { signIn, signOut } from 'next-auth/react';
 import { Eye, EyeOff, Loader2, ShieldAlert } from 'lucide-react';
 import { loginSchema, type LoginInput } from '@/lib/validations/login';
 import { Button } from '@/components/ui/button';
@@ -54,6 +54,10 @@ export function LoginForm() {
     return true;
   };
 
+  // Right after signIn() resolves, the session cookie has just been written
+  // and isn't always immediately visible to this same fetch — a single
+  // unretried check can lose that race and fall through to '/'. Poll briefly
+  // instead of giving up after one attempt.
   const resolveRedirectPath = async () => {
     const safeCallback =
       callbackUrl && callbackUrl.startsWith('/') ? callbackUrl : null;
@@ -61,21 +65,24 @@ export function LoginForm() {
       return safeCallback;
     }
 
-    try {
-      const sessionRes = await fetch('/api/auth/session', { cache: 'no-store' });
-      if (sessionRes.ok) {
-        const session = (await sessionRes.json()) as {
-          user?: { roleId?: number };
-        };
-        const roleId = session.user?.roleId;
-        if (roleId === 4) return '/admin/osd/project-performance-dashboard';
-        if (roleId === 3) return '/admin/dashboard';
-        if (roleId === 5) return '/secretary/dashboard';
-        if (roleId === 2 || roleId === 6) return '/officer/projects';
-        if (roleId === 1) return '/verify/projects';
+    for (let attempt = 0; attempt < 5; attempt++) {
+      try {
+        const sessionRes = await fetch('/api/auth/session', { cache: 'no-store' });
+        if (sessionRes.ok) {
+          const session = (await sessionRes.json()) as {
+            user?: { roleId?: number };
+          };
+          const roleId = session.user?.roleId;
+          if (roleId === 4) return '/admin/osd/project-performance-dashboard';
+          if (roleId === 3) return '/admin/dashboard';
+          if (roleId === 5) return '/secretary/dashboard';
+          if (roleId === 2 || roleId === 6) return '/officer/projects';
+          if (roleId === 1) return '/verify/projects';
+        }
+      } catch {
+        // Ignore and retry.
       }
-    } catch {
-      // Ignore and use fallback route.
+      await new Promise((resolve) => setTimeout(resolve, 150));
     }
 
     return '/';
@@ -139,6 +146,19 @@ export function LoginForm() {
   const onSubmit = (values: LoginInput) => {
     setServerError(null);
     startTransition(async () => {
+      // If a session from a different login is still active (e.g. someone
+      // navigated back to /login without logging out first), clear it before
+      // establishing the new one. Signing in on top of an existing session
+      // leaves a window where a stale cookie can still be resolved by a
+      // request that lands moments later, showing the previous user's
+      // identity even after the new session is otherwise valid.
+      const existing = await fetch('/api/auth/session', { cache: 'no-store' })
+        .then((r) => (r.ok ? r.json() : null))
+        .catch(() => null);
+      if (existing?.user) {
+        await signOut({ redirect: false });
+      }
+
       const res = await signIn('credentials', {
         ...values,
         redirect: false,
