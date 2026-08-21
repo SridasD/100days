@@ -143,11 +143,6 @@ export default async function OfficerProjectIndicatorsPage({
                       {project.project_code}
                     </Badge>
                   )}
-                  {project.project_name_mal && (
-                    <Badge variant="neutral" className="font-malayalam">
-                      {project.project_name_mal}
-                    </Badge>
-                  )}
                 </div>
                 <p className="text-xs text-muted-foreground">
                   Department:{' '}
