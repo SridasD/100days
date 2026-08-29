@@ -99,6 +99,7 @@ export async function GET(
         COALESCE(i.verified_physical_description, '')
           AS description,
         i.verified_date,
+        i.completed_date,
         COALESCE((
           SELECT COUNT(*)::int FROM hdp.gallery g
           WHERE g.indicator_id = i.indicator_id
@@ -143,6 +144,7 @@ export async function GET(
         financialPct: finPct,
         description: r.description ?? "",
         verified: Boolean(r.verified_date),
+        completedDate: r.completed_date ?? null,
         imageCount: Number(r.image_count) || 0,
         videoCount: Number(r.video_count) || 0,
       };

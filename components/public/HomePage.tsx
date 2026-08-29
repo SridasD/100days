@@ -9,7 +9,7 @@
  *   <ProjectStatusOverview />     ← two-up: counts | indicator bars
  *   <ProjectsByNature />          ← livelihood vs infrastructure
  *   <SectorGrid />
- *   <DepartmentProgress />        ← list of DepartmentProgressCard
+ *   <DepartmentSection />         ← department rows + drill-down drawer
  *   <SiteFooter />
  *
  * On mount we hit /api/public/dashboard and slot the live counts into the
@@ -35,7 +35,7 @@ import { SiteFooter } from '@/components/layout/SiteFooter';
 import { PublicNav } from './PublicNav';
 import { StatsOverview } from './StatsOverview';
 import { SectorGrid } from './SectorGrid';
-import { DepartmentProgressCard } from './DepartmentProgressCard';
+import { DepartmentSection } from './DepartmentSection';
 
 // ---------------------------------------------------------------------------
 // CONFIG — phase boundaries (override via NEXT_PUBLIC_HDP_PHASE_*)
@@ -61,11 +61,13 @@ interface ApiDepartment {
   secId: number;
   departmentPublicId: string;
   nameMal: string;
+  nameEn: string;
   projects: number;
+  projectsCompleted: number;
   indicators: number;
   costInLakhs: number;
   physicalPct: number;
-  financialPct: number;
+  financialPct: number | null;
   status: 'completed' | 'in-progress' | 'not-started';
   imageCount: number;
   videoCount: number;
@@ -195,6 +197,8 @@ export function HomePage() {
       <ProjectsByNature nature={nature} />
 
       <SectorGrid />
+
+      <DepartmentSection departments={departments} />
 
       <SiteFooter />
     </div>
@@ -498,69 +502,9 @@ function NatureCard({
 }
 
 // ===========================================================================
-// DEPARTMENT PROGRESS
-// ===========================================================================
-function DepartmentProgress({
-  departments,
-}: {
-  departments: ApiDepartment[] | null;
-}) {
-  return (
-    <section className="bg-white py-14">
-      <div className="container mx-auto px-4">
-        <SectionHeader
-          eyebrowMal="വകുപ്പുതല വിശദാംശങ്ങൾ"
-          titleMal="വകുപ്പുകളുടെ പദ്ധതി പുരോഗതി"
-          rightAction={
-            <span className="hidden text-xs text-muted-foreground md:inline-flex">
-              <span className="font-malayalam">
-                പ്രതീ പദ്ധതിയും, അവൻ്റേ കീഴിലുള്ള ഘടകങ്ങൾ, വകുപ്പുവാർ ക്രമത്തിൽ
-              </span>
-            </span>
-          }
-        />
-
-        {departments === null && (
-          <div className="mt-10 flex items-center justify-center gap-2 text-sm text-muted-foreground">
-            <Loader2 className="h-4 w-4 animate-spin" />
-            <span className="font-malayalam">
-              വകുപ്പുകൾ ലോഡുചെയ്യുന്നു…
-            </span>
-          </div>
-        )}
-
-        {departments !== null && departments.length === 0 && (
-          <div className="mt-8 rounded-2xl border border-dashed bg-hdp-bg p-10 text-center">
-            <Building2 className="mx-auto h-7 w-7 text-muted-foreground" />
-            <p className="font-malayalam mt-3 text-sm font-semibold text-foreground">
-              ഇതുവരെ ഒരു വകുപ്പിലും പദ്ധതികൾ ചേർത്തിട്ടില്ല
-            </p>
-            <p className="font-malayalam mt-1 text-xs text-muted-foreground">
-              ഭരണപരമായ വകുപ്പ് പദ്ധതികൾ ചേർക്കുമ്പോൾ ഇവിടെ കാണാം.
-            </p>
-          </div>
-        )}
-
-        {departments !== null && departments.length > 0 && (
-          <div className="mt-8 space-y-4">
-            {departments.map((d, i) => (
-              <DepartmentProgressCard
-                key={d.secId}
-                {...d}
-                defaultOpen={i === 0}
-              />
-            ))}
-          </div>
-        )}
-      </div>
-    </section>
-  );
-}
-
-// ===========================================================================
 // SHARED — section header
 // ===========================================================================
-function SectionHeader({
+export function SectionHeader({
   eyebrowMal,
   titleMal,
   rightAction,
