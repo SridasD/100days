@@ -12,12 +12,14 @@
  *   2. Toolbar        — search input + sort dropdown (user input)
  *   3. Status filters — labelled pill tabs that filter the list
  */
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ArrowUpDown,
   BarChart3,
   Building2,
   CheckCircle2,
+  ChevronDown,
+  ChevronUp,
   Loader2,
   Search,
   SlidersHorizontal,
@@ -63,6 +65,10 @@ const SORT_OPTIONS: { key: SortKey; labelMal: string }[] = [
   { key: 'name', labelMal: 'പദ്ധതിയുടെ പേര്' },
 ];
 
+// How many department rows to show before the "കൂടുതൽ കാണിക്കുക" button —
+// keeps the section short by default even with ~50 departments.
+const PAGE_SIZE = 8;
+
 export function DepartmentSection({
   departments,
 }: {
@@ -73,6 +79,14 @@ export function DepartmentSection({
   const [sortBy, setSortBy] = useState<SortKey>('progress');
   const [activeDept, setActiveDept] = useState<DepartmentRowData | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [shownCount, setShownCount] = useState(PAGE_SIZE);
+  const sectionRef = useRef<HTMLElement>(null);
+
+  // Any change to what's being listed collapses back to the first page so
+  // the user always starts from the top of the (re)filtered list.
+  useEffect(() => {
+    setShownCount(PAGE_SIZE);
+  }, [search, statusFilter, sortBy]);
 
   // Search-filtered, but NOT status-filtered — this is what the summary
   // cards and the filter tabs' counts are computed against, so counts
@@ -133,16 +147,24 @@ export function DepartmentSection({
     });
   }, [bySearch, statusFilter, sortBy]);
 
+  const shown = visible.slice(0, shownCount);
+  const hiddenCount = visible.length - shown.length;
+
   function openDepartment(d: DepartmentRowData) {
     setActiveDept(d);
     setDrawerOpen(true);
+  }
+
+  function collapseList() {
+    setShownCount(PAGE_SIZE);
+    sectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
 
   const activeSortLabel =
     SORT_OPTIONS.find((o) => o.key === sortBy)?.labelMal ?? SORT_OPTIONS[0].labelMal;
 
   return (
-    <section className="bg-white py-14">
+    <section ref={sectionRef} className="scroll-mt-4 bg-white py-14">
       <div className="container mx-auto px-4">
         <SectionHeader
           eyebrowMal="വകുപ്പുതല വിശദാംശങ്ങൾ"
@@ -151,7 +173,7 @@ export function DepartmentSection({
             departments && (
               <span className="font-malayalam inline-flex items-center gap-1.5 rounded-full bg-hdp-bg px-3 py-1 text-xs text-muted-foreground ring-1 ring-border">
                 <span className="font-mono font-semibold text-foreground">{visible.length}</span>
-                വകുപ്പുകൾ കാണിക്കുന്നു
+                വകുപ്പുകൾ
               </span>
             )
           }
@@ -301,11 +323,55 @@ export function DepartmentSection({
 
         {/* LIST */}
         {visible.length > 0 && (
-          <div className="mt-6 space-y-3">
-            {visible.map((d) => (
-              <DepartmentRow key={d.secId} department={d} onOpen={() => openDepartment(d)} />
-            ))}
-          </div>
+          <>
+            <div className="mt-6 space-y-3">
+              {shown.map((d) => (
+                <DepartmentRow key={d.secId} department={d} onOpen={() => openDepartment(d)} />
+              ))}
+            </div>
+
+            {visible.length > PAGE_SIZE && (
+              <div className="mt-6 flex flex-col items-center gap-2.5">
+                <p className="font-malayalam text-xs text-muted-foreground">
+                  <span className="font-mono font-semibold text-foreground">{shown.length}</span>
+                  {' / '}
+                  <span className="font-mono">{visible.length}</span> വകുപ്പുകൾ
+                </p>
+                {hiddenCount > 0 ? (
+                  <div className="flex flex-wrap items-center justify-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setShownCount((c) => c + PAGE_SIZE)}
+                      className="font-malayalam inline-flex items-center gap-1.5 rounded-full bg-hdp-green px-4 py-2 text-xs font-semibold text-white transition-colors hover:bg-hdp-green-active"
+                    >
+                      <ChevronDown className="h-4 w-4" aria-hidden />
+                      കൂടുതൽ കാണിക്കുക
+                      <span className="font-mono">
+                        ({Math.min(PAGE_SIZE, hiddenCount)})
+                      </span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setShownCount(visible.length)}
+                      className="font-malayalam inline-flex items-center rounded-full border border-border px-4 py-2 text-xs font-semibold text-muted-foreground transition-colors hover:text-foreground"
+                    >
+                      എല്ലാം കാണിക്കുക
+                      <span className="font-mono">&nbsp;({visible.length})</span>
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={collapseList}
+                    className="font-malayalam inline-flex items-center gap-1.5 rounded-full border border-border px-4 py-2 text-xs font-semibold text-muted-foreground transition-colors hover:text-foreground"
+                  >
+                    <ChevronUp className="h-4 w-4" aria-hidden />
+                    ചുരുക്കുക
+                  </button>
+                )}
+              </div>
+            )}
+          </>
         )}
       </div>
 
