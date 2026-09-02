@@ -493,7 +493,10 @@ function ProjectRow({
               {indicators.map((ind) => {
                 const completedOn = ind.physicalPct >= 100 ? formatDate(ind.completedDate) : null;
                 return (
-                  <li key={ind.indicatorId} className="rounded-xl bg-white p-2.5 shadow-sm">
+                  <li
+                    key={ind.indicatorId}
+                    className="rounded-xl border-l-2 border-[#7C3AED]/50 bg-[#7C3AED]/[0.06] p-2.5 ring-1 ring-[#7C3AED]/15"
+                  >
                     <div className="flex items-start justify-between gap-2">
                       <p
                         className="font-malayalam min-w-0 flex-1 text-xs font-medium text-foreground"
