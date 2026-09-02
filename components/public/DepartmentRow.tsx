@@ -33,27 +33,6 @@ export interface DepartmentRowData {
   documentCount?: number;
 }
 
-const STATUS_META: Record<
-  DepartmentStatus,
-  { dot: string; chip: string; chipMal: string }
-> = {
-  completed: {
-    dot: 'bg-hdp-success',
-    chip: 'bg-hdp-success/10 text-hdp-success',
-    chipMal: 'പദ്ധതി പൂർത്തിയായവ',
-  },
-  'in-progress': {
-    dot: 'bg-hdp-warning',
-    chip: 'bg-hdp-warning/10 text-hdp-warning',
-    chipMal: 'പുരോഗതിയിൽ',
-  },
-  'not-started': {
-    dot: 'bg-hdp-danger',
-    chip: 'bg-hdp-danger/10 text-hdp-danger',
-    chipMal: 'ആരംഭിച്ചിട്ടില്ല',
-  },
-};
-
 /**
  * Progress-ring colour purely by physical-progress magnitude, independent
  * of the department's completion status:
@@ -72,9 +51,6 @@ export function DepartmentRow({
   department: DepartmentRowData;
   onOpen: () => void;
 }) {
-  // Badge = real department completion status (all projects done / any in
-  // progress / none started). Ring colour is driven separately by %.
-  const tone = STATUS_META[d.status];
   const ringColor = ringColorForPct(d.physicalPct);
 
   return (
@@ -117,22 +93,11 @@ export function DepartmentRow({
         </div>
       </div>
 
-      {/* NAME + STATUS */}
+      {/* NAME */}
       <div className="min-w-[180px] flex-1 sm:min-w-[220px]">
-        <div className="flex flex-wrap items-center gap-2">
-          <h3 className="font-malayalam text-[15px] font-bold leading-tight text-foreground">
-            {d.nameMal}
-          </h3>
-          <span
-            className={`inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[10px] font-semibold ${tone.chip}`}
-          >
-            <span className={`h-1.5 w-1.5 rounded-full ${tone.dot}`} />
-            <span className="font-malayalam">{tone.chipMal}</span>
-            <span className="font-mono">
-              {d.projectsCompleted}/{d.projects}
-            </span>
-          </span>
-        </div>
+        <h3 className="font-malayalam text-[15px] font-bold leading-tight text-foreground">
+          {d.nameMal}
+        </h3>
         {d.nameEn && d.nameEn !== d.nameMal && (
           <p className="mt-0.5 truncate text-xs text-muted-foreground">{d.nameEn}</p>
         )}
