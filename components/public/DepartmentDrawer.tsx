@@ -408,7 +408,10 @@ function ProjectRow({
             </span>
             <span className="font-mono">{p.physicalPct}%</span>
             <span className="font-malayalam">
-              {p.indicatorsCompleted}/{p.indicatorsTotal} ഘടകങ്ങൾ പൂർത്തിയായി
+              ആകെ ഘടകങ്ങൾ <span className="font-mono font-semibold">{p.indicatorsTotal}</span>
+            </span>
+            <span className="font-malayalam text-hdp-success">
+              പൂർത്തിയായവ <span className="font-mono font-semibold">{p.indicatorsCompleted}</span>
             </span>
             {completedOn && (
               <span className="inline-flex items-center gap-1 text-hdp-success">
