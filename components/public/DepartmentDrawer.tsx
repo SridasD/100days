@@ -433,7 +433,7 @@ function ProjectRow({
               onClick={onOpenGallery}
               icon={Video}
               count={p.videoCount}
-              labelMal="ഗാലറി"
+              labelMal="വീഡിയോ"
             />
           )}
           {!!p.documentCount && (

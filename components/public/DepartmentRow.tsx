@@ -101,19 +101,24 @@ export function DepartmentRow({
         {d.nameEn && d.nameEn !== d.nameMal && (
           <p className="mt-0.5 truncate text-xs text-muted-foreground">{d.nameEn}</p>
         )}
-        {(d.imageCount || d.videoCount || d.documentCount) && (
-          <div className="mt-2 flex flex-wrap gap-1.5">
-            {!!d.imageCount && (
-              <MediaChip icon={Images} count={d.imageCount} labelMal="ചിത്രങ്ങൾ" />
-            )}
-            {!!d.videoCount && (
-              <MediaChip icon={Video} count={d.videoCount} labelMal="ഗാലറി" />
-            )}
-            {!!d.documentCount && (
-              <MediaChip icon={FileText} count={d.documentCount} labelMal="രേഖകൾ" />
-            )}
-          </div>
-        )}
+        <div className="mt-2 flex flex-wrap gap-1.5">
+          {!!d.imageCount && (
+            <MediaChip icon={Images} count={d.imageCount} labelMal="ചിത്രങ്ങൾ" />
+          )}
+          {d.videoCount ? (
+            <MediaChip icon={Video} count={d.videoCount} labelMal="വീഡിയോ" />
+          ) : (
+            <span className="inline-flex items-center gap-1 rounded-full border border-dashed border-border px-2 py-0.5 text-[10px] text-muted-foreground">
+              <Video className="h-3 w-3" aria-hidden />
+              <span className="font-malayalam">
+                വീഡിയോ അപ്‌ലോഡ് ചെയ്തിട്ടില്ല / സ്ഥിരീകരിച്ചിട്ടില്ല
+              </span>
+            </span>
+          )}
+          {!!d.documentCount && (
+            <MediaChip icon={FileText} count={d.documentCount} labelMal="രേഖകൾ" />
+          )}
+        </div>
       </div>
 
       {/* STAT STRIP — total vs completed, for projects and indicators */}
