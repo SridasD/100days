@@ -1,10 +1,10 @@
 'use client';
 
 /**
- * Public landing page — "Department-wise Progress" section. Sits below
- * SectorGrid (untouched); shows Administrative Department-wise project
- * counts with a search/filter/sort list and a drill-down drawer per
- * department (DepartmentDrawer: department -> projects -> indicators).
+ * Public landing page — "Department-wise Progress" section. Sits above
+ * SectorGrid; shows Administrative Department-wise project counts with a
+ * search/filter/sort list and a drill-down drawer per department
+ * (DepartmentDrawer: department -> projects -> indicators).
  *
  * Header area is split into three visually distinct zones so it is
  * obvious what each control does:

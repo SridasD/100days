@@ -8,8 +8,8 @@
  *   <StatsOverview />
  *   <ProjectStatusOverview />     ← two-up: counts | indicator bars
  *   <ProjectsByNature />          ← livelihood vs infrastructure
- *   <SectorGrid />
  *   <DepartmentSection />         ← department rows + drill-down drawer
+ *   <SectorGrid />
  *   <SiteFooter />
  *
  * On mount we hit /api/public/dashboard and slot the live counts into the
@@ -197,9 +197,9 @@ export function HomePage() {
 
       <ProjectsByNature nature={nature} />
 
-      <SectorGrid />
-
       <DepartmentSection departments={departments} />
+
+      <SectorGrid />
 
       <SiteFooter />
     </div>
