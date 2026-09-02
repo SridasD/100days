@@ -7,7 +7,6 @@
  *   <HeroSection />
  *   <StatsOverview />
  *   <ProjectStatusOverview />     ← two-up: counts | indicator bars
- *   <ProjectsByNature />          ← livelihood vs infrastructure
  *   <DepartmentSection />         ← department rows + drill-down drawer
  *   <SectorGrid />
  *   <SiteFooter />
@@ -18,17 +17,13 @@
  * can roll over without a code change.
  */
 import { useEffect, useState } from 'react';
-import Link from 'next/link';
 import {
   AlertCircle,
-  ArrowRight,
   BarChart3,
-  Building2,
   CheckCircle2,
   ClipboardList,
   Loader2,
   RefreshCw,
-  Users,
 } from 'lucide-react';
 import { HeroSection } from './HeroSection';
 import { SiteFooter } from '@/components/layout/SiteFooter';
@@ -50,13 +45,8 @@ const PHASE_END =
   '2026-10-22';
 
 // ---------------------------------------------------------------------------
-// Shapes used by the three public endpoints we consume here
+// Shapes used by the two public endpoints we consume here
 // ---------------------------------------------------------------------------
-interface NatureSummary {
-  livelihood: { total: number; completed: number };
-  infrastructure: { total: number; completed: number };
-}
-
 interface ApiDepartment {
   secId: number;
   departmentPublicId: string;
@@ -91,30 +81,23 @@ interface DashboardStats {
 // ===========================================================================
 export function HomePage() {
   const [stats, setStats] = useState<DashboardStats | null>(null);
-  const [nature, setNature] = useState<NatureSummary | null>(null);
   const [departments, setDepartments] = useState<ApiDepartment[] | null>(null);
 
   useEffect(() => {
     let cancelled = false;
 
-    // Fire all three reads in parallel.
+    // Fire both reads in parallel.
     Promise.allSettled([
       fetch('/api/public/dashboard', { cache: 'no-store' }).then((r) =>
-        r.ok ? r.json() : Promise.reject(new Error(`HTTP ${r.status}`)),
-      ),
-      fetch('/api/public/nature-summary', { cache: 'no-store' }).then((r) =>
         r.ok ? r.json() : Promise.reject(new Error(`HTTP ${r.status}`)),
       ),
       fetch('/api/public/departments', { cache: 'no-store' }).then((r) =>
         r.ok ? r.json() : Promise.reject(new Error(`HTTP ${r.status}`)),
       ),
-    ]).then(([dashboardR, natureR, deptR]) => {
+    ]).then(([dashboardR, deptR]) => {
       if (cancelled) return;
       if (dashboardR.status === 'fulfilled') {
         setStats(dashboardR.value.stats as DashboardStats);
-      }
-      if (natureR.status === 'fulfilled') {
-        setNature(natureR.value as NatureSummary);
       }
       if (deptR.status === 'fulfilled') {
         setDepartments(
@@ -194,8 +177,6 @@ export function HomePage() {
         verifiedIndicators={verifiedIndicators}
         inProgressIndicators={inProgressIndicators}
       />
-
-      <ProjectsByNature nature={nature} />
 
       <DepartmentSection departments={departments} />
 
@@ -401,104 +382,6 @@ function BarRow({
         />
       </div>
     </div>
-  );
-}
-
-// ===========================================================================
-// PROJECTS BY NATURE
-// ===========================================================================
-function ProjectsByNature({ nature }: { nature: NatureSummary | null }) {
-  const livelihood = nature?.livelihood ?? { total: 0, completed: 0 };
-  const infrastructure = nature?.infrastructure ?? { total: 0, completed: 0 };
-  return (
-    <section id="sectors-section" className="bg-hdp-bg py-14">
-      <div className="container mx-auto px-4">
-        <SectionHeader
-          eyebrowMal=""
-          titleMal="പദ്ധതികളുടെ സ്വഭാവം"
-        />
-        <div className="mt-8 grid gap-5 md:grid-cols-2">
-          <NatureCard
-            iconBg="bg-hdp-success/15 text-hdp-success"
-            icon={Users}
-            titleMal="ഉപജീവനമാർഗ്ഗ പദ്ധതികൾ"
-            descMal="തൊഴിൽ, വരുമാനം"
-            count={livelihood.total}
-            completed={livelihood.completed}
-            tone="success"
-          />
-          <NatureCard
-            iconBg="bg-hdp-warning/15 text-hdp-warning"
-            icon={Building2}
-            titleMal="പശ്ചാത്തല വികസന പദ്ധതികൾ"
-            descMal="കേരളത്തിന്റെ ഭാവിക്കായി ദീർഘമായ അടിസ്ഥാന സൗകര്യങ്ങൾ"
-            count={infrastructure.total}
-            completed={infrastructure.completed}
-            tone="warning"
-          />
-        </div>
-      </div>
-    </section>
-  );
-}
-
-function NatureCard({
-  icon: Icon,
-  iconBg,
-  titleMal,
-  descMal,
-  count,
-  completed,
-  tone,
-}: {
-  icon: typeof Users;
-  iconBg: string;
-  titleMal: string;
-  descMal: string;
-  count: number;
-  completed: number;
-  tone: 'success' | 'warning';
-}) {
-  const completedTone =
-    tone === 'success'
-      ? 'bg-[#E8F5E9] text-[#1B5E20]'
-      : 'bg-[#FFF8E1] text-[#E65100]';
-  return (
-    <article className="group flex items-stretch gap-4 rounded-2xl border bg-white p-6 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg">
-      <span
-        className={`flex h-14 w-14 flex-shrink-0 items-center justify-center rounded-2xl ${iconBg}`}
-      >
-        <Icon className="h-6 w-6" aria-hidden />
-      </span>
-      <div className="flex min-w-0 flex-1 flex-col justify-between">
-        <div>
-          <p className="font-malayalam text-sm font-semibold text-foreground">
-            {titleMal}
-          </p>
-          <p className="font-malayalam mt-0.5 text-xs leading-relaxed text-muted-foreground">
-            {descMal}
-          </p>
-        </div>
-        <div className="mt-3 flex items-end justify-between gap-3">
-          <div>
-            <p className="font-mono text-4xl font-extrabold leading-none text-foreground">
-              {count}
-            </p>
-            <p className="font-malayalam mt-1 text-[11px] text-muted-foreground">
-              പദ്ധതികൾ
-            </p>
-          </div>
-          <span
-            className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[10px] font-semibold ${completedTone}`}
-          >
-            <CheckCircle2 className="h-3 w-3" />
-            <span>
-              {completed} <span className="font-malayalam">പൂർത്തിയായ</span>
-            </span>
-          </span>
-        </div>
-      </div>
-    </article>
   );
 }
 
