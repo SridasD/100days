@@ -33,11 +33,7 @@ import {
 } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
 import { SectionHeader } from './HomePage';
-import {
-  DepartmentRow,
-  getDepartmentEffectiveStatus,
-  type DepartmentRowData,
-} from './DepartmentRow';
+import { DepartmentRow, type DepartmentRowData } from './DepartmentRow';
 import { DepartmentDrawer } from './DepartmentDrawer';
 
 type SortKey = 'progress' | 'projects' | 'name';
@@ -51,12 +47,12 @@ const STATUS_FILTERS: {
   { key: 'all', labelMal: 'വകുപ്പുകൾ', activeClass: 'bg-hdp-green text-white' },
   {
     key: 'completed',
-    labelMal: 'പൂർത്തിയായ പദ്ധതികൾ',
+    labelMal: 'പൂർത്തിയായ വകുപ്പുകൾ',
     activeClass: 'bg-hdp-success text-white',
   },
   {
     key: 'in-progress',
-    labelMal: 'പുരോഗതിയിലുള്ള പദ്ധതികൾ',
+    labelMal: 'പുരോഗതിയിലുള്ള വകുപ്പുകൾ',
     activeClass: 'bg-hdp-warning text-white',
   },
 ];
@@ -91,16 +87,17 @@ export function DepartmentSection({
     );
   }, [departments, search]);
 
-  // Department count per status bucket — shown as the small badge on each
-  // filter tab so the user can see how many rows each tab would reveal.
+  // A department is "completed" only when every one of its projects is
+  // completed (server-derived `status`). Everything else — some project
+  // still in progress, or nothing started yet — is treated as in-progress
+  // so the two status tabs together account for every department.
   const statusCounts = useMemo(() => {
-    const counts: Record<StatusFilter, number> = {
+    const completed = bySearch.filter((d) => d.status === 'completed').length;
+    return {
       all: bySearch.length,
-      completed: 0,
-      'in-progress': 0,
-    };
-    for (const d of bySearch) counts[getDepartmentEffectiveStatus(d)] += 1;
-    return counts;
+      completed,
+      'in-progress': bySearch.length - completed,
+    } satisfies Record<StatusFilter, number>;
   }, [bySearch]);
 
   // Portal-wide project / indicator totals — shown as the read-only
@@ -126,7 +123,9 @@ export function DepartmentSection({
     const list =
       statusFilter === 'all'
         ? bySearch
-        : bySearch.filter((d) => getDepartmentEffectiveStatus(d) === statusFilter);
+        : statusFilter === 'completed'
+          ? bySearch.filter((d) => d.status === 'completed')
+          : bySearch.filter((d) => d.status !== 'completed');
     return [...list].sort((a, b) => {
       if (sortBy === 'progress') return b.physicalPct - a.physicalPct;
       if (sortBy === 'projects') return b.projects - a.projects;

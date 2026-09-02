@@ -91,6 +91,17 @@ export async function GET() {
         ), 0) AS indicators,
 
         COALESCE((
+          SELECT COUNT(*)::int
+          FROM hdp.indicators i
+          INNER JOIN hdp.master_projects mp ON i.project_id = mp.project_id
+          INNER JOIN hdp.project_secretary ps ON i.project_id = ps.project_id
+          WHERE ps.sec_id = ms.sec_id
+            AND COALESCE(mp.is_archived, false) = false
+            AND i.verified_date IS NOT NULL
+            AND COALESCE(i.verified_percentage, 0) >= 100
+        ), 0) AS indicators_completed,
+
+        COALESCE((
           SELECT SUM(mp.project_cost)::numeric
           FROM hdp.master_projects mp
           INNER JOIN hdp.project_secretary ps ON mp.project_id = ps.project_id
@@ -152,6 +163,7 @@ export async function GET() {
       const projectsCompleted = Number(row.projects_completed) || 0;
       const projectsInProgress = Number(row.projects_in_progress) || 0;
       const indicators = Number(row.indicators) || 0;
+      const indicatorsCompleted = Number(row.indicators_completed) || 0;
       // Status derivation based on project state:
       //   all projects completed â†’ completed
       //   any project in progress â†’ in-progress
@@ -178,6 +190,7 @@ export async function GET() {
         projects,
         projectsCompleted,
         indicators,
+        indicatorsCompleted,
         costInLakhs: Number(row.total_cost) || 0,
         physicalPct: Math.round(physicalPct),
         financialPct: financialPct === null ? null : Math.round(financialPct),

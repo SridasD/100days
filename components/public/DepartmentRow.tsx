@@ -5,14 +5,7 @@
  * section. Clicking anywhere on the row opens the drill-down drawer
  * (handled by the parent — this component is purely presentational).
  */
-import {
-  CheckCircle2,
-  ChevronRight,
-  ClipboardList,
-  FileText,
-  Images,
-  Video,
-} from 'lucide-react';
+import { ChevronRight, FileText, Images, Video } from 'lucide-react';
 import {
   PolarAngleAxis,
   RadialBar,
@@ -30,6 +23,7 @@ export interface DepartmentRowData {
   projects: number;
   projectsCompleted: number;
   indicators: number;
+  indicatorsCompleted: number;
   costInLakhs: number;
   physicalPct: number;
   financialPct: number | null;
@@ -41,39 +35,34 @@ export interface DepartmentRowData {
 
 const STATUS_META: Record<
   DepartmentStatus,
-  { dot: string; chip: string; chipMal: string; ringColor: string }
+  { dot: string; chip: string; chipMal: string }
 > = {
   completed: {
     dot: 'bg-hdp-success',
     chip: 'bg-hdp-success/10 text-hdp-success',
     chipMal: 'പദ്ധതി പൂർത്തിയായവ',
-    ringColor: '#4CAF50',
   },
   'in-progress': {
     dot: 'bg-hdp-warning',
     chip: 'bg-hdp-warning/10 text-hdp-warning',
     chipMal: 'പുരോഗതിയിൽ',
-    ringColor: '#FF8F00',
   },
   'not-started': {
     dot: 'bg-hdp-danger',
     chip: 'bg-hdp-danger/10 text-hdp-danger',
     chipMal: 'ആരംഭിച്ചിട്ടില്ല',
-    ringColor: '#E53935',
   },
 };
 
 /**
- * Department-level status shown on the row badge and used for the
- * "completed" filter: a department counts as completed once it has at
- * least one finished project, not only once every project is done. This
- * is deliberately looser than the strict per-project `status` field (used
- * for a single project's own status pill, e.g. inside the drill-down).
+ * Progress-ring colour purely by physical-progress magnitude, independent
+ * of the department's completion status:
+ *   >= 80%  green   ·   50–79%  orange   ·   < 50%  red
  */
-export function getDepartmentEffectiveStatus(d: {
-  projectsCompleted: number;
-}): 'completed' | 'in-progress' {
-  return d.projectsCompleted > 0 ? 'completed' : 'in-progress';
+function ringColorForPct(pct: number): string {
+  if (pct >= 80) return '#4CAF50';
+  if (pct >= 50) return '#FF8F00';
+  return '#E53935';
 }
 
 export function DepartmentRow({
@@ -83,7 +72,10 @@ export function DepartmentRow({
   department: DepartmentRowData;
   onOpen: () => void;
 }) {
-  const tone = STATUS_META[getDepartmentEffectiveStatus(d)];
+  // Badge = real department completion status (all projects done / any in
+  // progress / none started). Ring colour is driven separately by %.
+  const tone = STATUS_META[d.status];
+  const ringColor = ringColorForPct(d.physicalPct);
 
   return (
     <article
@@ -106,14 +98,14 @@ export function DepartmentRow({
             outerRadius="100%"
             startAngle={90}
             endAngle={-270}
-            data={[{ name: 'pct', value: d.physicalPct, fill: tone.ringColor }]}
+            data={[{ name: 'pct', value: d.physicalPct, fill: ringColor }]}
           >
             <PolarAngleAxis type="number" domain={[0, 100]} angleAxisId={0} tick={false} />
             <RadialBar
               background={{ fill: '#F1F5F9' }}
               cornerRadius={20}
               dataKey="value"
-              fill={tone.ringColor}
+              fill={ringColor}
             />
           </RadialBarChart>
         </ResponsiveContainer>
@@ -144,10 +136,6 @@ export function DepartmentRow({
         {d.nameEn && d.nameEn !== d.nameMal && (
           <p className="mt-0.5 truncate text-xs text-muted-foreground">{d.nameEn}</p>
         )}
-        <p className="mt-1 text-xs text-muted-foreground">
-          <span className="font-mono font-semibold">{d.indicators}</span>{' '}
-          <span className="font-malayalam">ഘടകങ്ങൾ</span>
-        </p>
         {(d.imageCount || d.videoCount || d.documentCount) && (
           <div className="mt-2 flex flex-wrap gap-1.5">
             {!!d.imageCount && (
@@ -163,15 +151,10 @@ export function DepartmentRow({
         )}
       </div>
 
-      {/* STAT STRIP */}
-      <div className="grid grid-cols-2 gap-2 rounded-2xl border border-border bg-hdp-bg/40 p-2 sm:min-w-[180px]">
-        <StatCell icon={ClipboardList} labelMal="പദ്ധതികൾ" value={d.projects} />
-        <StatCell
-          icon={CheckCircle2}
-          labelMal="പൂർത്തിയായവ"
-          value={d.projectsCompleted}
-          tone="success"
-        />
+      {/* STAT STRIP — total vs completed, for projects and indicators */}
+      <div className="grid grid-cols-2 gap-2 rounded-2xl border border-border bg-hdp-bg/40 p-2 sm:min-w-[220px]">
+        <MetricGroup labelMal="പദ്ധതികൾ" total={d.projects} completed={d.projectsCompleted} />
+        <MetricGroup labelMal="ഘടകങ്ങൾ" total={d.indicators} completed={d.indicatorsCompleted} />
       </div>
 
       {/* CHEVRON */}
@@ -182,31 +165,37 @@ export function DepartmentRow({
   );
 }
 
-function StatCell({
-  icon: Icon,
+/**
+ * One metric group in the stat strip: a bold total under the group label,
+ * and the completed count beneath it in success green.
+ */
+function MetricGroup({
   labelMal,
-  value,
-  tone = 'default',
+  total,
+  completed,
 }: {
-  icon: typeof ClipboardList;
   labelMal: string;
-  value: number | string;
-  tone?: 'default' | 'success';
+  total: number;
+  completed: number;
 }) {
   return (
-    <div className="flex flex-col items-center justify-center rounded-xl bg-white px-1.5 py-2 text-center shadow-sm">
-      <Icon
-        className={`h-3.5 w-3.5 ${tone === 'success' ? 'text-hdp-success' : 'text-hdp-green'}`}
-        aria-hidden
-      />
-      <span
-        className={`mt-1 font-mono text-sm font-extrabold leading-none ${tone === 'success' ? 'text-hdp-success' : 'text-foreground'}`}
-      >
-        {value}
-      </span>
-      <span className="font-malayalam mt-0.5 text-[9px] leading-tight text-muted-foreground">
-        {labelMal}
-      </span>
+    <div className="rounded-xl bg-white px-2.5 py-2 shadow-sm">
+      <div className="flex items-baseline justify-between gap-1">
+        <span className="font-malayalam text-[10px] font-semibold leading-tight text-muted-foreground">
+          {labelMal}
+        </span>
+        <span className="font-mono text-sm font-extrabold leading-none text-foreground">
+          {total}
+        </span>
+      </div>
+      <div className="mt-1.5 flex items-baseline justify-between gap-1 border-t border-border/70 pt-1.5">
+        <span className="font-malayalam text-[10px] font-medium leading-tight text-hdp-success">
+          പൂർത്തിയായവ
+        </span>
+        <span className="font-mono text-sm font-extrabold leading-none text-hdp-success">
+          {completed}
+        </span>
+      </div>
     </div>
   );
 }

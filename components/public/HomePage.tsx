@@ -65,6 +65,7 @@ interface ApiDepartment {
   projects: number;
   projectsCompleted: number;
   indicators: number;
+  indicatorsCompleted: number;
   costInLakhs: number;
   physicalPct: number;
   financialPct: number | null;
