@@ -328,7 +328,10 @@ export function DepartmentDrawer({
             <p className="font-malayalam text-[10px] font-semibold uppercase tracking-wide text-hdp-green">
               മീഡിയ ഗാലറി
             </p>
-            <h3 className="font-malayalam mt-0.5 truncate pr-8 text-base font-bold text-foreground">
+            <h3
+              className="font-malayalam mt-0.5 pr-8 text-base font-bold text-foreground"
+              title={galleryProject?.name ?? ''}
+            >
               {galleryProject?.name ?? ''}
             </h3>
           </div>
@@ -385,7 +388,12 @@ function ProjectRow({
           <ClipboardList className="h-4 w-4" aria-hidden />
         </span>
         <div className="min-w-0 flex-1">
-          <p className="font-malayalam truncate text-sm font-semibold text-foreground">{p.name}</p>
+          <p
+            className={`font-malayalam text-sm font-semibold text-foreground ${isOpen ? '' : 'line-clamp-2'}`}
+            title={p.name}
+          >
+            {p.name}
+          </p>
           {p.projectCode && (
             <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
               Project Code: <span className="font-mono">{p.projectCode}</span>
@@ -483,8 +491,11 @@ function ProjectRow({
                 const completedOn = ind.physicalPct >= 100 ? formatDate(ind.completedDate) : null;
                 return (
                   <li key={ind.indicatorId} className="rounded-xl bg-white p-2.5 shadow-sm">
-                    <div className="flex items-center justify-between gap-2">
-                      <p className="font-malayalam min-w-0 flex-1 truncate text-xs font-medium text-foreground">
+                    <div className="flex items-start justify-between gap-2">
+                      <p
+                        className="font-malayalam min-w-0 flex-1 text-xs font-medium text-foreground"
+                        title={ind.name}
+                      >
                         {ind.name}
                       </p>
                       <span className="flex shrink-0 items-center gap-1 font-mono text-xs font-semibold text-foreground">
