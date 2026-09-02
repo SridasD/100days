@@ -91,6 +91,7 @@ export async function GET(
         mp.project_name AS project_name,
         COALESCE(mp.project_cost, 0)::numeric AS project_cost,
         mp.is_completed,
+        mp.completion_date,
         COALESCE((
           SELECT COUNT(*)::int FROM hdp.indicators i
           WHERE i.project_id = mp.project_id
@@ -161,6 +162,7 @@ export async function GET(
         projectCode: r.project_code ?? null,
         name: r.project_name ?? "",
         costInLakhs: Number(r.project_cost) || 0,
+        completionDate: r.completion_date ?? null,
         indicatorsTotal: Number(r.indicators_total) || 0,
         indicatorsCompleted: Number(r.indicators_completed) || 0,
         imageCount: Number(r.image_count) || 0,

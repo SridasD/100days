@@ -174,7 +174,9 @@ export async function GET() {
             row.secretary_name_mal) ||
           row.secretary_name ||
           "",
+        nameEn: row.secretary_name || "",
         projects,
+        projectsCompleted,
         indicators,
         costInLakhs: Number(row.total_cost) || 0,
         physicalPct: Math.round(physicalPct),
