@@ -21,6 +21,7 @@ import {
   ClipboardList,
   FileText,
   Images,
+  Layers,
   Loader2,
   Search,
   Video,
@@ -407,11 +408,16 @@ function ProjectRow({
               <span className="font-malayalam">{tone.labelMal}</span>
             </span>
             <span className="font-mono">{p.physicalPct}%</span>
-            <span className="font-malayalam">
-              ആകെ ഘടകങ്ങൾ <span className="font-mono font-semibold">{p.indicatorsTotal}</span>
-            </span>
-            <span className="font-malayalam text-hdp-success">
-              പൂർത്തിയായവ <span className="font-mono font-semibold">{p.indicatorsCompleted}</span>
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-border bg-hdp-bg/60 px-2 py-0.5">
+              <Layers className="h-3 w-3 text-muted-foreground" aria-hidden />
+              <span className="font-malayalam font-semibold text-foreground">ഘടകങ്ങൾ</span>
+              <span className="font-malayalam">ആകെ</span>
+              <span className="font-mono font-semibold text-foreground">{p.indicatorsTotal}</span>
+              <span className="opacity-40">·</span>
+              <span className="font-malayalam text-hdp-success">പൂർത്തിയായവ</span>
+              <span className="font-mono font-semibold text-hdp-success">
+                {p.indicatorsCompleted}
+              </span>
             </span>
             {completedOn && (
               <span className="inline-flex items-center gap-1 text-hdp-success">
