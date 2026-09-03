@@ -101,30 +101,35 @@ export function DepartmentRow({
         {d.nameEn && d.nameEn !== d.nameMal && (
           <p className="mt-0.5 truncate text-xs text-muted-foreground">{d.nameEn}</p>
         )}
-        <div className="mt-2 flex flex-wrap gap-1.5">
-          {!!d.imageCount && (
-            <MediaChip icon={Images} count={d.imageCount} labelMal="ചിത്രങ്ങൾ" />
-          )}
-          {d.videoCount ? (
-            <MediaChip icon={Video} count={d.videoCount} labelMal="വീഡിയോ" />
-          ) : (
-            <span className="inline-flex items-center gap-1 rounded-full border border-dashed border-border px-2 py-0.5 text-[10px] text-muted-foreground">
-              <Video className="h-3 w-3" aria-hidden />
-              <span className="font-malayalam">
-                വീഡിയോ അപ്‌ലോഡ് ചെയ്തിട്ടില്ല / സ്ഥിരീകരിച്ചിട്ടില്ല
-              </span>
-            </span>
-          )}
-          {!!d.documentCount && (
-            <MediaChip icon={FileText} count={d.documentCount} labelMal="രേഖകൾ" />
-          )}
-        </div>
+        {(!!d.imageCount || !!d.videoCount || !!d.documentCount) && (
+          <div className="mt-2 flex flex-wrap gap-1.5">
+            {!!d.imageCount && (
+              <MediaChip icon={Images} count={d.imageCount} labelMal="ചിത്രങ്ങൾ" />
+            )}
+            {!!d.videoCount && (
+              <MediaChip icon={Video} count={d.videoCount} labelMal="വീഡിയോ" />
+            )}
+            {!!d.documentCount && (
+              <MediaChip icon={FileText} count={d.documentCount} labelMal="രേഖകൾ" />
+            )}
+          </div>
+        )}
       </div>
 
       {/* STAT STRIP — total vs completed, for projects and indicators */}
       <div className="grid grid-cols-2 gap-2 rounded-2xl border border-border bg-hdp-bg/40 p-2 sm:min-w-[220px]">
-        <MetricGroup labelMal="പദ്ധതികൾ" total={d.projects} completed={d.projectsCompleted} />
-        <MetricGroup labelMal="ഘടകങ്ങൾ" total={d.indicators} completed={d.indicatorsCompleted} />
+        <MetricGroup
+          tone="projects"
+          labelMal="പദ്ധതികൾ"
+          total={d.projects}
+          completed={d.projectsCompleted}
+        />
+        <MetricGroup
+          tone="indicators"
+          labelMal="ഘടകങ്ങൾ"
+          total={d.indicators}
+          completed={d.indicatorsCompleted}
+        />
       </div>
 
       {/* CHEVRON */}
@@ -135,30 +140,50 @@ export function DepartmentRow({
   );
 }
 
+const METRIC_TONES = {
+  projects: {
+    card: 'bg-hdp-green/[0.07] ring-hdp-green/20',
+    label: 'text-hdp-green',
+    divider: 'border-hdp-green/20',
+  },
+  indicators: {
+    card: 'bg-[#7C3AED]/[0.07] ring-[#7C3AED]/20',
+    label: 'text-[#7C3AED]',
+    divider: 'border-[#7C3AED]/20',
+  },
+} as const;
+
 /**
  * One metric group in the stat strip: a bold total under the group label,
- * and the completed count beneath it in success green.
+ * and the completed count beneath it in success green. Each group is
+ * tinted by `tone` (projects = green, indicators = violet) so the two
+ * "പൂർത്തിയായവ" rows are unmistakably separate.
  */
 function MetricGroup({
+  tone,
   labelMal,
   total,
   completed,
 }: {
+  tone: keyof typeof METRIC_TONES;
   labelMal: string;
   total: number;
   completed: number;
 }) {
+  const t = METRIC_TONES[tone];
   return (
-    <div className="rounded-xl bg-white px-2.5 py-2 shadow-sm">
+    <div className={`rounded-xl px-2.5 py-2 ring-1 ${t.card}`}>
       <div className="flex items-baseline justify-between gap-1">
-        <span className="font-malayalam text-[10px] font-semibold leading-tight text-muted-foreground">
+        <span className={`font-malayalam text-[10px] font-bold leading-tight ${t.label}`}>
           {labelMal}
         </span>
         <span className="font-mono text-sm font-extrabold leading-none text-foreground">
           {total}
         </span>
       </div>
-      <div className="mt-1.5 flex items-baseline justify-between gap-1 border-t border-border/70 pt-1.5">
+      <div
+        className={`mt-1.5 flex items-baseline justify-between gap-1 border-t pt-1.5 ${t.divider}`}
+      >
         <span className="font-malayalam text-[10px] font-medium leading-tight text-hdp-success">
           പൂർത്തിയായവ
         </span>
