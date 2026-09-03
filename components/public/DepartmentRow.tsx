@@ -145,19 +145,21 @@ const METRIC_TONES = {
     card: 'bg-hdp-green/[0.07] ring-hdp-green/20',
     label: 'text-hdp-green',
     divider: 'border-hdp-green/20',
+    completed: 'text-hdp-success',
   },
   indicators: {
     card: 'bg-[#7C3AED]/[0.07] ring-[#7C3AED]/20',
     label: 'text-[#7C3AED]',
     divider: 'border-[#7C3AED]/20',
+    completed: 'text-[#7C3AED]',
   },
 } as const;
 
 /**
  * One metric group in the stat strip: a bold total under the group label,
- * and the completed count beneath it in success green. Each group is
- * tinted by `tone` (projects = green, indicators = violet) so the two
- * "പൂർത്തിയായവ" rows are unmistakably separate.
+ * and the completed count beneath it. Each group is tinted by `tone`
+ * (projects = green, indicators = violet), completed row included, so the
+ * two "പൂർത്തിയായവ" rows are unmistakably separate.
  */
 function MetricGroup({
   tone,
@@ -184,10 +186,10 @@ function MetricGroup({
       <div
         className={`mt-1.5 flex items-baseline justify-between gap-1 border-t pt-1.5 ${t.divider}`}
       >
-        <span className="font-malayalam text-[10px] font-medium leading-tight text-hdp-success">
+        <span className={`font-malayalam text-[10px] font-medium leading-tight ${t.completed}`}>
           പൂർത്തിയായവ
         </span>
-        <span className="font-mono text-sm font-extrabold leading-none text-hdp-success">
+        <span className={`font-mono text-sm font-extrabold leading-none ${t.completed}`}>
           {completed}
         </span>
       </div>
