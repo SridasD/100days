@@ -38,6 +38,7 @@ interface ApiDepartment {
   nameMal: string;
   projects: number;
   indicators: number;
+  indicatorsCompleted: number;
   costInLakhs: number;
   physicalPct: number;
   financialPct: number;

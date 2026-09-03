@@ -6,8 +6,10 @@
  * the top, a 4-cell stats strip across the middle, and a wide horizontal
  * progress bar with a CTA button on the right.
  *
- * The card is always-on (no accordion). All numbers come from
- * /api/public/departments via the parent HomePage.
+ * The card is always-on (no accordion). Rendered by the public sector
+ * page from /api/public/sector/[sectorId]/departments; every number is a
+ * server-computed field (indicatorsCompleted = verified-complete count,
+ * not an estimate).
  */
 import Link from 'next/link';
 import {
@@ -60,6 +62,8 @@ export interface DepartmentProgressCardProps {
   nameMal: string;
   projects: number;
   indicators: number;
+  /** Verified-complete indicators (verified_date set AND verified_percentage >= 100) */
+  indicatorsCompleted: number;
   costInLakhs: number;
   /** 0-100, verifier-confirmed physical progress */
   physicalPct: number;
@@ -79,6 +83,7 @@ export function DepartmentProgressCard({
   nameMal,
   projects,
   indicators,
+  indicatorsCompleted,
   costInLakhs,
   physicalPct,
   financialPct,
@@ -88,7 +93,6 @@ export function DepartmentProgressCard({
   documentCount = 0,
 }: DepartmentProgressCardProps) {
   const tone = STATUS_META[status];
-  const indicatorsCompleted = Math.round((physicalPct / 100) * indicators);
 
   return (
     <article className="overflow-hidden rounded-3xl border border-border bg-white shadow-sm transition-shadow duration-200 hover:shadow-md">
