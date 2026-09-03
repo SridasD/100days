@@ -57,7 +57,7 @@ const STATUS_FILTERS: {
 const SORT_OPTIONS: { key: SortKey; labelMal: string }[] = [
   { key: 'progress', labelMal: 'പുരോഗതി' },
   { key: 'projects', labelMal: 'പദ്ധതികളുടെ എണ്ണം' },
-  { key: 'name', labelMal: 'പദ്ധതിയുടെ പേര്' },
+  { key: 'name', labelMal: 'ഭരണവകുപ്പിന്റെ പേര്' },
 ];
 
 // How many department rows to show before the "കൂടുതൽ കാണിക്കുക" button —
@@ -178,7 +178,7 @@ export function DepartmentSection({
                 <SelectTrigger
                   id="dept-sort"
                   aria-label="ക്രമം"
-                  className="font-malayalam h-10 w-full rounded-full border-border bg-white sm:w-[190px]"
+                  className="font-malayalam h-10 w-full rounded-full border-border bg-white sm:w-[210px]"
                 >
                   <SelectValue>{activeSortLabel}</SelectValue>
                 </SelectTrigger>
